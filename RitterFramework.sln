@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{86682DE0-E7AA-434C-95FC-66B35604FEEF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RitterFramework.Core", "src\RitterFramework.Core\RitterFramework.Core.csproj", "{2E056632-A263-4130-ABFE-A4DE6A917914}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{86682DE0-E7AA-434C-95FC-66B35604FEEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86682DE0-E7AA-434C-95FC-66B35604FEEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86682DE0-E7AA-434C-95FC-66B35604FEEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86682DE0-E7AA-434C-95FC-66B35604FEEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E056632-A263-4130-ABFE-A4DE6A917914}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E056632-A263-4130-ABFE-A4DE6A917914}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E056632-A263-4130-ABFE-A4DE6A917914}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E056632-A263-4130-ABFE-A4DE6A917914}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
