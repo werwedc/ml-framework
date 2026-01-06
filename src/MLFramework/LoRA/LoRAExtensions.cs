@@ -16,5 +16,15 @@ namespace MLFramework.LoRA
         {
             return new LoRALinear(linear, rank, alpha, initialization, dropout, useBias);
         }
+
+        /// <summary>
+        /// Wraps a Conv2d layer with LoRA adapter
+        /// </summary>
+        public static LoRAConv2d AsLoRA(this Conv2d conv, int rank, float alpha,
+                                         LoRAInitializationStrategy initialization = LoRAInitializationStrategy.Standard,
+                                         float dropout = 0.0f, bool useBias = false)
+        {
+            return new LoRAConv2d(conv, rank, alpha, initialization, dropout, useBias);
+        }
     }
 }

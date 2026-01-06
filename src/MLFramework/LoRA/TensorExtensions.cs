@@ -81,7 +81,35 @@ namespace MLFramework.LoRA
         public static Tensor Reshape(this Tensor tensor, int[] newShape)
         {
             int totalElements = tensor.Size;
-            int newTotalElements = newShape.Aggregate(1, (x, y) => x * y);
+            int inferredIndex = -1;
+            int newTotalElements = 1;
+
+            for (int i = 0; i < newShape.Length; i++)
+            {
+                if (newShape[i] == -1)
+                {
+                    if (inferredIndex != -1)
+                        throw new ArgumentException("Only one dimension can be inferred (-1)");
+                    inferredIndex = i;
+                }
+                else
+                {
+                    newTotalElements *= newShape[i];
+                }
+            }
+
+            // Handle -1 dimension by inferring its size
+            if (inferredIndex != -1)
+            {
+                if (newTotalElements == 0 || totalElements % newTotalElements != 0)
+                    throw new ArgumentException($"Cannot infer dimension {inferredIndex}: {totalElements} is not divisible by {newTotalElements}");
+
+                var inferredShape = new int[newShape.Length];
+                Array.Copy(newShape, inferredShape, newShape.Length);
+                inferredShape[inferredIndex] = totalElements / newTotalElements;
+                newShape = inferredShape;
+                newTotalElements = totalElements;
+            }
 
             if (totalElements != newTotalElements)
                 throw new ArgumentException("New shape must have same number of elements");
