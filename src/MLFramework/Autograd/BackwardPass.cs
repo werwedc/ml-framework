@@ -102,7 +102,7 @@ public class BackwardPass
             ComputeGradients(currentNode, gradOutput);
 
             // Propagate gradients to children
-            PropagateToChildren(currentNode, gradOutput);
+            PropagateToChildren(currentNode, new[] { gradOutput });
         }
 
         // Clear the graph if not retaining
@@ -183,12 +183,14 @@ public class BackwardPass
         {
             // Handle broadcasting: reduce gradient to match tensor shape
             var reducedGrad = BroadcastReduce(grad, tensor.Shape);
-            tensor.Gradient._data = tensor.Gradient._data.Zip(reducedGrad._data, (a, b) => a + b).ToArray();
+            var accumulatedData = tensor.Gradient.Data.Zip(reducedGrad.Data, (a, b) => a + b).ToArray();
+            tensor.Gradient = new Tensor(accumulatedData, tensor.Gradient.Shape);
         }
         else
         {
             // Direct accumulation
-            tensor.Gradient._data = tensor.Gradient._data.Zip(grad._data, (a, b) => a + b).ToArray();
+            var accumulatedData = tensor.Gradient.Data.Zip(grad.Data, (a, b) => a + b).ToArray();
+            tensor.Gradient = new Tensor(accumulatedData, tensor.Gradient.Shape);
         }
     }
 

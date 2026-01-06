@@ -15,6 +15,9 @@ public class Tensor
     public int Size => _data.Length;
     public int Dimensions => _shape.Length;
 
+    // Internal access to data for gradient operations
+    public float[] Data => _data;
+
     public Tensor(float[] data, int[] shape, bool requiresGrad = false)
     {
         _data = data;
@@ -120,17 +123,31 @@ public class Tensor
         {
             if (Size != 1)
                 throw new ArgumentException("Gradient must be provided for non-scalar tensors");
-            
+
             gradOutput = Ones(Shape);
         }
 
         if(Gradient == null) Gradient = Zeros(Shape);
-        
+
         // TODO: Increment global pass ID
         for (int i = 0; i < Size; i++)
             Gradient._data[i] += gradOutput._data[i];
-        
+
         BackwardFn?.Invoke(gradOutput);
+    }
+
+    /// <summary>
+    /// Creates a deep copy of this tensor.
+    /// </summary>
+    public Tensor Clone()
+    {
+        var newData = new float[_data.Length];
+        Array.Copy(_data, newData, _data.Length);
+
+        var newShape = new int[_shape.Length];
+        Array.Copy(_shape, newShape, _shape.Length);
+
+        return new Tensor(newData, newShape, RequiresGrad);
     }
     
     private int[] ComputeStrides(int[] shape)

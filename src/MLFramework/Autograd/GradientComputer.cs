@@ -112,16 +112,16 @@ public static class GradientComputer
         {
             // Perturb element i by +epsilon
             var xPlus = x.Clone();
-            xPlus._data[i] += (float)epsilon;
+            xPlus.Data[i] += (float)epsilon;
             var fPlus = f(xPlus);
 
             // Perturb element i by -epsilon
             var xMinus = x.Clone();
-            xMinus._data[i] -= (float)epsilon;
+            xMinus.Data[i] -= (float)epsilon;
             var fMinus = f(xMinus);
 
             // Central difference formula: (f(x+e) - f(x-e)) / (2*e)
-            grad._data[i] = (float)((fPlus._data[0] - fMinus._data[0]) / (2 * epsilon));
+            grad.Data[i] = (float)((fPlus.Data[0] - fMinus.Data[0]) / (2 * epsilon));
         }
 
         return grad;
@@ -165,16 +165,16 @@ public static class GradientComputer
             {
                 // Perturb element i by +epsilon
                 var inputsPlus = inputs.Select(t => t.Clone()).ToArray();
-                inputsPlus[inputIdx]._data[i] += (float)epsilon;
+                inputsPlus[inputIdx].Data[i] += (float)epsilon;
                 var fPlus = f(inputsPlus);
 
                 // Perturb element i by -epsilon
                 var inputsMinus = inputs.Select(t => t.Clone()).ToArray();
-                inputsMinus[inputIdx]._data[i] -= (float)epsilon;
+                inputsMinus[inputIdx].Data[i] -= (float)epsilon;
                 var fMinus = f(inputsMinus);
 
                 // Central difference formula
-                grad._data[i] = (float)((fPlus._data[0] - fMinus._data[0]) / (2 * epsilon));
+                grad.Data[i] = (float)((fPlus.Data[0] - fMinus.Data[0]) / (2 * epsilon));
             }
         }
 
@@ -203,8 +203,8 @@ public static class GradientComputer
 
         for (int i = 0; i < analytical.Size; i++)
         {
-            var a = analytical._data[i];
-            var n = numerical._data[i];
+            var a = analytical.Data[i];
+            var n = numerical.Data[i];
 
             // Compute relative error
             double error;
@@ -246,7 +246,7 @@ public static class GradientComputer
 
         for (int i = 0; i < analytical.Size; i++)
         {
-            var diff = analytical._data[i] - numerical._data[i];
+            var diff = analytical.Data[i] - numerical.Data[i];
             sumSquaredError += diff * diff;
         }
 
@@ -293,7 +293,7 @@ public static class GradientComputer
             {
                 var fullOutput = f(input);
                 // Extract the i-th element as a scalar
-                return new Tensor(new float[] { fullOutput._data[outputIndex] }, new int[] { 1 });
+                return new Tensor(new float[] { fullOutput.Data[outputIndex] }, new int[] { 1 });
             }
 
             var grad = NumericalGradient(ScalarOutputFunction, x, epsilon);
@@ -301,7 +301,7 @@ public static class GradientComputer
             // Set the i-th row of the Jacobian
             for (int j = 0; j < x.Size; j++)
             {
-                jacobian._data[i * x.Size + j] = grad._data[j];
+                jacobian.Data[i * x.Size + j] = grad.Data[j];
             }
         }
 
