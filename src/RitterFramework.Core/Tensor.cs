@@ -1,4 +1,4 @@
-namespace RitterFramework.Core;
+namespace RitterFramework.Core.Tensor;
 
 public class Tensor
 {
@@ -78,12 +78,16 @@ public class Tensor
             {
                 if (tensorA.RequiresGrad)
                 {
-                    tensorA._data = tensorA._data.Zip(gradOutput._data, (a, g) => a + g).ToArray();
+                    tensorA.Gradient!._data = tensorA._data.Zip(gradOutput._data, (a, g) => a + g).ToArray();
+                    
+                    tensorA.Backward(gradOutput);
                 }
 
                 if (tensorB.RequiresGrad)
                 {
-                    tensorB._data = tensorB._data.Zip(gradOutput._data, (b, g) => b + g).ToArray();
+                    tensorB.Gradient!._data = tensorB._data.Zip(gradOutput._data, (b, g) => b + g).ToArray();
+                    
+                    tensorB.Backward(gradOutput);
                 }
             };
         }
@@ -101,7 +105,9 @@ public class Tensor
             newTensor.Parents = new List<Tensor>{tensor};
             newTensor.BackwardFn = gradOutput =>
             {
-                tensor._data = tensor._data.Select(a => a * scalar).ToArray();
+                tensor.Gradient!._data = tensor._data.Select(a => a * scalar).ToArray();
+                
+                tensor.Backward(gradOutput);
             };
         }
             
@@ -121,7 +127,6 @@ public class Tensor
         if(Gradient == null) Gradient = Zeros(Shape);
         
         // TODO: Increment global pass ID
-        // TODO: Implement further Backward trigger
         for (int i = 0; i < Size; i++)
             Gradient._data[i] += gradOutput._data[i];
         
