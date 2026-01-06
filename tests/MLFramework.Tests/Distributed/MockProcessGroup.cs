@@ -175,6 +175,33 @@ namespace MLFramework.Tests.Distributed
             return Task.CompletedTask;
         }
 
+        public void Send(Tensor tensor, int dst)
+        {
+            // Simplified mock implementation
+            _mockState[dst].Add(tensor.Clone());
+        }
+
+        public void Recv(Tensor tensor, int src)
+        {
+            // Simplified mock implementation
+            if (_mockState[src].Count > 0)
+            {
+                tensor.Copy_(_mockState[src][0]);
+            }
+        }
+
+        public Task SendAsync(Tensor tensor, int dst)
+        {
+            Send(tensor, dst);
+            return Task.CompletedTask;
+        }
+
+        public Task RecvAsync(Tensor tensor, int src)
+        {
+            Recv(tensor, src);
+            return Task.CompletedTask;
+        }
+
         public Task ScatterAsync(Tensor output, Tensor input, int root)
         {
             Scatter(output, input, root);

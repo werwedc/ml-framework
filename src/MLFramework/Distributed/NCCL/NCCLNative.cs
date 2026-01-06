@@ -69,6 +69,30 @@ namespace MLFramework.Distributed.NCCL
             IntPtr stream);
 
         /// <summary>
+        /// Sends data to a destination rank.
+        /// </summary>
+        [DllImport(NCCLLib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ncclSend(
+            IntPtr sendbuff,
+            ulong count,
+            ncclDataType_t datatype,
+            int dst,
+            IntPtr comm,
+            IntPtr stream);
+
+        /// <summary>
+        /// Receives data from a source rank.
+        /// </summary>
+        [DllImport(NCCLLib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ncclRecv(
+            IntPtr recvbuff,
+            ulong count,
+            ncclDataType_t datatype,
+            int src,
+            IntPtr comm,
+            IntPtr stream);
+
+        /// <summary>
         /// Gets the error string for an NCCL error code.
         /// </summary>
         [DllImport(NCCLLib, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]

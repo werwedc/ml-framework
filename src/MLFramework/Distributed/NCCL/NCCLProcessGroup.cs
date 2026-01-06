@@ -245,6 +245,98 @@ namespace MLFramework.Distributed.NCCL
         }
 
         /// <summary>
+        /// Sends a tensor to the specified destination rank.
+        /// </summary>
+        public void Send(Tensor tensor, int dst)
+        {
+            if (tensor == null)
+                throw new ArgumentNullException(nameof(tensor));
+
+            if (!_backend.Initialized)
+                throw new InvalidOperationException("NCCL backend is not initialized");
+
+            if (dst < 0 || dst >= WorldSize)
+                throw new ArgumentException($"Destination rank {dst} is out of bounds (0-{WorldSize - 1})");
+
+            var handle = GCHandle.Alloc(tensor.Data, GCHandleType.Pinned);
+            try
+            {
+                var tensorPtr = handle.AddrOfPinnedObject();
+                var numElements = (ulong)tensor.Size;
+                var dataType = GetNCCLDataType(tensor.Dtype);
+
+                var error = NCCLNative.ncclSend(
+                    tensorPtr,
+                    numElements,
+                    dataType,
+                    dst,
+                    _backend.Comm,
+                    IntPtr.Zero); // Default stream
+
+                NCCLNative.CheckError(error, Rank, "ncclSend");
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+
+        /// <summary>
+        /// Receives a tensor from the specified source rank.
+        /// </summary>
+        public void Recv(Tensor tensor, int src)
+        {
+            if (tensor == null)
+                throw new ArgumentNullException(nameof(tensor));
+
+            if (!_backend.Initialized)
+                throw new InvalidOperationException("NCCL backend is not initialized");
+
+            if (src < 0 || src >= WorldSize)
+                throw new ArgumentException($"Source rank {src} is out of bounds (0-{WorldSize - 1})");
+
+            var handle = GCHandle.Alloc(tensor.Data, GCHandleType.Pinned);
+            try
+            {
+                var tensorPtr = handle.AddrOfPinnedObject();
+                var numElements = (ulong)tensor.Size;
+                var dataType = GetNCCLDataType(tensor.Dtype);
+
+                var error = NCCLNative.ncclRecv(
+                    tensorPtr,
+                    numElements,
+                    dataType,
+                    src,
+                    _backend.Comm,
+                    IntPtr.Zero); // Default stream
+
+                NCCLNative.CheckError(error, Rank, "ncclRecv");
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously sends a tensor to the specified destination rank.
+        /// </summary>
+        public Task SendAsync(Tensor tensor, int dst)
+        {
+            Send(tensor, dst);
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Asynchronously receives a tensor from the specified source rank.
+        /// </summary>
+        public Task RecvAsync(Tensor tensor, int src)
+        {
+            Recv(tensor, src);
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
         /// Destroys the process group and releases resources.
         /// </summary>
         public void Destroy()

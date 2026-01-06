@@ -55,6 +55,26 @@ namespace MLFramework.Distributed
         Task BarrierAsync();
 
         /// <summary>
+        /// Sends a tensor to the specified destination rank.
+        /// </summary>
+        void Send(Tensor tensor, int dst);
+
+        /// <summary>
+        /// Receives a tensor from the specified source rank.
+        /// </summary>
+        void Recv(Tensor tensor, int src);
+
+        /// <summary>
+        /// Asynchronously sends a tensor to the specified destination rank.
+        /// </summary>
+        Task SendAsync(Tensor tensor, int dst);
+
+        /// <summary>
+        /// Asynchronously receives a tensor from the specified source rank.
+        /// </summary>
+        Task RecvAsync(Tensor tensor, int src);
+
+        /// <summary>
         /// Destroys the process group and releases resources.
         /// </summary>
         void Destroy();

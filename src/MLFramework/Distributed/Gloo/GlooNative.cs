@@ -56,6 +56,28 @@ namespace MLFramework.Distributed.Gloo
         public static extern void gloo_barrier(IntPtr context);
 
         /// <summary>
+        /// Sends data to a destination rank.
+        /// </summary>
+        [DllImport(GlooLib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void gloo_send(
+            IntPtr context,
+            IntPtr buffer,
+            long count,
+            glooDataType_t datatype,
+            int dst);
+
+        /// <summary>
+        /// Receives data from a source rank.
+        /// </summary>
+        [DllImport(GlooLib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void gloo_recv(
+            IntPtr context,
+            IntPtr buffer,
+            long count,
+            glooDataType_t datatype,
+            int src);
+
+        /// <summary>
         /// Checks if a Gloo error occurred and throws an exception if needed.
         /// </summary>
         public static void CheckError(int rank, string backendName)

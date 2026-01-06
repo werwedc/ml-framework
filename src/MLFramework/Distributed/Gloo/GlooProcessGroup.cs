@@ -143,6 +143,84 @@ namespace MLFramework.Distributed.Gloo
         }
 
         /// <summary>
+        /// Sends a tensor to the specified destination rank.
+        /// </summary>
+        public void Send(Tensor tensor, int dst)
+        {
+            if (tensor == null)
+            {
+                throw new ArgumentNullException(nameof(tensor));
+            }
+
+            if (dst < 0 || dst >= WorldSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(dst), $"Destination rank must be between 0 and {WorldSize - 1}");
+            }
+
+            var device = tensor.GetDevice();
+
+            if (device.Type == DeviceType.CPU)
+            {
+                SendCPU(tensor, dst);
+            }
+            else if (device.Type == DeviceType.CUDA)
+            {
+                SendCUDA(tensor, dst);
+            }
+            else
+            {
+                throw new ArgumentException($"Unsupported device type: {device.Type}", nameof(tensor));
+            }
+        }
+
+        /// <summary>
+        /// Receives a tensor from the specified source rank.
+        /// </summary>
+        public void Recv(Tensor tensor, int src)
+        {
+            if (tensor == null)
+            {
+                throw new ArgumentNullException(nameof(tensor));
+            }
+
+            if (src < 0 || src >= WorldSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(src), $"Source rank must be between 0 and {WorldSize - 1}");
+            }
+
+            var device = tensor.GetDevice();
+
+            if (device.Type == DeviceType.CPU)
+            {
+                RecvCPU(tensor, src);
+            }
+            else if (device.Type == DeviceType.CUDA)
+            {
+                RecvCUDA(tensor, src);
+            }
+            else
+            {
+                throw new ArgumentException($"Unsupported device type: {device.Type}", nameof(tensor));
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously sends a tensor to the specified destination rank.
+        /// </summary>
+        public Task SendAsync(Tensor tensor, int dst)
+        {
+            return Task.Run(() => Send(tensor, dst));
+        }
+
+        /// <summary>
+        /// Asynchronously receives a tensor from the specified source rank.
+        /// </summary>
+        public Task RecvAsync(Tensor tensor, int src)
+        {
+            return Task.Run(() => Recv(tensor, src));
+        }
+
+        /// <summary>
         /// Destroys the process group and releases resources.
         /// </summary>
         public void Destroy()
@@ -172,6 +250,26 @@ namespace MLFramework.Distributed.Gloo
         private void BroadcastCUDA(Tensor tensor, int root)
         {
             _allReduce.BroadcastCUDA(tensor, root);
+        }
+
+        private void SendCPU(Tensor tensor, int dst)
+        {
+            _allReduce.SendCPU(tensor, dst);
+        }
+
+        private void SendCUDA(Tensor tensor, int dst)
+        {
+            _allReduce.SendCUDA(tensor, dst);
+        }
+
+        private void RecvCPU(Tensor tensor, int src)
+        {
+            _allReduce.RecvCPU(tensor, src);
+        }
+
+        private void RecvCUDA(Tensor tensor, int src)
+        {
+            _allReduce.RecvCUDA(tensor, src);
         }
 
         public void Dispose()

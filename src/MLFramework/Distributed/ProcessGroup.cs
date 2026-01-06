@@ -206,6 +206,52 @@ namespace MLFramework.Distributed
         }
 
         /// <summary>
+        /// Sends a tensor to the specified destination rank.
+        /// </summary>
+        /// <param name="tensor">The tensor to send.</param>
+        /// <param name="dst">The destination rank.</param>
+        public void Send(Tensor tensor, int dst)
+        {
+            EnsureNotDisposed();
+            _processGroupImpl.Send(tensor, dst);
+        }
+
+        /// <summary>
+        /// Receives a tensor from the specified source rank.
+        /// </summary>
+        /// <param name="tensor">The tensor to receive into.</param>
+        /// <param name="src">The source rank.</param>
+        public void Recv(Tensor tensor, int src)
+        {
+            EnsureNotDisposed();
+            _processGroupImpl.Recv(tensor, src);
+        }
+
+        /// <summary>
+        /// Asynchronously sends a tensor to the specified destination rank.
+        /// </summary>
+        /// <param name="tensor">The tensor to send.</param>
+        /// <param name="dst">The destination rank.</param>
+        /// <returns>A task that completes when the send is done.</returns>
+        public Task SendAsync(Tensor tensor, int dst)
+        {
+            EnsureNotDisposed();
+            return _processGroupImpl.SendAsync(tensor, dst);
+        }
+
+        /// <summary>
+        /// Asynchronously receives a tensor from the specified source rank.
+        /// </summary>
+        /// <param name="tensor">The tensor to receive into.</param>
+        /// <param name="src">The source rank.</param>
+        /// <returns>A task that completes when the receive is done.</returns>
+        public Task RecvAsync(Tensor tensor, int src)
+        {
+            EnsureNotDisposed();
+            return _processGroupImpl.RecvAsync(tensor, src);
+        }
+
+        /// <summary>
         /// Destroys the process group and releases resources.
         /// This is an explicit interface implementation to avoid conflict with the static Destroy() method.
         /// </summary>
