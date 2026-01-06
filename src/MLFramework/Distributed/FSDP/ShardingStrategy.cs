@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MLFramework.Distributed.FSDP
 {
@@ -32,31 +34,34 @@ namespace MLFramework.Distributed.FSDP
         public int TotalShards { get; set; }
 
         /// <summary>Parameter assignments to shards</summary>
-        public Dictionary<string, ShardingAssignment> Assignments { get; set; } = new();
+        public Dictionary<string, ShardAssignment> Assignments { get; set; } = new();
 
         /// <summary>Parameters that should always be gathered</summary>
         public HashSet<string> AlwaysGathered { get; set; } = new();
+
+        public ShardingPlan()
+        {
+            Assignments = new Dictionary<string, ShardAssignment>();
+            AlwaysGathered = new HashSet<string>();
+        }
     }
 
     /// <summary>
     /// Assignment of a parameter to a shard.
     /// </summary>
-    public class ShardingAssignment
+    public class ShardAssignment
     {
-        /// <summary>Parameter name</summary>
-        public string ParameterName { get; set; } = string.Empty;
-
-        /// <summary>Shard index</summary>
-        public int ShardIndex { get; set; }
-
-        /// <summary>Owner rank</summary>
+        /// <summary>Which rank owns this shard</summary>
         public int OwnerRank { get; set; }
 
-        /// <summary>Offset in the parameter</summary>
-        public long Offset { get; set; }
+        /// <summary>Shard index across all ranks</summary>
+        public int ShardIndex { get; set; }
+
+        /// <summary>Start offset in the parameter tensor</summary>
+        public long StartOffset { get; set; }
 
         /// <summary>Size of this shard</summary>
-        public long Size { get; set; }
+        public long ShardSize { get; set; }
     }
 
     /// <summary>
@@ -71,6 +76,11 @@ namespace MLFramework.Distributed.FSDP
         /// <param name="worldSize">Number of devices</param>
         /// <returns>Sharding plan</returns>
         ShardingPlan CalculateShardingPlan(List<ParameterInfo> parameters, int worldSize);
+
+        /// <summary>
+        /// Get the name of this sharding strategy.
+        /// </summary>
+        string Name { get; }
     }
 
     /// <summary>
@@ -78,9 +88,13 @@ namespace MLFramework.Distributed.FSDP
     /// </summary>
     public class FullShardingStrategy : IShardingStrategy
     {
-        /// <inheritdoc/>
+        public string Name => "Full";
+
         public ShardingPlan CalculateShardingPlan(List<ParameterInfo> parameters, int worldSize)
         {
+            if (parameters == null || parameters.Count == 0)
+                throw new ArgumentException("Parameters list cannot be empty", nameof(parameters));
+
             var plan = new ShardingPlan { TotalShards = worldSize };
 
             foreach (var param in parameters)
@@ -91,16 +105,33 @@ namespace MLFramework.Distributed.FSDP
                     continue;
                 }
 
-                var assignment = new ShardingAssignment
-                {
-                    ParameterName = param.Name,
-                    ShardIndex = 0, // Simplified
-                    OwnerRank = 0,
-                    Offset = 0,
-                    Size = param.SizeBytes
-                };
+                // Calculate total size
+                long totalSize = 1;
+                foreach (var dim in param.Shape)
+                    totalSize *= dim;
 
-                plan.Assignments[param.Name] = assignment;
+                // Calculate shard size
+                long shardSize = (totalSize + worldSize - 1) / worldSize;
+
+                // Assign shards across all devices
+                for (int rank = 0; rank < worldSize; rank++)
+                {
+                    var startOffset = rank * shardSize;
+                    var actualShardSize = Math.Min(shardSize, totalSize - startOffset);
+
+                    if (actualShardSize > 0)
+                    {
+                        var assignment = new ShardAssignment
+                        {
+                            OwnerRank = rank,
+                            ShardIndex = rank,
+                            StartOffset = startOffset,
+                            ShardSize = actualShardSize
+                        };
+
+                        plan.Assignments[$"{param.Name}_rank{rank}"] = assignment;
+                    }
+                }
             }
 
             return plan;
@@ -112,27 +143,28 @@ namespace MLFramework.Distributed.FSDP
     /// </summary>
     public class LayerWiseShardingStrategy : IShardingStrategy
     {
-        /// <inheritdoc/>
+        public string Name => "LayerWise";
+
         public ShardingPlan CalculateShardingPlan(List<ParameterInfo> parameters, int worldSize)
         {
+            if (parameters == null || parameters.Count == 0)
+                throw new ArgumentException("Parameters list cannot be empty", nameof(parameters));
+
             var plan = new ShardingPlan { TotalShards = worldSize };
 
             // Group parameters by layer
-            var layers = new Dictionary<string, List<ParameterInfo>>();
-            foreach (var param in parameters)
-            {
-                if (!layers.ContainsKey(param.LayerName))
-                {
-                    layers[param.LayerName] = new List<ParameterInfo>();
-                }
-                layers[param.LayerName].Add(param);
-            }
+            var layers = parameters
+                .Where(p => !p.AlwaysGather)
+                .GroupBy(p => p.LayerName)
+                .OrderBy(g => g.Key)
+                .ToList();
 
-            // Assign each layer to a device
-            int currentRank = 0;
-            foreach (var layerPair in layers)
+            // Assign each layer to a different rank
+            foreach (var layerGroup in layers)
             {
-                foreach (var param in layerPair.Value)
+                var layerRank = GetLayerRank(layerGroup.Key, layers.Count, worldSize);
+
+                foreach (var param in layerGroup)
                 {
                     if (param.AlwaysGather)
                     {
@@ -140,22 +172,26 @@ namespace MLFramework.Distributed.FSDP
                         continue;
                     }
 
-                    var assignment = new ShardingAssignment
+                    var assignment = new ShardAssignment
                     {
-                        ParameterName = param.Name,
-                        ShardIndex = currentRank,
-                        OwnerRank = currentRank,
-                        Offset = 0,
-                        Size = param.SizeBytes
+                        OwnerRank = layerRank,
+                        ShardIndex = layerRank,
+                        StartOffset = 0,
+                        ShardSize = param.SizeBytes / 4 // Assume float32
                     };
 
                     plan.Assignments[param.Name] = assignment;
                 }
-
-                currentRank = (currentRank + 1) % worldSize;
             }
 
             return plan;
+        }
+
+        private int GetLayerRank(string layerName, int totalLayers, int worldSize)
+        {
+            // Simple hash-based assignment
+            var hash = layerName.GetHashCode();
+            return Math.Abs(hash) % worldSize;
         }
     }
 
@@ -164,24 +200,27 @@ namespace MLFramework.Distributed.FSDP
     /// </summary>
     public class HybridShardingStrategy : IShardingStrategy
     {
-        private readonly HashSet<string> _fullShardedLayers;
-        private readonly HashSet<string> _layerWiseShardedLayers;
+        private readonly List<string> _fullShardedLayers;
+        private readonly List<string> _layerWiseShardedLayers;
 
-        /// <summary>
-        /// Create a hybrid sharding strategy.
-        /// </summary>
-        /// <param name="fullShardedLayers">Layers to shard fully</param>
-        /// <param name="layerWiseShardedLayers">Layers to shard layer-wise</param>
+        public string Name => "Hybrid";
+
         public HybridShardingStrategy(List<string> fullShardedLayers, List<string> layerWiseShardedLayers)
         {
-            _fullShardedLayers = new HashSet<string>(fullShardedLayers ?? new List<string>());
-            _layerWiseShardedLayers = new HashSet<string>(layerWiseShardedLayers ?? new List<string>());
+            _fullShardedLayers = fullShardedLayers ?? new List<string>();
+            _layerWiseShardedLayers = layerWiseShardedLayers ?? new List<string>();
         }
 
-        /// <inheritdoc/>
         public ShardingPlan CalculateShardingPlan(List<ParameterInfo> parameters, int worldSize)
         {
+            if (parameters == null || parameters.Count == 0)
+                throw new ArgumentException("Parameters list cannot be empty", nameof(parameters));
+
             var plan = new ShardingPlan { TotalShards = worldSize };
+
+            // Separate parameters by strategy
+            var fullShardedParams = new List<ParameterInfo>();
+            var layerWiseParams = new List<ParameterInfo>();
 
             foreach (var param in parameters)
             {
@@ -191,28 +230,81 @@ namespace MLFramework.Distributed.FSDP
                     continue;
                 }
 
-                // Determine sharding mode based on layer
-                var shardingMode = _fullShardedLayers.Contains(param.LayerName)
-                    ? ShardingMode.Full
-                    : (_layerWiseShardedLayers.Contains(param.LayerName)
-                        ? ShardingMode.LayerWise
-                        : ShardingMode.Full); // Default to full
-
-                var assignment = new ShardingAssignment
+                if (_fullShardedLayers.Any(layer => param.LayerName.Contains(layer)))
                 {
-                    ParameterName = param.Name,
-                    ShardIndex = 0,
-                    OwnerRank = 0,
-                    Offset = 0,
-                    Size = param.SizeBytes
-                };
-
-                plan.Assignments[param.Name] = assignment;
+                    fullShardedParams.Add(param);
+                }
+                else if (_layerWiseShardedLayers.Any(layer => param.LayerName.Contains(layer)))
+                {
+                    layerWiseParams.Add(param);
+                }
+                else
+                {
+                    // Default to full sharding
+                    fullShardedParams.Add(param);
+                }
             }
+
+            // Apply full sharding strategy
+            var fullStrategy = new FullShardingStrategy();
+            var fullPlan = fullStrategy.CalculateShardingPlan(fullShardedParams, worldSize);
+
+            // Apply layer-wise sharding strategy
+            var layerWiseStrategy = new LayerWiseShardingStrategy();
+            var layerWisePlan = layerWiseStrategy.CalculateShardingPlan(layerWiseParams, worldSize);
+
+            // Merge plans
+            foreach (var kvp in fullPlan.Assignments)
+                plan.Assignments[kvp.Key] = kvp.Value;
+
+            foreach (var kvp in layerWisePlan.Assignments)
+                plan.Assignments[kvp.Key] = kvp.Value;
 
             return plan;
         }
+    }
 
-        private enum ShardingMode { Full, LayerWise }
+    /// <summary>
+    /// Factory for creating sharding strategies.
+    /// </summary>
+    public static class ShardingStrategyFactory
+    {
+        /// <summary>
+        /// Create a sharding strategy from the enum value.
+        /// </summary>
+        public static IShardingStrategy Create(ShardingStrategy strategy, object? config = null)
+        {
+            return strategy switch
+            {
+                ShardingStrategy.Full => new FullShardingStrategy(),
+                ShardingStrategy.LayerWise => new LayerWiseShardingStrategy(),
+                ShardingStrategy.Hybrid => CreateHybridStrategy(config),
+                _ => throw new ArgumentException($"Unknown sharding strategy: {strategy}", nameof(strategy))
+            };
+        }
+
+        private static IShardingStrategy CreateHybridStrategy(object? config)
+        {
+            // Parse config to get layer lists
+            if (config is HybridConfig hybridConfig)
+            {
+                return new HybridShardingStrategy(hybridConfig.FullShardedLayers, hybridConfig.LayerWiseShardedLayers);
+            }
+
+            // Default hybrid configuration
+            return new HybridShardingStrategy(
+                new List<string> { "transformer", "attention" },
+                new List<string> { "classifier", "head" }
+            );
+        }
+    }
+
+    /// <summary>
+    /// Configuration for hybrid sharding strategy.
+    /// </summary>
+    public class HybridConfig
+    {
+        public List<string> FullShardedLayers { get; set; } = new();
+        public List<string> LayerWiseShardedLayers { get; set; } = new();
     }
 }
