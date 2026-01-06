@@ -109,6 +109,8 @@ Memory Pinning: To maximize data transfer speeds over the PCIe bus, the framewor
 
 Composable Transforms: A library of preprocessing primitives (resize, crop, normalize, tokenize) that can be composed into pipelines. Crucially, modern frameworks enable these transforms to run on the GPU (e.g., in Keras layers or TorchVision), utilizing hardware acceleration for image decoding and augmentation.  
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/data_loading_pipelines.md]
+
 6. Model Optimization: Quantization and Mixed Precision
 
 To maximize training throughput and inference latency, modern frameworks must move beyond standard single-precision (FP32) arithmetic.

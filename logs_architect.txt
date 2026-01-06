@@ -1,66 +1,57 @@
-I'll help you process the pending idea in `0_ideas/`. Let me start by understanding the current state.
-[96m[1m| [0m[90m Read     [0mAGENTS.md
+I'll help you process the pending idea. Let me start by checking what's in the `0_ideas/` directory.
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/**/*"}
-[96m[1m| [0m[90m Read     [0m0_ideas\automatic_mixed_precision.md
-I'll break down the Automatic Mixed Precision (AMP) idea into multiple small, atomic technical specs. Let me create a comprehensive breakdown.
-[93m[1m| [0m[90m Todo     [0m13 todos
-Now I'll create the technical specs in `1_specs/`. Let me start with the first spec.
-[93m[1m| [0m[90m Todo     [0m13 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_datatypes.md
-[93m[1m| [0m[90m Todo     [0m12 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_datatype_extensions.md
-[93m[1m| [0m[90m Todo     [0m11 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_op_registry.md
-[93m[1m| [0m[90m Todo     [0m10 todos
+[96m[1m| [0m[90m Read     [0m0_ideas\data_loading_pipelines.md
+Now I'll analyze this idea and break it down into atomic technical specs. Let me create a comprehensive breakdown:
+[93m[1m| [0m[90m Todo     [0m2 todos
+[92m[1m| [0m[90m Write    [0m1_specs\spec_dataset_base_classes.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_basic_samplers.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_batch_sampler.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_basic_dataloader.md
 
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_static_scaler.md[93m[1m| [0m[90m Todo     [0m9 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_dynamic_scaler.md
-[93m[1m| [0m[90m Todo     [0m8 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_gradscaler_api.md
-[93m[1m| [0m[90m Todo     [0m7 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_autocast.md
-[93m[1m| [0m[90m Todo     [0m6 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_gradient_utils.md
-[93m[1m| [0m[90m Todo     [0m5 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_kernel_selector.md
-[93m[1m| [0m[90m Todo     [0m4 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_integration_autograd.md
-[93m[1m| [0m[90m Todo     [0m3 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_integration_optimizer.md
-[93m[1m| [0m[90m Todo     [0m3 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_unit_tests.md
-[93m[1m| [0m[90m Todo     [0m1 todos
-[91m[1m| [0m[90m Bash     [0mDelete original idea file from 0_ideas/
+[92m[1m| [0m[90m Write    [0m1_specs\spec_transforms_basic.md[92m[1m| [0m[90m Write    [0m1_specs\spec_transform_compose.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_collate_functions.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_worker_pool.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_shared_memory_queue.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_prefetch_queue.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_pinned_memory.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_worker_optimization.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_distributed_sampler.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_gpu_transforms.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_iterable_dataset_optimizations.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_dynamic_batching.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_performance_metrics.md
+[91m[1m| [0m[90m Bash     [0mDelete original idea file
 [93m[1m| [0m[90m Todo     [0m0 todos
-[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/**/*.md"}
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/**/*"}
+[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/*.md"}
+Perfect! I've successfully processed the pending idea and created 17 atomic technical specs in `1_specs/`. Here's what I've broken down:
+
 ## Summary
 
-I've successfully processed the pending Automatic Mixed Precision (AMP) idea from `0_ideas/` and broke it down into **12 atomic technical specs** in `1_specs/`. The original file has been deleted from `0_ideas/`.
+**Original Idea:** High-Performance Data Loading and Preprocessing Pipelines
 
-### Created Specifications:
+### Created Specs (17 total):
 
-1. **spec_amp_datatypes.md** - Half and BFloat16 numeric types
-2. **spec_amp_datatype_extensions.md** - DataType enum extensions for FP16/BF16
-3. **spec_amp_op_registry.md** - Operation precision registry with whitelist/blacklist
-4. **spec_amp_static_scaler.md** - Static loss scaler with constant scaling
-5. **spec_amp_dynamic_scaler.md** - Dynamic loss scaler with automatic adjustment
-6. **spec_amp_gradscaler_api.md** - High-level GradScaler API wrapper
-7. **spec_amp_autocast.md** - AutoCast context for automatic dtype conversion
-8. **spec_amp_gradient_utils.md** - Gradient unscaling and overflow checking utilities
-9. **spec_amp_kernel_selector.md** - GPU kernel selection based on tensor dtype
-10. **spec_amp_integration_autograd.md** - Autograd system integration
-11. **spec_amp_integration_optimizer.md** - Optimizer system integration
-12. **spec_amp_unit_tests.md** - Comprehensive unit test suite
+**Phase 1: Core Functionality (7 specs)**
+1. `spec_dataset_base_classes.md` - IDataset, MapStyleDataset, IterableDataset interfaces
+2. `spec_basic_samplers.md` - SequentialSampler, RandomSampler implementations
+3. `spec_batch_sampler.md` - IBatchSampler, BatchSampler for grouping indices
+4. `spec_basic_dataloader.md` - Single-threaded DataLoader with batching
+5. `spec_transforms_basic.md` - ITransform interface, ToTensor, Normalize, Lambda transforms
+6. `spec_transform_compose.md` - ComposeTransform for chaining transforms
+7. `spec_collate_functions.md` - Default, Stack, Dictionary collate functions
 
-### Key Features of the Spec Breakdown:
+**Phase 2: Performance (5 specs)**
+8. `spec_worker_pool.md` - IWorkerPool, WorkerPool for parallel processing
+9. `spec_shared_memory_queue.md` - ISharedMemoryQueue, concurrent queue implementation
+10. `spec_prefetch_queue.md` - IPrefetchQueue, proactive batch preparation
+11. `spec_pinned_memory.md` - IPinnedMemoryAllocator, CUDA-aware memory allocation
+12. `spec_worker_optimization.md` - Lazy initialization, warmup batches, worker reuse
 
-✅ **Sizing Compliance**: Each spec represents ~30-60 minutes of human coding work
-✅ **Atomic Implementation**: Each spec is implementable by the Coder in a single execution
-✅ **Complete Coverage**: All components from the original idea are covered
-✅ **Clear Interfaces**: All classes have well-defined public APIs
-✅ **Testing Requirements**: Each spec includes comprehensive testing requirements
-✅ **Success Criteria**: Clear metrics for validating implementation success
-✅ **Dependencies**: Explicit dependency tracking between specs
+**Phase 3: Advanced Features (5 specs)**
+13. `spec_distributed_sampler.md` - IDistributedSampler for multi-GPU training
+14. `spec_gpu_transforms.md` - IGpuTransform, GPU-accelerated image transforms
+15. `spec_iterable_dataset_optimizations.md` - OptimizedIterableDataset, StreamReplicator
+16. `spec_dynamic_batching.md` - DynamicBatchSampler for variable-length sequences
+17. `spec_performance_metrics.md` - DataLoadingMetrics, ProfilingScope, reporting
 
-The Coder can now implement these specs sequentially, with each providing a complete, testable unit of functionality that builds toward the full Automatic Mixed Precision system.
+Each spec represents **30-60 minutes** of human coding work and is completely implementable by the Coder in a single execution. The original idea file has been deleted from `0_ideas/`.
