@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using RitterFramework.Core.Tensor;
+using MLFramework.Amp;
 
 namespace MLFramework.Optimizers.MixedPrecision;
 
 /// <summary>
 /// Dynamically adjusts loss scale to prevent underflow during mixed-precision training
 /// </summary>
-public class DynamicLossScaler
+public class DynamicLossScaler : ILossScaler
 {
     private readonly MixedPrecisionOptions _options;
     private float _currentScale;
@@ -18,6 +19,11 @@ public class DynamicLossScaler
 
     /// <summary>
     /// Current loss scale factor
+    /// </summary>
+    public float Scale => _currentScale;
+
+    /// <summary>
+    /// Current loss scale factor (alias for compatibility)
     /// </summary>
     public float CurrentScale => _currentScale;
 
@@ -40,6 +46,11 @@ public class DynamicLossScaler
     /// Whether dynamic loss scaling is enabled
     /// </summary>
     public bool IsEnabled => _options.EnableDynamicLossScaling;
+
+    /// <summary>
+    /// Whether dynamic loss scaling is enabled (alias for compatibility)
+    /// </summary>
+    public bool Enabled => _options.EnableDynamicLossScaling;
 
     #endregion
 
@@ -102,6 +113,20 @@ public class DynamicLossScaler
     }
 
     /// <summary>
+    /// Unscales a single gradient tensor
+    /// </summary>
+    public Tensor UnscaleGradient(Tensor gradient)
+    {
+        if (gradient == null)
+            throw new ArgumentNullException(nameof(gradient));
+
+        if (!IsEnabled)
+            return gradient;
+
+        return DivideByScalar(gradient, _currentScale);
+    }
+
+    /// <summary>
     /// Checks if gradients contain overflow (NaN or Inf)
     /// </summary>
     public bool CheckOverflow(Dictionary<string, Tensor> gradients)
@@ -119,6 +144,20 @@ public class DynamicLossScaler
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Checks if a single gradient tensor contains overflow (NaN or Inf)
+    /// </summary>
+    public bool CheckOverflow(Tensor gradient)
+    {
+        if (gradient == null)
+            throw new ArgumentNullException(nameof(gradient));
+
+        if (!IsEnabled)
+            return false;
+
+        return HasOverflow(gradient);
     }
 
     /// <summary>
@@ -149,6 +188,25 @@ public class DynamicLossScaler
     {
         bool hasOverflow = CheckOverflow(gradients);
         return UpdateScale(hasOverflow);
+    }
+
+    /// <summary>
+    /// Gets the scale as a tensor for loss multiplication
+    /// </summary>
+    public Tensor GetScaleTensor()
+    {
+        return new Tensor(new float[] { _currentScale }, new int[] { 1 });
+    }
+
+    /// <summary>
+    /// Gets the inverse scale for gradient unscaling
+    /// </summary>
+    public Tensor GetInverseScaleTensor()
+    {
+        if (_currentScale == 0)
+            throw new DivideByZeroException("Cannot get inverse scale when scale is zero");
+
+        return new Tensor(new float[] { 1.0f / _currentScale }, new int[] { 1 });
     }
 
     /// <summary>

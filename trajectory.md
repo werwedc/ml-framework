@@ -31,11 +31,13 @@ Just-In-Time Compilation (jit): A comprehensive JIT compiler that traces the fun
 
 The engine of deep learning is Automatic Differentiation (AD). A modern framework requires an AD system that extends beyond simple backpropagation.
 
-    Higher-Order Derivatives: The system must support the computation of Jacobians and Hessians (derivatives of derivatives). This is critical for advanced optimization algorithms (like Newton's method), meta-learning (MAML), and scientific computing applications involving differential equations.   
+    Higher-Order Derivatives: The system must support the computation of Jacobians and Hessians (derivatives of derivatives). This is critical for advanced optimization algorithms (like Newton's method), meta-learning (MAML), and scientific computing applications involving differential equations.
 
-Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.  
+Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
 
-Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.  
+Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/autograd_engine.md]
 
 Feature	Imperative (Eager)	Declarative (Graph)	Ideal Hybrid Implementation
 Execution	Immediate, line-by-line	Deferred, optimized execution plan	Eager by default, JIT-compiled for hot paths
@@ -107,6 +109,8 @@ Memory Pinning: To maximize data transfer speeds over the PCIe bus, the framewor
 
 Composable Transforms: A library of preprocessing primitives (resize, crop, normalize, tokenize) that can be composed into pipelines. Crucially, modern frameworks enable these transforms to run on the GPU (e.g., in Keras layers or TorchVision), utilizing hardware acceleration for image decoding and augmentation.  
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/data_loading_pipelines.md]
+
 6. Model Optimization: Quantization and Mixed Precision
 
 To maximize training throughput and inference latency, modern frameworks must move beyond standard single-precision (FP32) arithmetic.
@@ -117,6 +121,8 @@ AMP is a critical feature that allows training to occur using lower precision fo
     Automatic Casting: The framework maintains a list of operations that are safe for low precision (e.g., convolutions, matrix multiplications) and those that require high precision (e.g., reductions, logarithms). It automatically casts tensors to the appropriate dtype during the forward pass.   
 
 Loss Scaling: When using FP16, gradients often become too small to represent (underflow). The framework must implement automatic loss scaling, where the loss is multiplied by a scaling factor to shift gradients into the representable range before backpropagation, and then unscaled before the optimizer updates the weights. This ensures numerical stability without manual user intervention.  
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/automatic_mixed_precision.md]
 
 6.2 Quantization Ecosystem
 
