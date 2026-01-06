@@ -1,0 +1,22 @@
+# Kanban Orchestrator Configuration
+
+agents:
+  designer:
+    enabled: true
+    check_interval_seconds: 30  # How often to check for idle state
+
+  architect:
+    enabled: true
+
+  coder:
+    enabled: true
+
+git:
+  branch: ai              # Branch for agent commits (NOT main)
+  push_on_exit: false     # Push to remote on orchestrator shutdown
+
+folders:
+  ideas: 0_ideas
+  specs: 1_specs
+  in_progress: 2_in_progress
+  done: 3_done

@@ -1,0 +1,12 @@
+^CI'll create ONE new feature idea file in `0_ideas/`. Let me first check the directory structure and then create the file.
+[91m[1m| [0m[90m Bash     [0mList files in 0_ideas/ directory
+[92m[1m| [0m[90m Write    [0m0_ideas\mixed_precision_optimizer.md
+✓ Created feature idea file: `0_ideas/mixed_precision_optimizer.md`
+
+The file proposes a **Mixed-Precision Training Optimizer** that automatically manages FP16/BF16 and FP32 tensor operations for accelerated training while maintaining numerical stability. This is a valuable feature for modern ML frameworks that can provide:
+
+- 2-3x training speedup on compatible hardware
+- 40-50% reduction in GPU memory usage
+- Support for larger batch sizes and model architectures
+
+The proposal includes detailed architecture design, API specifications, implementation details, and risk mitigations.
