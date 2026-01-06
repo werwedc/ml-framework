@@ -31,13 +31,11 @@ Just-In-Time Compilation (jit): A comprehensive JIT compiler that traces the fun
 
 The engine of deep learning is Automatic Differentiation (AD). A modern framework requires an AD system that extends beyond simple backpropagation.
 
-    Higher-Order Derivatives: The system must support the computation of Jacobians and Hessians (derivatives of derivatives). This is critical for advanced optimization algorithms (like Newton's method), meta-learning (MAML), and scientific computing applications involving differential equations.
+    Higher-Order Derivatives: The system must support the computation of Jacobians and Hessians (derivatives of derivatives). This is critical for advanced optimization algorithms (like Newton's method), meta-learning (MAML), and scientific computing applications involving differential equations.   
 
-Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
+Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.  
 
-Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.
-
-[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/autograd_engine.md]
+Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.  
 
 Feature	Imperative (Eager)	Declarative (Graph)	Ideal Hybrid Implementation
 Execution	Immediate, line-by-line	Deferred, optimized execution plan	Eager by default, JIT-compiled for hot paths
