@@ -1,6 +1,8 @@
 using MLFramework.Distributed;
+using RitterFramework.Core.Tensor;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MLFramework.Distributed.FSDP
 {
@@ -11,25 +13,40 @@ namespace MLFramework.Distributed.FSDP
     {
         /// <summary>Model name</summary>
         string Name { get; }
+
+        /// <summary>Forward pass</summary>
+        Tensor Forward(Tensor input);
+
+        /// <summary>Backward pass</summary>
+        void Backward();
+
+        /// <summary>Get model parameters</summary>
+        List<NamedTensor> GetParameters();
     }
 
     /// <summary>
     /// FSDP (Fully Sharded Data Parallel) wrapper for models.
     /// Enables training of large models that don't fit in GPU memory.
     /// </summary>
-    public class FSDP : IDisposable
+    public class FSDP : IModel, IDisposable
     {
         private readonly IModel _model;
-        private readonly FSDPConfig _config;
         private readonly IProcessGroup _processGroup;
-        private readonly List<FSDPShardingUnit> _shardingUnits;
-        private FSDPOptimizerStateManager _optimizerStateManager;
+        private readonly FSDPConfig _config;
+        private readonly IShardingStrategy _shardingStrategy;
+        private readonly Dictionary<string, FSDPShardingUnit> _shardingUnits;
+        private readonly ShardingPlan _shardingPlan;
         private bool _disposed;
 
         /// <summary>
         /// The wrapped model.
         /// </summary>
         public IModel Model => _model;
+
+        /// <summary>
+        /// Model name.
+        /// </summary>
+        public string Name => _model.Name;
 
         /// <summary>
         /// The FSDP configuration.
@@ -42,57 +59,223 @@ namespace MLFramework.Distributed.FSDP
         public IProcessGroup ProcessGroup => _processGroup;
 
         /// <summary>
-        /// Create an FSDP wrapper with explicit process group.
+        /// Wrap a model with FSDP for distributed training.
         /// </summary>
-        /// <param name="model">Model to wrap</param>
+        /// <param name="model">The model to wrap</param>
         /// <param name="config">FSDP configuration</param>
         /// <param name="processGroup">Process group for communication</param>
-        public FSDP(IModel model, FSDPConfig config, IProcessGroup processGroup)
+        public FSDP(IModel model, FSDPConfig config, IProcessGroup? processGroup = null)
         {
             _model = model ?? throw new ArgumentNullException(nameof(model));
             _config = config ?? throw new ArgumentNullException(nameof(config));
-            _processGroup = processGroup ?? throw new ArgumentNullException(nameof(processGroup));
 
+            // Validate configuration
             _config.Validate();
 
-            if (_processGroup.WorldSize == 0)
+            // Use default process group if not provided
+            _processGroup = processGroup ?? MLFramework.Distributed.ProcessGroup.Default;
+            if (_processGroup == null)
+                throw new InvalidOperationException("No process group available. Call ProcessGroup.Init() first.");
+
+            // Validate world size
+            if (_processGroup.WorldSize == 1 && _config.ShardingStrategy == ShardingStrategy.Full)
             {
-                throw new InvalidOperationException("Process group world size must be at least 1");
+                // Warn but allow for single-device testing
+                // In production, FSDP requires multiple devices
             }
 
-            _shardingUnits = new List<FSDPShardingUnit>();
-            _optimizerStateManager = new FSDPOptimizerStateManager(_processGroup);
+            // Create sharding strategy
+            _shardingStrategy = CreateShardingStrategy(_config.ShardingStrategy);
 
-            // Sharding setup will be implemented in forward hook spec
+            // Collect parameter information
+            var parameters = CollectParameterInfo(_model);
+
+            // Calculate sharding plan
+            _shardingPlan = _shardingStrategy.CalculateShardingPlan(parameters, _processGroup.WorldSize);
+
+            // Create sharding units
+            _shardingUnits = new Dictionary<string, FSDPShardingUnit>();
+            foreach (var param in parameters)
+            {
+                if (!_shardingPlan.AlwaysGathered.Contains(param.Name))
+                {
+                    var shardingUnit = CreateShardingUnit(param, _model);
+                    _shardingUnits[param.Name] = shardingUnit;
+                }
+            }
+
+            // Register hooks
+            RegisterForwardHooks();
+            RegisterBackwardHooks();
         }
 
         /// <summary>
-        /// Create an FSDP wrapper using default process group.
+        /// Forward pass through the model.
         /// </summary>
-        /// <param name="model">Model to wrap</param>
-        /// <param name="config">FSDP configuration</param>
-        public FSDP(IModel model, FSDPConfig config)
+        /// <param name="input">Input tensor</param>
+        /// <returns>Output tensor</returns>
+        public Tensor Forward(Tensor input)
         {
-            var defaultProcessGroup = MLFramework.Distributed.ProcessGroup.Default;
-            if (defaultProcessGroup == null)
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(FSDP));
+
+            // Forward pass will trigger hooks that gather parameters
+            return _model.Forward(input);
+        }
+
+        /// <summary>
+        /// Backward pass (computes gradients).
+        /// </summary>
+        public void Backward()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(FSDP));
+
+            // Backward pass will trigger hooks that scatter gradients
+            _model.Backward();
+        }
+
+        /// <summary>
+        /// Get model parameters.
+        /// </summary>
+        /// <returns>List of parameter tensors</returns>
+        public List<NamedTensor> GetParameters()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(FSDP));
+
+            // Return sharded parameters
+            var parameters = new List<NamedTensor>();
+            foreach (var unit in _shardingUnits.Values)
             {
-                throw new InvalidOperationException("No default process group initialized. Call ProcessGroup.Init() first or use the constructor that accepts an IProcessGroup.");
+                if (unit.ShardedParameter != null)
+                {
+                    parameters.Add(new NamedTensor(unit.ParameterName, unit.ShardedParameter));
+                }
             }
-            _model = model ?? throw new ArgumentNullException(nameof(model));
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _processGroup = defaultProcessGroup;
+            return parameters;
+        }
 
-            _config.Validate();
+        /// <summary>
+        /// Get model gradients.
+        /// </summary>
+        /// <returns>List of gradient tensors</returns>
+        public List<Tensor> GetGradients()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(FSDP));
 
-            if (_processGroup.WorldSize == 0)
+            // Return sharded gradients
+            var gradients = new List<Tensor>();
+            foreach (var unit in _shardingUnits.Values)
             {
-                throw new InvalidOperationException("Process group world size must be at least 1");
+                if (unit.LocalGradient != null)
+                    gradients.Add(unit.LocalGradient);
+            }
+            return gradients;
+        }
+
+        /// <summary>
+        /// Collect parameter information from the model.
+        /// </summary>
+        private List<ParameterInfo> CollectParameterInfo(IModel model)
+        {
+            var parameters = new List<ParameterInfo>();
+            var modelParameters = model.GetParameters();
+
+            foreach (var param in modelParameters)
+            {
+                var paramInfo = new ParameterInfo
+                {
+                    Name = param.Name ?? $"param_{parameters.Count}",
+                    Shape = param.Tensor.Shape.Select(x => (long)x).ToArray(),
+                    SizeBytes = param.Tensor.Size * 4, // Assume float32
+                    LayerName = InferLayerName(param.Name),
+                    AlwaysGather = ShouldAlwaysGather(param.Name)
+                };
+                parameters.Add(paramInfo);
             }
 
-            _shardingUnits = new List<FSDPShardingUnit>();
-            _optimizerStateManager = new FSDPOptimizerStateManager(_processGroup);
+            return parameters;
+        }
 
-            // Sharding setup will be implemented in forward hook spec
+        /// <summary>
+        /// Infer layer name from parameter name.
+        /// </summary>
+        private string InferLayerName(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName))
+                return "layer_0";
+
+            // Simple heuristic: extract layer name from parameter name
+            // e.g., "transformer.layer1.weight" -> "transformer.layer1"
+            var parts = paramName.Split('.');
+            if (parts.Length >= 2)
+            {
+                return string.Join(".", parts.Take(parts.Length - 1));
+            }
+            return parts[0];
+        }
+
+        /// <summary>
+        /// Determine if a parameter should always be gathered.
+        /// </summary>
+        private bool ShouldAlwaysGather(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName))
+                return false;
+
+            // Embeddings should always be gathered for simplicity
+            if (paramName.Contains("embedding", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Create a sharding unit for a parameter.
+        /// </summary>
+        private FSDPShardingUnit CreateShardingUnit(ParameterInfo paramInfo, IModel model)
+        {
+            var modelParams = model.GetParameters();
+            var param = modelParams.FirstOrDefault(p => p.Name == paramInfo.Name);
+
+            if (param == null)
+                throw new ArgumentException($"Parameter {paramInfo.Name} not found in model");
+
+            return new FSDPShardingUnit(paramInfo.Name, param.Tensor, _processGroup);
+        }
+
+        /// <summary>
+        /// Create a sharding strategy based on the configuration.
+        /// </summary>
+        private IShardingStrategy CreateShardingStrategy(ShardingStrategy strategy)
+        {
+            return strategy switch
+            {
+                ShardingStrategy.Full => new FullShardingStrategy(),
+                ShardingStrategy.LayerWise => new LayerWiseShardingStrategy(),
+                ShardingStrategy.Hybrid => new HybridShardingStrategy(new List<string>(), new List<string>()),
+                _ => throw new ArgumentException($"Unknown sharding strategy: {strategy}")
+            };
+        }
+
+        /// <summary>
+        /// Register forward hooks to gather parameters.
+        /// </summary>
+        private void RegisterForwardHooks()
+        {
+            // This will be implemented in spec_fsdp_forward_hook.md
+            // For now, just mark as not implemented
+        }
+
+        /// <summary>
+        /// Register backward hooks to scatter gradients.
+        /// </summary>
+        private void RegisterBackwardHooks()
+        {
+            // This will be implemented in spec_fsdp_backward_hook.md
+            // For now, just mark as not implemented
         }
 
         /// <summary>
@@ -101,16 +284,7 @@ namespace MLFramework.Distributed.FSDP
         /// <returns>List of sharding units</returns>
         public IReadOnlyList<FSDPShardingUnit> GetShardingUnits()
         {
-            return _shardingUnits.AsReadOnly();
-        }
-
-        /// <summary>
-        /// Get the optimizer state manager for this FSDP instance.
-        /// </summary>
-        /// <returns>Optimizer state manager</returns>
-        public FSDPOptimizerStateManager GetOptimizerStateManager()
-        {
-            return _optimizerStateManager;
+            return _shardingUnits.Values.ToList().AsReadOnly();
         }
 
         /// <summary>
@@ -118,29 +292,16 @@ namespace MLFramework.Distributed.FSDP
         /// </summary>
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
+            if (_disposed)
+                return;
 
-        /// <summary>
-        /// Protected implementation of dispose pattern.
-        /// </summary>
-        /// <param name="disposing">Whether managed resources should be disposed</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
+            foreach (var unit in _shardingUnits.Values)
             {
-                if (disposing)
-                {
-                    // Dispose all sharding units
-                    foreach (var unit in _shardingUnits)
-                    {
-                        unit.Dispose();
-                    }
-                    _shardingUnits.Clear();
-                }
-                _disposed = true;
+                unit.Dispose();
             }
+
+            _shardingUnits.Clear();
+            _disposed = true;
         }
     }
 }

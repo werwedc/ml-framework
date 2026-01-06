@@ -80,7 +80,9 @@ A feature-complete framework must support multiple orthogonal parallelism strate
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/distributed_data_parallelism.md]   
 
-Fully Sharded Data Parallelism (FSDP): For large models, keeping a full copy on each GPU is impossible. FSDP shards the model parameters, gradients, and optimizer states across all devices. The framework must manage the complex communication required to gather the necessary parameters just-in-time for the forward/backward pass and then release them to free memory (ZeRO optimization).  
+Fully Sharded Data Parallelism (FSDP): For large models, keeping a full copy on each GPU is impossible. FSDP shards the model parameters, gradients, and optimizer states across all devices. The framework must manage the complex communication required to gather the necessary parameters just-in-time for the forward/backward pass and then release them to free memory (ZeRO optimization).
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/fsdp_sharding.md]  
 
 Tensor Parallelism (TP): This involves splitting individual tensors (e.g., large matrix multiplications) across devices. This is essential for models with individual layers that are too large for a single GPU's memory. The framework needs to insert the necessary all-gather and reduce-scatter communications automatically within the layer execution.  
 

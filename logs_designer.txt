@@ -1,16 +1,17 @@
-I'll help you generate ONE new feature idea in `0_ideas/`. Let me first check the existing files to understand the format and what's already planned.
+I'll help you generate ONE new feature idea. Let me first check if there's a trajectory.md file to see what features might be available.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"**/trajectory.md"}
 [96m[1m| [0m[90m Read     [0mtrajectory.md
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/*.md"}
-[94m[1m| [0m[90m Glob     [0m{"pattern":"2_in_progress/*.md"}
-I'll create a new feature idea file for Distributed Training with Data Parallelism (DDP). This is a fundamental capability for modern ML frameworks and is clearly outlined in trajectory.md but hasn't been selected yet.
-[92m[1m| [0m[90m Write    [0m0_ideas\distributed_data_parallelism.md
-Now I'll mark this feature as selected in trajectory.md:
+I'll create a feature idea file for **Fully Sharded Data Parallelism (FSDP)**. This is a critical feature for training large models that don't fit on a single GPU. Let me write this to `0_ideas/fsdp_sharding.md`.
+[92m[1m| [0m[90m Write    [0m0_ideas\fsdp_sharding.md
+[92m[1m| [0m[90m Edit     [0mtrajectory.md
+Done! I've created **ONE** new feature idea file: `0_ideas/fsdp_sharding.md` for **Fully Sharded Data Parallelism (FSDP)**.
 
-[92m[1m| [0m[90m Edit     [0mtrajectory.md✅ **Created ONE new feature idea file:** `0_ideas/distributed_data_parallelism.md`
+This feature enables training of large models that exceed single GPU memory by sharding parameters, gradients, and optimizer states across all devices (inspired by ZeRO optimization). The document covers:
 
-**Feature Selected:** Distributed Data Parallelism (DDP) - implementing efficient multi-GPU training with model replication, data distribution, and Ring-AllReduce gradient synchronization.
+- Core sharding strategies (parameters, gradients, optimizer states)
+- API design with seamless integration
+- Advanced features like CPU offloading and mixed precision
+- Implementation phases and testing strategy
 
-**Updated:** `trajectory.md` to mark this feature as selected.
-
-This is a foundational capability for modern ML frameworks that enables training large-scale models across multiple GPUs with near-linear speedup, using optimized communication algorithms and a clean C# API.
+I've also updated `trajectory.md` to mark this feature as selected.
