@@ -8,12 +8,17 @@ namespace MLFramework.LoRA
     /// </summary>
     public abstract class LoRAAdapterBase : ILoRAAdapter
     {
-        protected readonly IModule _baseLayer;
+    protected readonly IModule _baseLayer;
         protected readonly int _rank;
         protected readonly float _alpha;
         protected bool _isBaseLayerFrozen;
         protected bool _isEnabled = true;
         protected Tensor? _baseLayerWeightsBackup;
+
+        /// <summary>
+        /// Gets the LoRA alpha scaling factor
+        /// </summary>
+        public float Alpha => _alpha;
 
         /// <summary>
         /// Initializes a new instance of the LoRAAdapterBase
