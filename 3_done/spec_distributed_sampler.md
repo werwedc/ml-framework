@@ -1,220 +1,232 @@
-# Spec: DistributedSampler
+# Spec: Distributed Sampler
 
 ## Overview
-Implement a distributed sampler that partitions data across multiple training processes/nodes.
+Implement a distributed sampler that partitions a dataset across multiple devices, ensuring each device processes different data while maintaining reproducible shuffling.
 
 ## Requirements
+- Partition dataset indices evenly across all ranks
+- Support deterministic shuffling with epoch-based seeds
+- Handle uneven divisions gracefully
+- Provide random access to batch indices
+- Support dropping last incomplete batch (optional)
 
-### Interface
+## Classes
 
-#### IDistributedSampler
+### 1. DistributedSampler Class
 ```csharp
-public interface IDistributedSampler : ISampler
+public class DistributedSampler : IDisposable
 {
-    int NumReplicas { get; }
-    int Rank { get; }
-    int Epoch { get; }
-    void SetEpoch(int epoch);
-}
-```
-
-### Implementation
-
-#### DistributedSampler
-- Divides dataset into equal chunks across replicas
-- Supports shuffling (each replica gets different subset per epoch)
-- Handles drop_last for uneven datasets
-- Configurable via numReplicas and rank
-
-**Key Fields:**
-```csharp
-public class DistributedSampler : IDistributedSampler
-{
-    private readonly int _datasetSize;
+    private readonly Dataset _dataset;
     private readonly int _numReplicas;
     private readonly int _rank;
-    private readonly bool _shuffle;
-    private readonly bool _dropLast;
     private readonly int _seed;
+    private readonly bool _dropLast;
+    private readonly int _shuffle;
+
     private int _epoch;
-    private readonly Random _random;
-}
-```
+    private int[] _indices;
+    private int _numSamples;
+    private int _totalSize;
 
-**Constructor:**
-```csharp
-public DistributedSampler(
-    int datasetSize,
-    int numReplicas,
-    int rank,
-    bool shuffle = true,
-    bool dropLast = false,
-    int seed = 0)
-{
-    if (datasetSize <= 0)
-        throw new ArgumentOutOfRangeException(nameof(datasetSize));
-
-    if (numReplicas <= 0)
-        throw new ArgumentOutOfRangeException(nameof(numReplicas));
-
-    if (rank < 0 || rank >= numReplicas)
-        throw new ArgumentOutOfRangeException(nameof(rank));
-
-    _datasetSize = datasetSize;
-    _numReplicas = numReplicas;
-    _rank = rank;
-    _shuffle = shuffle;
-    _dropLast = dropLast;
-    _seed = seed;
-    _epoch = 0;
-    _random = new Random(seed);
-}
-```
-
-**Calculate Per-Replica Size:**
-```csharp
-private int CalculatePerReplicaSize()
-{
-    int numSamples = _datasetSize;
-
-    if (_dropLast)
+    public DistributedSampler(
+        Dataset dataset,
+        int? numReplicas = null,  // null = use world size from process group
+        int? rank = null,         // null = use rank from process group
+        bool shuffle = true,
+        int seed = 0,
+        int dropLast = false)
     {
-        // Drop samples to make evenly divisible
-        numSamples = (_datasetSize / _numReplicas) * _numReplicas;
+        _dataset = dataset;
+        _numReplicas = numReplicas ?? ProcessGroup.Default?.WorldSize ?? 1;
+        _rank = rank ?? ProcessGroup.Default?.Rank ?? 0;
+        _shuffle = shuffle ? 1 : 0;
+        _seed = seed;
+        _dropLast = dropLast;
+
+        if (_numReplicas <= 0)
+            throw new ArgumentException("numReplicas must be positive");
+
+        if (_rank >= _numReplicas || _rank < 0)
+            throw new ArgumentException("rank must be in [0, numReplicas - 1]");
+
+        Initialize();
     }
 
-    int perReplica = numSamples / _numReplicas;
+    /// <summary>
+    /// Get the number of samples for this rank.
+    /// </summary>
+    public int NumSamples => _numSamples;
 
-    // Last replica may get more samples if not drop_last
-    if (!_dropLast && _rank == _numReplicas - 1)
+    /// <summary>
+    /// Set the current epoch for shuffling.
+    /// Different epochs produce different shuffle orders.
+    /// </summary>
+    public void SetEpoch(int epoch)
     {
-        perReplica += numSamples % _numReplicas;
+        _epoch = epoch;
+        Initialize();
     }
 
-    return perReplica;
-}
-```
-
-**Iterate:**
-```csharp
-public IEnumerable<int> Iterate()
-{
-    int perReplica = CalculatePerReplicaSize();
-
-    // Generate indices for this replica
-    var indices = new List<int>(perReplica);
-
-    int startIndex = _rank * perReplica;
-
-    for (int i = 0; i < perReplica; i++)
+    /// <summary>
+    /// Get the batch of indices for the given batch index.
+    /// </summary>
+    public int[] GetBatch(int batchIndex, int batchSize)
     {
-        int globalIndex = startIndex + i;
+        var startIdx = batchIndex * batchSize;
+        var endIdx = Math.Min(startIdx + batchSize, _numSamples);
+        var batch = new int[endIdx - startIdx];
 
-        if (globalIndex >= _datasetSize)
-            break;
-
-        indices.Add(globalIndex);
-    }
-
-    // Shuffle if enabled (different seed per epoch)
-    if (_shuffle)
-    {
-        int epochSeed = _seed + _epoch;
-        var epochRandom = new Random(epochSeed);
-
-        for (int i = indices.Count - 1; i > 0; i--)
+        for (int i = 0; i < batch.Length; i++)
         {
-            int j = epochRandom.Next(i + 1);
-            (indices[i], indices[j]) = (indices[j], indices[i]);
+            batch[i] = _indices[startIdx + i];
         }
+
+        return batch;
     }
 
-    return indices;
+    /// <summary>
+    /// Get all indices for this rank.
+    /// </summary>
+    public int[] GetIndices()
+    {
+        return (int[])_indices.Clone();
+    }
+
+    /// <summary>
+    /// Get the number of batches for this rank.
+    /// </summary>
+    public int GetNumBatches(int batchSize)
+    {
+        return (int)Math.Ceiling((double)_numSamples / batchSize);
+    }
+
+    private void Initialize();
+
+    public void Dispose();
 }
 ```
 
-**SetEpoch:**
+### 2. SamplerHelper Class (Internal)
 ```csharp
-public void SetEpoch(int epoch)
+/// <summary>
+/// Helper utilities for sampler operations.
+/// </summary>
+internal static class SamplerHelper
 {
-    if (epoch < 0)
-        throw new ArgumentOutOfRangeException(nameof(epoch));
+    /// <summary>
+    /// Generate a permutation of [0, n) using Fisher-Yates shuffle with given seed.
+    /// </summary>
+    public static int[] Shuffle(int n, int seed);
 
-    _epoch = epoch;
+    /// <summary>
+    /// Generate a range [0, n) in order.
+    /// </summary>
+    public static int[] Range(int n);
 }
 ```
 
-**Properties:**
-```csharp
-public int Length => CalculatePerReplicaSize();
-public int NumReplicas => _numReplicas;
-public int Rank => _rank;
-public int Epoch => _epoch;
-}
-```
+## Implementation Details
 
-### Helper Methods
+### Partitioning Logic
 
-#### Validate Configuration
+**Total Dataset Size**: `dataset.Count`
+
+**Partition Size Calculation**:
 ```csharp
-private void ValidateConfiguration()
+if (dropLast)
 {
-    if (_numReplicas <= 1)
-        throw new ArgumentException("numReplicas must be > 1 for distributed sampling");
-
-    if (_rank < 0 || _rank >= _numReplicas)
-        throw new ArgumentException($"rank must be in [0, {_numReplicas - 1}]");
+    // Drop samples that don't divide evenly
+    var numSamplesPerReplica = dataset.Count / numReplicas;
+    _totalSize = numSamplesPerReplica * numReplicas;
+    _numSamples = numSamplesPerReplica;
+}
+else
+{
+    // Distribute uneven remainder
+    _totalSize = dataset.Count;
+    _numSamples = (int)Math.Ceiling((double)dataset.Count / numReplicas);
 }
 ```
 
-## Acceptance Criteria
-1. Dataset divided equally across replicas when drop_last=true
-2. Last replica gets extra samples when drop_last=false
-3. Each replica processes distinct, non-overlapping samples
-4. SetEpoch changes shuffling pattern across epochs
-5. Different ranks get different samples per epoch
-6. shuffle=false returns sequential indices within replica
-7. Seed provides reproducible shuffling
-8. Length property correctly reports samples per replica
-9. Unit tests verify correct partitioning logic
-10. Integration tests simulate multi-process training
+**Index Assignment**:
+- Each rank gets indices: `rank, rank + numReplicas, rank + 2*numReplicas, ...`
+- This interleaves data across ranks (better for gradient diversity)
 
-## Files to Create
-- `src/Data/IDistributedSampler.cs`
-- `src/Data/DistributedSampler.cs`
+### Shuffling Strategy
 
-## Tests
-- `tests/Data/DistributedSamplerTests.cs`
+**Seed Generation**: `effectiveSeed = baseSeed + epoch`
+
+**Shuffle Process**:
+1. Generate permutation of `[0, totalSize)` using Fisher-Yates shuffle
+2. Assign indices to each rank from the shuffled permutation
+3. Each rank gets every `numReplicas`-th element from its starting position
+
+**Fisher-Yates Shuffle**:
+```csharp
+for (int i = n - 1; i > 0; i--)
+{
+    var j = Random.Next(0, i + 1);  // inclusive
+    (arr[i], arr[j]) = (arr[j], arr[i]);
+}
+```
+
+**Deterministic RNG**: Use `System.Random` with fixed seed for reproducibility
+
+### Edge Cases
+
+**Single Device**: When `numReplicas = 1`, behaves like regular sampler
+
+**Empty Dataset**: Return empty indices array
+
+**Small Dataset**: Handles cases where some ranks get fewer samples
+
+**Batch Size > NumSamples**: Last batch is smaller or dropped (based on `dropLast`)
 
 ## Usage Example
+
 ```csharp
-// Each process creates its own sampler with its rank
-int numReplicas = 4; // Total number of GPUs/processes
-int rank = 2; // This process's rank
+// Initialize sampler with default process group
+var trainDataset = new ImageNetDataset(path: "/data/imagenet");
+var sampler = new DistributedSampler(trainDataset, shuffle: true);
 
-var sampler = new DistributedSampler(
-    datasetSize: 1000,
-    numReplicas: numReplicas,
-    rank: rank,
-    shuffle: true,
-    dropLast: true
-);
+// Create data loader with distributed sampler
+var loader = new DataLoader(trainDataset, batchSize: 32, sampler: sampler);
 
-// Each epoch, update to ensure different shuffling
-sampler.SetEpoch(currentEpoch);
-
-foreach (var index in sampler.Iterate())
+// Training loop
+for (int epoch = 0; epoch < numEpochs; epoch++)
 {
-    // Process sample - no overlap with other ranks
+    // Important: set epoch for different shuffling each epoch
+    sampler.SetEpoch(epoch);
+
+    foreach (var batch in loader)
+    {
+        // Each rank gets different batches
+        var output = model.Forward(batch);
+        var loss = lossFn(output, target);
+        loss.Backward();
+        optimizer.Step();
+    }
 }
 ```
 
-## Notes
-- Critical for distributed training (DDP, FSDP)
-- Ensures no duplicate samples across workers
-- drop_last recommended for even workload distribution
-- SetEpoch must be called each training epoch
-- Combines well with DataLoader for end-to-end solution
-- Consider adding stratified sampling for imbalanced datasets
-- Future: Support for uneven replica configurations
-- Common pattern: Use with PyTorch DDP-style training
+## Success Criteria
+- [ ] Each rank gets a disjoint subset of dataset indices
+- [ ] All indices are covered when all ranks are combined
+- [ ] Shuffling is deterministic for same epoch/seed
+- [ ] Different epochs produce different shuffle orders
+- [ ] Handles uneven dataset sizes correctly
+- [ ] Works with dropLast = true and false
+- [ ] Compatible with DataLoader (batch generation)
+
+## Dependencies
+- Existing Dataset class (from src/)
+- spec_process_group.md (optional, for auto-detecting rank/world_size)
+
+## Testing
+- Unit tests in spec_ddp_tests.md will verify:
+  - Correct partitioning across ranks
+  - Deterministic shuffling
+  - Different epochs produce different shuffles
+  - All indices covered when combined
+  - Edge cases (empty dataset, single device, etc.)
+  - Integration with DataLoader
