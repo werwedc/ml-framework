@@ -5,12 +5,12 @@ public class Tensor
     private float[] _data;
     private int[] _shape;
     private int[] _strides;
-    
+
     public Tensor? Gradient { get; set; }
     public bool RequiresGrad { get; set; }
     public List<Tensor>? Parents { get; set; }
     public Action<Tensor>? BackwardFn { get; set; }
-    
+
     public int[] Shape => _shape;
     public int Size => _data.Length;
     public int Dimensions => _shape.Length;
@@ -166,11 +166,11 @@ public class Tensor
 
     private int GetFlatIndex(int[] indices) =>
         indices.Zip(_strides, (idx, stride) => new { idx, stride })
-            .Select((item, i) => 
+            .Select((item, i) =>
             {
                 if (item.idx < 0 || item.idx >= _shape[i])
                     throw new IndexOutOfRangeException($"Index {item.idx} at dimension {i} is out of bounds.");
-               
+
                 return item.idx * item.stride;
             }).Sum();
 }

@@ -1,155 +1,66 @@
-I'll help you process the pending idea in `0_ideas/`. Let me first check what's in that directory.
+I'll help you process the pending idea in `0_ideas/`. Let me start by understanding the current state.
+[96m[1m| [0m[90m Read     [0mAGENTS.md
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/**/*"}
-[96m[1m| [0m[90m Read     [0m0_ideas\mixed_precision_optimizer.md
-I'll break this mixed-precision optimizer idea into atomic technical specs. This is a complex feature that needs to be split into manageable chunks.
+[96m[1m| [0m[90m Read     [0m0_ideas\automatic_mixed_precision.md
+I'll break down the Automatic Mixed Precision (AMP) idea into multiple small, atomic technical specs. Let me create a comprehensive breakdown.
 [93m[1m| [0m[90m Todo     [0m13 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_001_precision_enum_and_detection.md
+Now I'll create the technical specs in `1_specs/`. Let me start with the first spec.
+[93m[1m| [0m[90m Todo     [0m13 todos
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_datatypes.md
 [93m[1m| [0m[90m Todo     [0m12 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_002_mixed_precision_options.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_datatype_extensions.md
 [93m[1m| [0m[90m Todo     [0m11 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_003_dynamic_loss_scaler.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_op_registry.md
 [93m[1m| [0m[90m Todo     [0m10 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_004_precision_manager.md
 
-[93m[1m| [0m[90m Todo     [0m9 todos[92m[1m| [0m[90m Write    [0m1_specs\spec_005_gradient_conversion_layer.md
-
-[93m[1m| [0m[90m Todo     [0m8 todos[92m[1m| [0m[90m Write    [0m1_specs\spec_006_mixed_precision_optimizer.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_static_scaler.md[93m[1m| [0m[90m Todo     [0m9 todos
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_dynamic_scaler.md
+[93m[1m| [0m[90m Todo     [0m8 todos
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_gradscaler_api.md
 [93m[1m| [0m[90m Todo     [0m7 todos
-
-[92m[1m| [0m[90m Write    [0m1_specs\spec_007_checkpointing_support.md[93m[1m| [0m[90m Todo     [0m6 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_008_performance_monitor.md
-
-[93m[1m| [0m[90m Todo     [0m5 todos[92m[1m| [0m[90m Write    [0m1_specs\spec_009_dynamic_loss_scaler_tests.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_autocast.md
+[93m[1m| [0m[90m Todo     [0m6 todos
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_gradient_utils.md
+[93m[1m| [0m[90m Todo     [0m5 todos
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_kernel_selector.md
 [93m[1m| [0m[90m Todo     [0m4 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_010_precision_manager_tests.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_integration_autograd.md
 [93m[1m| [0m[90m Todo     [0m3 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_011_mixed_precision_optimizer_tests.md
-[93m[1m| [0m[90m Todo     [0m2 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_012_integration_tests.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_integration_optimizer.md
+[93m[1m| [0m[90m Todo     [0m3 todos
+[92m[1m| [0m[90m Write    [0m1_specs\spec_amp_unit_tests.md
 [93m[1m| [0m[90m Todo     [0m1 todos
-[91m[1m| [0m[90m Bash     [0mDelete original idea file
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/**/*"}
-[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/**/*.md"}
+[91m[1m| [0m[90m Bash     [0mDelete original idea file from 0_ideas/
 [93m[1m| [0m[90m Todo     [0m0 todos
-## Task Complete! ✅
-
-I've successfully processed the pending idea in `0_ideas/` and broken it down into **12 atomic technical specs** in `1_specs/`. Here's a summary:
-
-### Created Specs:
-
-**Core Components (8 specs):**
-1. **spec_001**: Precision enum and detection utilities
-2. **spec_002**: MixedPrecisionOptions configuration class  
-3. **spec_003**: DynamicLossScaler component
-4. **spec_004**: PrecisionManager component
-5. **spec_005**: GradientConversionLayer component
-6. **spec_006**: MixedPrecisionOptimizer base class
-7. **spec_007**: Checkpointing support
-8. **spec_008**: PerformanceMonitor component
-
-**Test Specs (4 specs):**
-9. **spec_009**: DynamicLossScaler unit tests
-10. **spec_010**: PrecisionManager unit tests
-11. **spec_011**: MixedPrecisionOptimizer unit tests
-12. **spec_012**: Integration tests
-
-### Key Design Decisions:
-- Each spec represents **~30-60 minutes** of coding work
-- Components are **modular and testable** in isolation
-- **Factory methods** for common use cases (FP16, BF16, Conservative)
-- **Comprehensive test coverage** including unit and integration tests
-- **Checkpointing** for training resumption
-- **Performance monitoring** for optimization
-- **Auto-fallback** mechanism for instability handling
-
-### Next Steps:
-The specs are now ready for the Coder to implement. Each spec includes:
-- Clear implementation details
-- Dependencies on previous specs
-- Comprehensive requirements
-- Test specifications where applicable
-- Notes for the Coder
-
-The original idea file has been **deleted** from `0_ideas/` as requested.
-I'll help you process the pending idea in `0_ideas/`. Let me first check what's there.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/**/*.md"}
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/**/*"}
-[96m[1m| [0m[90m Read     [0m0_ideas\autograd_engine.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_tensor_grad_tracking.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_computational_graph.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_backward_pass.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_basic_operation_gradients.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_gradient_accumulation.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_autograd_function_base.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_gradient_checkpointing.md
-Now I'll break down the Autograd Engine idea into multiple atomic technical specs. Each spec will represent ~30-60 minutes of human coding work.
-[92m[1m| [0m[90m Write    [0m1_specs\spec_higher_order_derivatives.md
+## Summary
 
-[92m[1m| [0m[90m Write    [0m1_specs\spec_autograd_tests_suite.mdPerfect! I've broken down the Autograd Engine idea into 8 atomic technical specs. Let me verify the specs were created correctly and then delete the original idea file.
-[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/*.md"}
+I've successfully processed the pending Automatic Mixed Precision (AMP) idea from `0_ideas/` and broke it down into **12 atomic technical specs** in `1_specs/`. The original file has been deleted from `0_ideas/`.
 
-[91m[1m| [0m[90m Bash     [0mDelete original idea file from 0_ideas[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/**/*"}
-## ✅ Task Complete: Autograd Engine Idea Processed
+### Created Specifications:
 
-I've successfully broken down the **Autograd Engine** idea from `0_ideas/` into **8 atomic technical specs** in `1_specs/`. The original idea file has been deleted.
+1. **spec_amp_datatypes.md** - Half and BFloat16 numeric types
+2. **spec_amp_datatype_extensions.md** - DataType enum extensions for FP16/BF16
+3. **spec_amp_op_registry.md** - Operation precision registry with whitelist/blacklist
+4. **spec_amp_static_scaler.md** - Static loss scaler with constant scaling
+5. **spec_amp_dynamic_scaler.md** - Dynamic loss scaler with automatic adjustment
+6. **spec_amp_gradscaler_api.md** - High-level GradScaler API wrapper
+7. **spec_amp_autocast.md** - AutoCast context for automatic dtype conversion
+8. **spec_amp_gradient_utils.md** - Gradient unscaling and overflow checking utilities
+9. **spec_amp_kernel_selector.md** - GPU kernel selection based on tensor dtype
+10. **spec_amp_integration_autograd.md** - Autograd system integration
+11. **spec_amp_integration_optimizer.md** - Optimizer system integration
+12. **spec_amp_unit_tests.md** - Comprehensive unit test suite
 
-### Specs Created:
+### Key Features of the Spec Breakdown:
 
-1. **`spec_tensor_grad_tracking.md`**
-   - Core gradient tracking infrastructure
-   - Tensor gradient storage and accumulation
-   - Leaf vs non-leaf tensor identification
-   - Thread-safe gradient operations
+✅ **Sizing Compliance**: Each spec represents ~30-60 minutes of human coding work
+✅ **Atomic Implementation**: Each spec is implementable by the Coder in a single execution
+✅ **Complete Coverage**: All components from the original idea are covered
+✅ **Clear Interfaces**: All classes have well-defined public APIs
+✅ **Testing Requirements**: Each spec includes comprehensive testing requirements
+✅ **Success Criteria**: Clear metrics for validating implementation success
+✅ **Dependencies**: Explicit dependency tracking between specs
 
-2. **`spec_computational_graph.md`**
-   - Dynamic computational graph builder
-   - Graph node and operation context
-   - Graph scope management
-   - Memory-efficient graph construction
-
-3. **`spec_backward_pass.md`**
-   - Reverse-mode automatic differentiation
-   - Chain rule implementation
-   - Graph retention support
-   - Error handling and validation
-
-4. **`spec_basic_operation_gradients.md`**
-   - Gradients for 13+ basic operations
-   - Broadcasting support in backward pass
-   - Activation function gradients
-   - Reduction operation gradients
-
-5. **`spec_gradient_accumulation.md`**
-   - Batch processing support
-   - Gradient scaling and accumulation
-   - Integration with training loops
-   - Thread-safe accumulation
-
-6. **`spec_autograd_function_base.md`**
-   - Base class for custom autograd functions
-   - Function registry system
-   - Tensor saving for backward pass
-   - User-friendly API
-
-7. **`spec_gradient_checkpointing.md`**
-   - Activation recomputation system
-   - Manual and automatic checkpointing
-   - Memory-computation tradeoff
-   - 50-70% memory savings expected
-
-8. **`spec_higher_order_derivatives.md`**
-   - Jacobian computation
-   - Hessian computation (full and diagonal)
-   - Gradient-of-gradient for meta-learning
-   - Graph retention management
-
-9. **`spec_autograd_tests_suite.md`**
-   - Comprehensive test coverage (90%+)
-   - Gradient checking utilities
-   - Regression and performance tests
-   - Integration tests with neural networks
-
-### Sizing Validation:
-Each spec represents **30-60 minutes** of human coding work and is **implementable in a single execution** by the Coder.
-
-### Next Steps:
-The Coder can now pick up these specs from `1_specs/` and implement the autograd system in `src/` and `tests/`.
+The Coder can now implement these specs sequentially, with each providing a complete, testable unit of functionality that builds toward the full Automatic Mixed Precision system.

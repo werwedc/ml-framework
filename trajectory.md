@@ -120,6 +120,8 @@ AMP is a critical feature that allows training to occur using lower precision fo
 
 Loss Scaling: When using FP16, gradients often become too small to represent (underflow). The framework must implement automatic loss scaling, where the loss is multiplied by a scaling factor to shift gradients into the representable range before backpropagation, and then unscaled before the optimizer updates the weights. This ensures numerical stability without manual user intervention.  
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/automatic_mixed_precision.md]
+
 6.2 Quantization Ecosystem
 
 Quantization reduces model size and latency by representing weights and activations with low-bit integers (Int8).
