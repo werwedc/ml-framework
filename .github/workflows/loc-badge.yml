@@ -1,0 +1,45 @@
+name: Update Lines of Code Badge
+
+on:
+  push:
+    branches: ["main"] # Or "master", depending on your default branch name
+  workflow_dispatch:   # Allows you to run this manually if needed
+
+permissions:
+  contents: write      # Required to push the badge back to your repo
+
+jobs:
+  update-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Generate Badge
+        uses: shadowmoose/GHA-LoC-Badge@1.0.0
+        id: badge
+        with:
+          debug: true
+          directory: ./
+          badge: ./badges/badge.svg # We'll save it in a "badges" folder
+          patterns: '**'            # Count all files (modify extensions if you want specific ones)
+          ignore: 'node_modules'    # Ignore these folders
+
+      - name: Commit and Push Badge
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create the badges directory if it doesn't exist
+          mkdir -p badges
+          
+          # Force add the badge file
+          git add badges/badge.svg
+          
+          # Commit only if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update LoC badge"
+            git push
+          fi
