@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MLFramework.Distributed;
 using System;
 
 namespace MLFramework.Tests.Distributed

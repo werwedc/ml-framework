@@ -1,4 +1,6 @@
+using MLFramework.Distributed;
 using MLFramework.Tensor;
+using RitterFramework.Core.Tensor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -254,53 +256,4 @@ namespace MLFramework.Tests.Distributed
         public long GetBufferSizeLimit() => 1024 * 1024 * 1024; // 1GB
     }
 
-    /// <summary>
-    /// Interfaces for mock implementations.
-    /// </summary>
-    public interface IProcessGroup : IDisposable
-    {
-        int Rank { get; }
-        int WorldSize { get; }
-        ICommunicationBackend Backend { get; }
 
-        void AllReduce(Tensor tensor, ReduceOp op);
-        void Broadcast(Tensor tensor, int root);
-        void Barrier();
-        void Scatter(Tensor output, Tensor input, int root);
-        void Gather(Tensor output, Tensor input, int root);
-        void AllGather(Tensor output, Tensor input);
-        void Reduce(Tensor output, Tensor input, ReduceOp op, int root);
-
-        Task AllReduceAsync(Tensor tensor, ReduceOp op);
-        Task BroadcastAsync(Tensor tensor, int root);
-        Task BarrierAsync();
-        Task ScatterAsync(Tensor output, Tensor input, int root);
-        Task GatherAsync(Tensor output, Tensor input, int root);
-        Task AllGatherAsync(Tensor output, Tensor input);
-        Task ReduceAsync(Tensor output, Tensor input, ReduceOp op, int root);
-
-        void Destroy();
-    }
-
-    public interface ICommunicationBackend
-    {
-        string Name { get; }
-        bool IsAvailable { get; }
-        int DeviceCount { get; }
-        bool SupportsAsync { get; }
-        bool SupportsGPUDirect { get; }
-        long GetBufferSizeLimit();
-    }
-
-    /// <summary>
-    /// Reduction operations.
-    /// </summary>
-    public enum ReduceOp
-    {
-        Sum,
-        Avg,
-        Max,
-        Min,
-        Product
-    }
-}
