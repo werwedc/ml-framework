@@ -141,5 +141,34 @@ namespace RitterFramework.Core.Tensor
 
             return new Tensor(resultData, new int[] { (int)length }, tensor.RequiresGrad, tensor.Dtype);
         }
+
+        /// <summary>
+        /// Creates a view of the tensor with a different shape.
+        /// The data is shared between the original tensor and the view.
+        /// </summary>
+        /// <param name="tensor">The tensor to view.</param>
+        /// <param name="shape">The new shape for the view.</param>
+        /// <returns>A tensor with the new shape sharing the same data.</returns>
+        public static Tensor View(this Tensor tensor, int[] shape)
+        {
+            // Verify that the new shape is compatible with the tensor's size
+            int newSize = 1;
+            foreach (var dim in shape)
+            {
+                newSize *= dim;
+            }
+
+            if (newSize != tensor.Size)
+            {
+                throw new ArgumentException(
+                    $"Shape {string.Join("x", shape)} is incompatible with tensor of size {tensor.Size}");
+            }
+
+            // Create a new tensor that shares the same underlying data
+            var newShape = new int[shape.Length];
+            Array.Copy(shape, newShape, shape.Length);
+
+            return new Tensor(tensor.Data, newShape, tensor.RequiresGrad, tensor.Dtype);
+        }
     }
 }

@@ -23,25 +23,25 @@ namespace MLFramework.Distributed
         /// </summary>
         public GradientBucketManager(
             IProcessGroup processGroup,
-            IEnumerable<Parameter> parameters,
+            IEnumerable<Tensor> gradients,
             long bucketSizeInBytes = 25 * 1024 * 1024) // 25 MB default
         {
             _processGroup = processGroup ?? throw new ArgumentNullException(nameof(processGroup));
             _bucketSizeInBytes = bucketSizeInBytes;
 
-            if (parameters == null)
+            if (gradients == null)
             {
-                throw new ArgumentNullException(nameof(parameters));
+                throw new ArgumentNullException(nameof(gradients));
             }
 
-            var parameterList = parameters.ToList();
-            if (parameterList.Count == 0)
+            var gradientList = gradients.ToList();
+            if (gradientList.Count == 0)
             {
-                throw new ArgumentException("At least one parameter is required", nameof(parameters));
+                throw new ArgumentException("At least one gradient is required", nameof(gradients));
             }
 
             _tensorToBucketMap = new Dictionary<Tensor, int>();
-            _buckets = CreateBuckets(parameterList, bucketSizeInBytes);
+            _buckets = CreateBuckets(gradientList, bucketSizeInBytes);
         }
 
         /// <summary>
@@ -110,64 +110,61 @@ namespace MLFramework.Distributed
         }
 
         /// <summary>
-        /// Creates buckets from the given parameters.
+        /// Creates buckets from the given gradients.
         /// </summary>
-        private GradientBucket[] CreateBuckets(List<Parameter> parameters, long bucketSize)
+        private GradientBucket[] CreateBuckets(List<Tensor> gradients, long bucketSize)
         {
             var buckets = new List<GradientBucket>();
-            var currentBucketParams = new List<Parameter>();
+            var currentBucketGradients = new List<Tensor>();
             long currentBucketSize = 0;
 
-            // Sort parameters by size (largest first helps with balancing)
-            var sortedParams = parameters.OrderByDescending(p => p.Size * sizeof(float)).ToList();
+            // Sort gradients by size (largest first helps with balancing)
+            var sortedGradients = gradients.OrderByDescending(g => g.Size * sizeof(float)).ToList();
 
             int bucketIndex = 0;
 
-            foreach (var param in sortedParams)
+            foreach (var gradient in sortedGradients)
             {
-                long paramSize = param.Size * sizeof(float);
+                long gradientSize = gradient.Size * sizeof(float);
 
-                // If parameter is larger than bucket size, put it in its own bucket
-                if (paramSize > bucketSize)
+                // If gradient is larger than bucket size, put it in its own bucket
+                if (gradientSize > bucketSize)
                 {
-                    if (currentBucketParams.Count > 0)
+                    if (currentBucketGradients.Count > 0)
                     {
                         // Create current bucket before starting a new one
-                        var gradients = currentBucketParams.Select(p => p).ToArray();
-                        buckets.Add(new GradientBucket(bucketIndex++, currentBucketSize, gradients));
-                        currentBucketParams.Clear();
+                        buckets.Add(new GradientBucket(bucketIndex++, currentBucketSize, currentBucketGradients.ToArray()));
+                        currentBucketGradients.Clear();
                         currentBucketSize = 0;
                     }
 
-                    // Create bucket for this large parameter
-                    buckets.Add(new GradientBucket(bucketIndex++, paramSize, new[] { param }));
-                    _tensorToBucketMap[param] = bucketIndex - 1;
+                    // Create bucket for this large gradient
+                    buckets.Add(new GradientBucket(bucketIndex++, gradientSize, new[] { gradient }));
+                    _tensorToBucketMap[gradient] = bucketIndex - 1;
                     continue;
                 }
 
                 // Check if we should start a new bucket
-                if (currentBucketSize + paramSize > bucketSize && currentBucketParams.Count > 0)
+                if (currentBucketSize + gradientSize > bucketSize && currentBucketGradients.Count > 0)
                 {
                     // Create current bucket
-                    var gradients = currentBucketParams.Select(p => p).ToArray();
-                    buckets.Add(new GradientBucket(bucketIndex++, currentBucketSize, gradients));
+                    buckets.Add(new GradientBucket(bucketIndex++, currentBucketSize, currentBucketGradients.ToArray()));
 
                     // Start new bucket
-                    currentBucketParams.Clear();
+                    currentBucketGradients.Clear();
                     currentBucketSize = 0;
                 }
 
-                // Add parameter to current bucket
-                currentBucketParams.Add(param);
-                currentBucketSize += paramSize;
-                _tensorToBucketMap[param] = bucketIndex;
+                // Add gradient to current bucket
+                currentBucketGradients.Add(gradient);
+                currentBucketSize += gradientSize;
+                _tensorToBucketMap[gradient] = bucketIndex;
             }
 
-            // Create final bucket if it has parameters
-            if (currentBucketParams.Count > 0)
+            // Create final bucket if it has gradients
+            if (currentBucketGradients.Count > 0)
             {
-                var gradients = currentBucketParams.Select(p => p).ToArray();
-                buckets.Add(new GradientBucket(bucketIndex, currentBucketSize, gradients));
+                buckets.Add(new GradientBucket(bucketIndex, currentBucketSize, currentBucketGradients.ToArray()));
             }
 
             return buckets.ToArray();

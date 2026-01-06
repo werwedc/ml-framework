@@ -12,8 +12,8 @@ namespace MLFramework.Distributed
     public class GradientBucket
     {
         private readonly Tensor[] _gradients;
-        private readonly long[] _offsets;
-        private readonly long[] _sizes;
+        private readonly int[] _elementOffsets;
+        private readonly int[] _elementSizes;
         private Tensor _bucketTensor;
         private Task _reductionTask;
         private bool _prepared;
@@ -62,16 +62,16 @@ namespace MLFramework.Distributed
                 throw new ArgumentException("Bucket must contain at least one gradient", nameof(gradients));
             }
 
-            // Calculate offsets and sizes for each gradient
-            _offsets = new long[gradients.Length];
-            _sizes = new long[gradients.Length];
+            // Calculate offsets and sizes for each gradient (in elements, not bytes)
+            _elementOffsets = new int[gradients.Length];
+            _elementSizes = new int[gradients.Length];
 
-            long currentOffset = 0;
+            int currentOffset = 0;
             for (int i = 0; i < gradients.Length; i++)
             {
-                _offsets[i] = currentOffset;
-                _sizes[i] = gradients[i].Size * sizeof(float); // float is 4 bytes
-                currentOffset += _sizes[i];
+                _elementOffsets[i] = currentOffset;
+                _elementSizes[i] = gradients[i].Size;
+                currentOffset += _elementSizes[i];
             }
 
             _bucketTensor = Tensor.Zeros(new int[] { (int)(sizeInBytes / sizeof(float)) });
@@ -90,24 +90,17 @@ namespace MLFramework.Distributed
             }
 
             // Copy each gradient into the bucket tensor at its offset
-            long totalElements = SizeInBytes / sizeof(float);
             float[] bucketData = _bucketTensor.Data;
 
             for (int i = 0; i < _gradients.Length; i++)
             {
-                if (_gradients[i].Gradient != null)
-                {
-                    long gradientStart = _offsets[i] / sizeof(float);
-                    long gradientSize = _sizes[i] / sizeof(float);
-
-                    Array.Copy(
-                        _gradients[i].Gradient.Data,
-                        0,
-                        bucketData,
-                        (int)gradientStart,
-                        (int)gradientSize
-                    );
-                }
+                Array.Copy(
+                    _gradients[i].Data,
+                    0,
+                    bucketData,
+                    _elementOffsets[i],
+                    _elementSizes[i]
+                );
             }
 
             _prepared = true;
@@ -151,19 +144,13 @@ namespace MLFramework.Distributed
 
             for (int i = 0; i < _gradients.Length; i++)
             {
-                if (_gradients[i].Gradient != null)
-                {
-                    long gradientStart = _offsets[i] / sizeof(float);
-                    long gradientSize = _sizes[i] / sizeof(float);
-
-                    Array.Copy(
-                        bucketData,
-                        (int)gradientStart,
-                        _gradients[i].Gradient.Data,
-                        0,
-                        (int)gradientSize
-                    );
-                }
+                Array.Copy(
+                    bucketData,
+                    _elementOffsets[i],
+                    _gradients[i].Data,
+                    0,
+                    _elementSizes[i]
+                );
             }
 
             _prepared = false;
