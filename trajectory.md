@@ -76,7 +76,9 @@ With the parameter counts of state-of-the-art models entering the trillions, dis
 
 A feature-complete framework must support multiple orthogonal parallelism strategies, allowing users to mix and match them (3D Parallelism) to fit models into available hardware.  
 
-    Data Parallelism (DDP): The standard approach where the model is replicated on every device, and data is split. The framework must implement highly optimized gradient synchronization, typically using the Ring-AllReduce or Tree-AllReduce algorithms to aggregate updates efficiently across bandwidth-constrained interconnects.   
+    Data Parallelism (DDP): The standard approach where the model is replicated on every device, and data is split. The framework must implement highly optimized gradient synchronization, typically using the Ring-AllReduce or Tree-AllReduce algorithms to aggregate updates efficiently across bandwidth-constrained interconnects.  
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/distributed_data_parallelism.md]   
 
 Fully Sharded Data Parallelism (FSDP): For large models, keeping a full copy on each GPU is impossible. FSDP shards the model parameters, gradients, and optimizer states across all devices. The framework must manage the complex communication required to gather the necessary parameters just-in-time for the forward/backward pass and then release them to free memory (ZeRO optimization).  
 
