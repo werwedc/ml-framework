@@ -23,6 +23,7 @@ namespace MLFramework.Distributed.FSDP
         private readonly FSDPConfig _config;
         private readonly IProcessGroup _processGroup;
         private readonly List<FSDPShardingUnit> _shardingUnits;
+        private FSDPOptimizerStateManager _optimizerStateManager;
         private bool _disposed;
 
         /// <summary>
@@ -60,6 +61,7 @@ namespace MLFramework.Distributed.FSDP
             }
 
             _shardingUnits = new List<FSDPShardingUnit>();
+            _optimizerStateManager = new FSDPOptimizerStateManager(_processGroup);
 
             // Sharding setup will be implemented in forward hook spec
         }
@@ -88,6 +90,7 @@ namespace MLFramework.Distributed.FSDP
             }
 
             _shardingUnits = new List<FSDPShardingUnit>();
+            _optimizerStateManager = new FSDPOptimizerStateManager(_processGroup);
 
             // Sharding setup will be implemented in forward hook spec
         }
@@ -99,6 +102,15 @@ namespace MLFramework.Distributed.FSDP
         public IReadOnlyList<FSDPShardingUnit> GetShardingUnits()
         {
             return _shardingUnits.AsReadOnly();
+        }
+
+        /// <summary>
+        /// Get the optimizer state manager for this FSDP instance.
+        /// </summary>
+        /// <returns>Optimizer state manager</returns>
+        public FSDPOptimizerStateManager GetOptimizerStateManager()
+        {
+            return _optimizerStateManager;
         }
 
         /// <summary>
