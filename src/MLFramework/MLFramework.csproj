@@ -7,4 +7,8 @@
         <RootNamespace>MLFramework</RootNamespace>
     </PropertyGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\RitterFramework.Core\RitterFramework.Core.csproj" />
+    </ItemGroup>
+
 </Project>
