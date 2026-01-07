@@ -29,6 +29,11 @@ public class ContinuousBatchScheduler : IDisposable
     public int ActiveRequestCount => _batchManager.ActiveRequestCount;
 
     /// <summary>
+    /// Gets the number of queued requests.
+    /// </summary>
+    public int QueuedRequestCount => _requestQueue.Count;
+
+    /// <summary>
     /// Creates a new continuous batch scheduler.
     /// </summary>
     public ContinuousBatchScheduler(

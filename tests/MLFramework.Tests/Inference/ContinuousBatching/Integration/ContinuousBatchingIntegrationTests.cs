@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
 using MLFramework.Inference;
 using MLFramework.Inference.ContinuousBatching;
-using Xunit;
 
 namespace MLFramework.Tests.Inference.ContinuousBatching.Integration;
 
@@ -645,14 +645,24 @@ public class ContinuousBatchingIntegrationTests
     /// </summary>
     private class MockGPUResourceManager : IGPUResourceManager
     {
-        public long GetAvailableMemoryBytes()
+        public long GetTotalMemoryBytes()
         {
             return 8L * 1024 * 1024 * 1024; // 8GB
+        }
+
+        public long GetCurrentMemoryUsageBytes()
+        {
+            return 0;
         }
 
         public double GetUtilization()
         {
             return 0.0;
+        }
+
+        public bool IsAvailable()
+        {
+            return true;
         }
     }
 }

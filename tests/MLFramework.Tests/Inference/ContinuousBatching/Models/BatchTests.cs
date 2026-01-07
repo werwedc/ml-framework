@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using MLFramework.Inference.ContinuousBatching;
 
 namespace MLFramework.Tests.Inference.ContinuousBatching;
 

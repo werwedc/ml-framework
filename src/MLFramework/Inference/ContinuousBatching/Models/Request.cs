@@ -56,6 +56,11 @@ public class Request
     public List<int> GeneratedTokenIds { get; }
 
     /// <summary>
+    /// Additional metadata for the request.
+    /// </summary>
+    public Dictionary<string, object>? Metadata { get; set; }
+
+    /// <summary>
     /// Creates a new request with the specified parameters.
     /// </summary>
     public Request(
@@ -75,5 +80,6 @@ public class Request
         GeneratedTokens = 0;
         IsCompleted = false;
         GeneratedTokenIds = new List<int>();
+        Metadata = null;
     }
 }
