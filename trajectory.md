@@ -165,7 +165,9 @@ Model Versioning and Hot-Swapping: The serving system must support A/B testing a
 
 The unique characteristics of LLMs require specialized serving features.
 
-    PagedAttention and KV Caching: In autoregressive generation, the Key-Value (KV) cache grows with sequence length. Traditional allocation leads to fragmentation. The framework should implement PagedAttention (inspired by OS virtual memory), which allows the KV cache to be stored in non-contiguous memory blocks. This dramatically increases memory efficiency and throughput.   
+    PagedAttention and KV Caching: In autoregressive generation, the Key-Value (KV) cache grows with sequence length. Traditional allocation leads to fragmentation. The framework should implement PagedAttention (inspired by OS virtual memory), which allows the KV cache to be stored in non-contiguous memory blocks. This dramatically increases memory efficiency and throughput.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/pagedattention_kv_cache.md]
 
 Continuous Batching: Unlike standard dynamic batching, continuous batching (or iteration-level scheduling) allows new requests to join a running batch at the token generation step, rather than waiting for the entire previous batch to finish generation. This creates a much higher throughput system for text generation.  
 
