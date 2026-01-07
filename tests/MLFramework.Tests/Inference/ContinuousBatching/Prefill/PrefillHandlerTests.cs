@@ -3,6 +3,7 @@ using MLFramework.Inference;
 using MLFramework.Inference.ContinuousBatching;
 using MLFramework.Inference.ContinuousBatching.Prefill;
 using Moq;
+using Xunit;
 
 namespace MLFramework.Tests.Inference.ContinuousBatching.Prefill;
 

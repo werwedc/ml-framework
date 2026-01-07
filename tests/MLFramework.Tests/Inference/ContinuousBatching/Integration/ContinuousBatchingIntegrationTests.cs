@@ -1,5 +1,8 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
+using MLFramework.Inference;
+using MLFramework.Inference.ContinuousBatching;
+using Xunit;
 
 namespace MLFramework.Tests.Inference.ContinuousBatching.Integration;
 
