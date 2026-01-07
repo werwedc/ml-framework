@@ -1,17 +1,24 @@
-I'll help you generate ONE new feature idea. Let me first check if there's a trajectory.md file to see what features might be available.
-[94m[1m| [0m[90m Glob     [0m{"pattern":"**/trajectory.md"}
+I'll help you generate one new feature idea in `0_ideas/`. Let me first check the `trajectory.md` file and see what's already in the `0_ideas/` directory.
 [96m[1m| [0m[90m Read     [0mtrajectory.md
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-I'll create a feature idea file for **Fully Sharded Data Parallelism (FSDP)**. This is a critical feature for training large models that don't fit on a single GPU. Let me write this to `0_ideas/fsdp_sharding.md`.
-[92m[1m| [0m[90m Write    [0m0_ideas\fsdp_sharding.md
+[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
+Looking at trajectory.md, I can see several features are already marked as selected and in progress. The `0_ideas/` directory is currently empty, which suggests those files have been moved forward. 
+
+I'll select a new feature from trajectory.md that hasn't been implemented yet: **Parameter-Efficient Fine-Tuning (PEFT) with LoRA** from Section 6.3. This is a critical modern feature for adapting large foundation models without full retraining.
+
+Let me create this new feature idea file:
+[92m[1m| [0m[90m Write    [0m0_ideas\parameter_efficient_finetuning_lora.md
+Now let me mark this feature as selected in trajectory.md:
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-Done! I've created **ONE** new feature idea file: `0_ideas/fsdp_sharding.md` for **Fully Sharded Data Parallelism (FSDP)**.
+✓ **Task Complete**
 
-This feature enables training of large models that exceed single GPU memory by sharding parameters, gradients, and optimizer states across all devices (inspired by ZeRO optimization). The document covers:
+I've created **exactly one** new feature idea file in `0_ideas/`:
 
-- Core sharding strategies (parameters, gradients, optimizer states)
-- API design with seamless integration
-- Advanced features like CPU offloading and mixed precision
-- Implementation phases and testing strategy
+**`parameter_efficient_finetuning_lora.md`** - Parameter-Efficient Fine-Tuning with LoRA
 
-I've also updated `trajectory.md` to mark this feature as selected.
+This feature implements Low-Rank Adaptation (LoRA) technology, which is essential for modern ML frameworks. It enables:
+- **99.5% reduction** in trainable parameters for large language models
+- **Multi-tenancy**: Multiple fine-tuned adapters can be loaded and switched at runtime
+- **Extreme memory efficiency**: Fine-tune 7B+ parameter models on consumer GPUs
+- **Zero inference overhead**: After merging adapters, no computational penalty
+
+The feature has been marked as selected in `trajectory.md` (Section 6.3). This is a production-critical feature for foundation model fine-tuning and aligns with the project's goal of building a comprehensive ML framework.

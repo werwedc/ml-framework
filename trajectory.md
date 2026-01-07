@@ -142,7 +142,9 @@ With the dominance of foundation models, fine-tuning full models is often prohib
 
     LoRA (Low-Rank Adaptation): Support for injecting low-rank update matrices into existing layers. The framework must handle the complexity of freezing the backbone model while exposing only the adapter parameters to the optimizer.   
 
-Adapter Management: The ability to load multiple LoRA adapters for a single base model and switch between them dynamically at runtime. This enables multi-tenancy, where one heavy model serves different users with different fine-tuned behaviors.  
+    Adapter Management: The ability to load multiple LoRA adapters for a single base model and switch between them dynamically at runtime. This enables multi-tenancy, where one heavy model serves different users with different fine-tuned behaviors.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/parameter_efficient_finetuning_lora.md]
 
 7. Inference, Deployment, and Model Serving
 
