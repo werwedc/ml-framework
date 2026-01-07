@@ -1,56 +1,62 @@
+using MLFramework.Distributed;
+
 namespace MLFramework.Data;
 
 /// <summary>
-/// Distributed sampler that divides the dataset into equal chunks across multiple replicas.
-/// Each replica (process/node) gets a distinct subset of the data, ensuring no duplicates
-/// across workers in distributed training scenarios.
+/// Distributed sampler that partitions a dataset across multiple devices, ensuring each device
+/// processes different data while maintaining reproducible shuffling.
 /// </summary>
-public class DistributedSampler : IDistributedSampler
+public class DistributedSampler : IDistributedSampler, IDisposable
 {
     private readonly int _datasetSize;
     private readonly int _numReplicas;
     private readonly int _rank;
-    private readonly bool _shuffle;
-    private readonly bool _dropLast;
     private readonly int _seed;
+    private readonly bool _dropLast;
+    private readonly int _shuffle;
+
     private int _epoch;
+    private int[] _indices;
+    private int _numSamples;
+    private int _totalSize;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the DistributedSampler class.
     /// </summary>
     /// <param name="datasetSize">The total size of the dataset.</param>
-    /// <param name="numReplicas">The total number of replicas (processes/nodes).</param>
-    /// <param name="rank">The rank of the current process/node.</param>
-    /// <param name="shuffle">Whether to shuffle the indices within each replica.</param>
-    /// <param name="dropLast">Whether to drop the last uneven batch of data.</param>
-    /// <param name="seed">The random seed for reproducibility.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if parameters are out of valid range.</exception>
+    /// <param name="numReplicas">Number of processes participating in distributed training.
+    /// If null, uses world size from ProcessGroup.Default.</param>
+    /// <param name="rank">Rank of the current process. If null, uses rank from ProcessGroup.Default.</param>
+    /// <param name="shuffle">If true, shuffles the indices.</param>
+    /// <param name="seed">Random seed for shuffling.</param>
+    /// <param name="dropLast">If true, drop the last incomplete batch.</param>
     public DistributedSampler(
         int datasetSize,
-        int numReplicas,
-        int rank,
+        int? numReplicas = null,
+        int? rank = null,
         bool shuffle = true,
-        bool dropLast = false,
-        int seed = 0)
+        int seed = 0,
+        bool dropLast = false)
     {
-        if (datasetSize <= 0)
-            throw new ArgumentOutOfRangeException(nameof(datasetSize), "Dataset size must be positive.");
-
-        if (numReplicas <= 0)
-            throw new ArgumentOutOfRangeException(nameof(numReplicas), "Number of replicas must be positive.");
-
-        if (rank < 0 || rank >= numReplicas)
-            throw new ArgumentOutOfRangeException(nameof(rank), $"Rank must be in [0, {numReplicas - 1}].");
+        if (datasetSize < 0)
+            throw new ArgumentException("datasetSize must be non-negative");
 
         _datasetSize = datasetSize;
-        _numReplicas = numReplicas;
-        _rank = rank;
-        _shuffle = shuffle;
-        _dropLast = dropLast;
+        _numReplicas = numReplicas ?? ProcessGroup.Default?.WorldSize ?? 1;
+        _rank = rank ?? ProcessGroup.Default?.Rank ?? 0;
+        _shuffle = shuffle ? 1 : 0;
         _seed = seed;
+        _dropLast = dropLast;
         _epoch = 0;
 
-        ValidateConfiguration();
+        if (_numReplicas <= 0)
+            throw new ArgumentException("numReplicas must be positive");
+
+        if (_rank >= _numReplicas || _rank < 0)
+            throw new ArgumentException("rank must be in [0, numReplicas - 1]");
+
+        Initialize();
     }
 
     /// <summary>
@@ -69,9 +75,70 @@ public class DistributedSampler : IDistributedSampler
     public int Epoch => _epoch;
 
     /// <summary>
+    /// Gets the total number of samples for this rank.
+    /// </summary>
+    public int NumSamples => _numSamples;
+
+    /// <summary>
     /// Gets the total number of samples that will be returned for this replica.
     /// </summary>
-    public int Length => CalculatePerReplicaSize();
+    public int Length => _numSamples;
+
+    /// <summary>
+    /// Sets the current epoch for shuffling.
+    /// Different epochs produce different shuffle orders.
+    /// </summary>
+    /// <param name="epoch">The epoch number.</param>
+    public void SetEpoch(int epoch)
+    {
+        _epoch = epoch;
+        Initialize();
+    }
+
+    /// <summary>
+    /// Get the batch of indices for the given batch index.
+    /// </summary>
+    /// <param name="batchIndex">The batch index.</param>
+    /// <param name="batchSize">The batch size.</param>
+    /// <returns>An array of indices for the batch.</returns>
+    public int[] GetBatch(int batchIndex, int batchSize)
+    {
+        if (batchIndex < 0 || batchIndex >= GetNumBatches(batchSize))
+            throw new ArgumentOutOfRangeException(nameof(batchIndex), "batchIndex out of range");
+
+        var startIdx = batchIndex * batchSize;
+        var endIdx = Math.Min(startIdx + batchSize, _numSamples);
+        var batch = new int[endIdx - startIdx];
+
+        for (int i = 0; i < batch.Length; i++)
+        {
+            batch[i] = _indices[startIdx + i];
+        }
+
+        return batch;
+    }
+
+    /// <summary>
+    /// Get all indices for this rank.
+    /// </summary>
+    /// <returns>A clone of the indices array.</returns>
+    public int[] GetIndices()
+    {
+        return (int[])_indices.Clone();
+    }
+
+    /// <summary>
+    /// Get the number of batches for this rank.
+    /// </summary>
+    /// <param name="batchSize">The batch size.</param>
+    /// <returns>The number of batches.</returns>
+    public int GetNumBatches(int batchSize)
+    {
+        if (batchSize <= 0)
+            throw new ArgumentException("batchSize must be positive", nameof(batchSize));
+
+        return (int)Math.Ceiling((double)_numSamples / batchSize);
+    }
 
     /// <summary>
     /// Iterates over the sampled indices for this replica.
@@ -79,88 +146,76 @@ public class DistributedSampler : IDistributedSampler
     /// <returns>An enumerable of indices for this replica.</returns>
     public IEnumerable<int> Iterate()
     {
-        int perReplica = CalculatePerReplicaSize();
-
-        // Generate indices for this replica
-        var indices = new List<int>(perReplica);
-
-        int startIndex = _rank * perReplica;
-
-        for (int i = 0; i < perReplica; i++)
-        {
-            int globalIndex = startIndex + i;
-
-            if (globalIndex >= _datasetSize)
-                break;
-
-            indices.Add(globalIndex);
-        }
-
-        // Shuffle if enabled (different seed per epoch)
-        if (_shuffle)
-        {
-            int epochSeed = _seed + _epoch;
-            var random = new Random(epochSeed);
-
-            // Fisher-Yates shuffle
-            for (int i = indices.Count - 1; i > 0; i--)
-            {
-                int j = random.Next(i + 1);
-                (indices[i], indices[j]) = (indices[j], indices[i]);
-            }
-        }
-
-        return indices;
+        return _indices;
     }
 
     /// <summary>
-    /// Sets the epoch number to ensure different shuffling across epochs.
+    /// Initialize the sampler indices based on current configuration.
     /// </summary>
-    /// <param name="epoch">The epoch number (must be non-negative).</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown if epoch is negative.</exception>
-    public void SetEpoch(int epoch)
+    private void Initialize()
     {
-        if (epoch < 0)
-            throw new ArgumentOutOfRangeException(nameof(epoch), "Epoch must be non-negative.");
+        if (_datasetSize == 0)
+        {
+            _indices = Array.Empty<int>();
+            _numSamples = 0;
+            _totalSize = 0;
+            return;
+        }
 
-        _epoch = epoch;
-    }
-
-    /// <summary>
-    /// Calculates the number of samples per replica.
-    /// </summary>
-    /// <returns>The number of samples assigned to this replica.</returns>
-    private int CalculatePerReplicaSize()
-    {
-        int numSamples = _datasetSize;
-
+        // Calculate total size and samples per replica
         if (_dropLast)
         {
-            // Drop samples to make evenly divisible
-            numSamples = (_datasetSize / _numReplicas) * _numReplicas;
+            // Drop samples that don't divide evenly
+            var numSamplesPerReplica = _datasetSize / _numReplicas;
+            _totalSize = numSamplesPerReplica * _numReplicas;
+            _numSamples = numSamplesPerReplica;
         }
-
-        int perReplica = numSamples / _numReplicas;
-
-        // Last replica may get more samples if not drop_last
-        if (!_dropLast && _rank == _numReplicas - 1)
+        else
         {
-            perReplica += numSamples % _numReplicas;
+            // Distribute uneven remainder
+            _totalSize = _datasetSize;
+            _numSamples = (int)Math.Ceiling((double)_datasetSize / _numReplicas);
         }
 
-        return perReplica;
+        // Generate base indices (shuffled or in order)
+        int[] baseIndices;
+        if (_shuffle == 1)
+        {
+            int effectiveSeed = _seed + _epoch;
+            baseIndices = SamplerHelper.Shuffle(_totalSize, effectiveSeed);
+        }
+        else
+        {
+            baseIndices = SamplerHelper.Range(_totalSize);
+        }
+
+        // Assign indices to this rank (interleaved assignment)
+        // Each rank gets indices: rank, rank + numReplicas, rank + 2*numReplicas, ...
+        _indices = new int[_numSamples];
+        for (int i = 0; i < _numSamples; i++)
+        {
+            int globalIndex = _rank + i * _numReplicas;
+            if (globalIndex < _totalSize)
+            {
+                _indices[i] = baseIndices[globalIndex];
+            }
+            else
+            {
+                // This can happen when dropLast is false and rank is near the end
+                _indices[i] = -1; // Invalid index
+            }
+        }
     }
 
     /// <summary>
-    /// Validates the sampler configuration.
+    /// Disposes the sampler.
     /// </summary>
-    /// <exception cref="ArgumentException">Thrown if configuration is invalid.</exception>
-    private void ValidateConfiguration()
+    public void Dispose()
     {
-        if (_numReplicas <= 1)
-            throw new ArgumentException("numReplicas must be > 1 for distributed sampling.");
-
-        if (_rank < 0 || _rank >= _numReplicas)
-            throw new ArgumentException($"rank must be in [0, {_numReplicas - 1}].");
+        if (!_disposed)
+        {
+            _indices = Array.Empty<int>();
+            _disposed = true;
+        }
     }
 }

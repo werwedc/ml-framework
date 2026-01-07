@@ -57,13 +57,17 @@ Unified Memory Management: The HAL must abstract memory allocation primitives (l
 
 Device Agnostic Code: The framework's API must allow users to write device-agnostic code (e.g., tensor.to(device)), where the specific execution target is determined at runtime configuration rather than hardcoded into the model logic.  
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/hardware_abstraction_layer.md]
+
 3.2 The Compiler Stack: XLA, Inductor, and Triton
 
 The modern framework functions effectively as a compiler. It translates high-level Python code into optimized kernels.
 
     Intermediate Representations (IR): The compilation process relies on a multi-stage IR. The framework converts user code into a high-level graph (like StableHLO or Torch IR) that preserves model semantics. This is then lowered to a hardware-specific IR (like LLVM IR or Triton IR) for code generation.   
 
-Kernel Fusion and Generation: The compiler's primary optimization duty is kernel fusion. Deep learning performance is often memory-bound (limited by HBM bandwidth) rather than compute-bound. The compiler must identify patterns (e.g., Conv2D -> BatchNorm -> ReLU) and fuse them into a single kernel to minimize read/write operations to global memory. Modern stacks leverage OpenAI Triton or XLA to generate these kernels automatically, often outperforming hand-written libraries like cuDNN for non-standard architectures.  
+Kernel Fusion and Generation: The compiler's primary optimization duty is kernel fusion. Deep learning performance is often memory-bound (limited by HBM bandwidth) rather than compute-bound. The compiler must identify patterns (e.g., Conv2D -> BatchNorm -> ReLU) and fuse them into a single kernel to minimize read/write operations to global memory. Modern stacks leverage OpenAI Triton or XLA to generate these kernels automatically, often outperforming hand-written libraries like cuDNN for non-standard architectures.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/kernel_fusion_and_generation.md]  
 
 Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. The compiler must support dynamic shapes, generating kernels that can handle variable dimensions without triggering a full recompilation of the graph, which would destroy performance.  
 
@@ -76,11 +80,17 @@ With the parameter counts of state-of-the-art models entering the trillions, dis
 
 A feature-complete framework must support multiple orthogonal parallelism strategies, allowing users to mix and match them (3D Parallelism) to fit models into available hardware.  
 
-    Data Parallelism (DDP): The standard approach where the model is replicated on every device, and data is split. The framework must implement highly optimized gradient synchronization, typically using the Ring-AllReduce or Tree-AllReduce algorithms to aggregate updates efficiently across bandwidth-constrained interconnects.   
+    Data Parallelism (DDP): The standard approach where the model is replicated on every device, and data is split. The framework must implement highly optimized gradient synchronization, typically using the Ring-AllReduce or Tree-AllReduce algorithms to aggregate updates efficiently across bandwidth-constrained interconnects.  
 
-Fully Sharded Data Parallelism (FSDP): For large models, keeping a full copy on each GPU is impossible. FSDP shards the model parameters, gradients, and optimizer states across all devices. The framework must manage the complex communication required to gather the necessary parameters just-in-time for the forward/backward pass and then release them to free memory (ZeRO optimization).  
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/distributed_data_parallelism.md]   
 
-Tensor Parallelism (TP): This involves splitting individual tensors (e.g., large matrix multiplications) across devices. This is essential for models with individual layers that are too large for a single GPU's memory. The framework needs to insert the necessary all-gather and reduce-scatter communications automatically within the layer execution.  
+Fully Sharded Data Parallelism (FSDP): For large models, keeping a full copy on each GPU is impossible. FSDP shards the model parameters, gradients, and optimizer states across all devices. The framework must manage the complex communication required to gather the necessary parameters just-in-time for the forward/backward pass and then release them to free memory (ZeRO optimization).
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/fsdp_sharding.md]  
+
+Tensor Parallelism (TP): This involves splitting individual tensors (e.g., large matrix multiplications) across devices. This is essential for models with individual layers that are too large for a single GPU's memory. The framework needs to insert the necessary all-gather and reduce-scatter communications automatically within the layer execution.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/tensor_parallelism.md]
 
 Pipeline Parallelism (PP): Splitting the model vertically (by layers) across devices. To prevent "bubble" time where devices sit idle waiting for data, the framework must support micro-batching and asynchronous scheduling of forward/backward passes.  
 
@@ -138,7 +148,9 @@ With the dominance of foundation models, fine-tuning full models is often prohib
 
     LoRA (Low-Rank Adaptation): Support for injecting low-rank update matrices into existing layers. The framework must handle the complexity of freezing the backbone model while exposing only the adapter parameters to the optimizer.   
 
-Adapter Management: The ability to load multiple LoRA adapters for a single base model and switch between them dynamically at runtime. This enables multi-tenancy, where one heavy model serves different users with different fine-tuned behaviors.  
+    Adapter Management: The ability to load multiple LoRA adapters for a single base model and switch between them dynamically at runtime. This enables multi-tenancy, where one heavy model serves different users with different fine-tuned behaviors.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/parameter_efficient_finetuning_lora.md]
 
 7. Inference, Deployment, and Model Serving
 
@@ -155,7 +167,9 @@ Model Versioning and Hot-Swapping: The serving system must support A/B testing a
 
 The unique characteristics of LLMs require specialized serving features.
 
-    PagedAttention and KV Caching: In autoregressive generation, the Key-Value (KV) cache grows with sequence length. Traditional allocation leads to fragmentation. The framework should implement PagedAttention (inspired by OS virtual memory), which allows the KV cache to be stored in non-contiguous memory blocks. This dramatically increases memory efficiency and throughput.   
+    PagedAttention and KV Caching: In autoregressive generation, the Key-Value (KV) cache grows with sequence length. Traditional allocation leads to fragmentation. The framework should implement PagedAttention (inspired by OS virtual memory), which allows the KV cache to be stored in non-contiguous memory blocks. This dramatically increases memory efficiency and throughput.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/pagedattention_kv_cache.md]
 
 Continuous Batching: Unlike standard dynamic batching, continuous batching (or iteration-level scheduling) allows new requests to join a running batch at the token generation step, rather than waiting for the entire previous batch to finish generation. This creates a much higher throughput system for text generation.  
 

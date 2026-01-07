@@ -16,14 +16,18 @@ namespace MLFramework.LoRA
         private readonly bool _useBias;
         private readonly Tensor? _loraBias;
         private readonly Random? _dropoutRandom;
+        private bool _isBaseLayerFrozen = false;
+        private Tensor? _baseLayerWeightsBackup;
+        private bool _isEnabled = true;
 
         public int InChannels => _convLayer.InChannels;
         public int OutChannels => _convLayer.OutChannels;
         public int KernelSize => _convLayer.KernelSize;
 
-        public string ModuleType => "LoRAConv2d";
+        public new string ModuleType => "LoRAConv2d";
 
         public bool IsTraining { get; set; } = false;
+        public bool IsEnabled => _isEnabled;
 
         /// <summary>
         /// Creates a new LoRA adapter for a Conv2d layer
@@ -65,6 +69,7 @@ namespace MLFramework.LoRA
             switch (strategy)
             {
                 case LoRAInitializationStrategy.Standard:
+                case LoRAInitializationStrategy.Kaiming:
                     // A: Kaiming normal, B: Zeros
                     _loraA = KaimingNormal(new[] { Rank, flattenedInDim });
                     _loraB = Tensor.Zeros(new[] { outChannels, Rank });
@@ -74,12 +79,6 @@ namespace MLFramework.LoRA
                     // Both: Xavier uniform
                     _loraA = XavierUniform(new[] { Rank, flattenedInDim });
                     _loraB = XavierUniform(new[] { outChannels, Rank });
-                    break;
-
-                case LoRAInitializationStrategy.Zero:
-                    // Both: Zeros
-                    _loraA = Tensor.Zeros(new[] { Rank, flattenedInDim });
-                    _loraB = Tensor.Zeros(new[] { outChannels, Rank });
                     break;
 
                 default:
@@ -95,7 +94,7 @@ namespace MLFramework.LoRA
             // Standard forward pass through base layer
             var output = _convLayer.Forward(input);
 
-            if (!IsEnabled)
+            if (!_isEnabled)
                 return output;
 
             // LoRA forward pass for Conv2d
@@ -207,8 +206,16 @@ namespace MLFramework.LoRA
         private Tensor ApplyDropout(Tensor tensor)
         {
             var mask = RandomUniform(tensor.Shape, _dropoutRandom!);
-            mask = Where(mask.GreaterThan(_dropoutRate), 1.0f / (1.0f - _dropoutRate), 0.0f);
-            return tensor.Mul(mask);
+            mask = Where(mask, _dropoutRate, 1.0f / (1.0f - _dropoutRate), 0.0f);
+
+            // Element-wise multiplication
+            var resultData = new float[tensor.Size];
+            for (int i = 0; i < tensor.Size; i++)
+            {
+                resultData[i] = tensor.Data[i] * mask.Data[i];
+            }
+
+            return new Tensor(resultData, tensor.Shape, tensor.RequiresGrad);
         }
 
         public override void FreezeBaseLayer()
@@ -470,13 +477,13 @@ namespace MLFramework.LoRA
             return new Tensor(resultData, input.Shape, input.RequiresGrad || bias.RequiresGrad);
         }
 
-        private Tensor Where(Tensor condition, float trueValue, float falseValue)
+        private Tensor Where(Tensor condition, float threshold, float trueValue, float falseValue)
         {
             var data = new float[condition.Size];
             for (int i = 0; i < data.Length; i++)
             {
                 int[] indices = GetIndices(condition.Shape, i);
-                data[i] = condition[indices] > 0 ? trueValue : falseValue;
+                data[i] = condition[indices] > threshold ? trueValue : falseValue;
             }
             return new Tensor(data, condition.Shape);
         }
