@@ -1,4 +1,4 @@
-using MlFramework.Core;
+using MLFramework.Core;
 using MlFramework.Inference.PagedAttention;
 using MlFramework.Inference.PagedAttention.Models;
 using Xunit;
@@ -10,7 +10,7 @@ namespace MLFramework.Tests.Inference.PagedAttention;
 /// </summary>
 public class KVCacheBlockManagerTests
 {
-    private readonly DeviceId _deviceId = DeviceId.Cpu(0);
+    private readonly DeviceId _deviceId = DeviceId.CPU;
 
     [Fact]
     public void Constructor_InitializesFreeBlockPool()

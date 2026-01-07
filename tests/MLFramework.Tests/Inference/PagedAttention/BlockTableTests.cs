@@ -1,4 +1,4 @@
-using MlFramework.Core;
+using MLFramework.Core;
 using MlFramework.Inference.PagedAttention;
 using Xunit;
 
@@ -11,7 +11,7 @@ public class BlockTableTests
 {
     private KVCacheBlockManager CreateManager()
     {
-        return new KVCacheBlockManager(100, 16, 128, 32, 32, DeviceId.Cpu(0));
+        return new KVCacheBlockManager(100, 16, 128, 32, 32, DeviceId.CPU);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class BlockTableTests
     [Fact]
     public void AllocateAndAppendBlock_ReturnsMinusOneOnFailure()
     {
-        var manager = new KVCacheBlockManager(2, 16, 128, 32, 32, DeviceId.Cpu(0));
+        var manager = new KVCacheBlockManager(2, 16, 128, 32, 32, DeviceId.CPU);
         var table = new BlockTable(manager);
 
         // Allocate all blocks
