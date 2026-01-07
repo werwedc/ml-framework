@@ -488,5 +488,230 @@ namespace MLFramework.Tests.Functional
         }
 
         #endregion
+
+        #region Additional Single Input Tests from Spec
+
+        [Fact]
+        public void Vectorize_SingleInput_ShouldProcessBatch()
+        {
+            // Arrange
+            Func<Tensor, Tensor> addOne = t =>
+            {
+                var newData = t.Data.Select(x => x + 1f).ToArray();
+                return new Tensor(newData, t.Shape);
+            };
+            var batchedAddOne = Functional.Vectorize(addOne, axis: 0);
+
+            // Act
+            var input = Tensor.FromArray(new[] { 1f, 2f, 3f }).Reshape(new[] { 3, 1 });  // Shape [3, 1]
+            var result = batchedAddOne(input);
+
+            // Assert
+            Assert.Equal(new[] { 3, 1 }, result.Shape);
+            // Each element should be incremented by 1
+            Assert.Equal(2f, result[0, 0].ToScalar());
+            Assert.Equal(3f, result[1, 0].ToScalar());
+            Assert.Equal(4f, result[2, 0].ToScalar());
+        }
+
+        [Fact]
+        public void Vectorize_SingleInput_3DTensor()
+        {
+            // Arrange
+            Func<Tensor, Tensor> identity = t => t;
+            var batchedIdentity = Functional.Vectorize(identity, axis: 0);
+
+            // Act
+            var input = Tensor.FromArray(new float[24]).Reshape(new[] { 4, 3, 2 });  // Shape [4, 3, 2]
+            var result = batchedIdentity(input);
+
+            // Assert
+            Assert.Equal(new[] { 4, 3, 2 }, result.Shape);
+        }
+
+        #endregion
+
+        #region Additional Double Input Tests from Spec
+
+        [Fact]
+        public void Vectorize_DoubleInput_WithDifferentShapes()
+        {
+            // Arrange
+            Func<Tensor, Tensor, Tensor> matmul = (a, b) =>
+            {
+                // Simple matrix multiplication for testing
+                var resultData = new float[3 * 5]; // [3, 5]
+                for (int i = 0; i < 3; i++)
+                {
+                    for (int j = 0; j < 5; j++)
+                    {
+                        float sum = 0;
+                        for (int k = 0; k < 4; k++)
+                        {
+                            sum += a.Data[i * 4 + k] * b.Data[k * 5 + j];
+                        }
+                        resultData[i * 5 + j] = sum;
+                    }
+                }
+                return new Tensor(resultData, new[] { 3, 5 });
+            };
+            var batchedMatMul = Functional.Vectorize(matmul, axis: 0);
+
+            // Act
+            var input1 = Tensor.FromArray(new float[24]).Reshape(new[] { 2, 3, 4 });  // Batch of [3, 4]
+            var input2 = Tensor.FromArray(new float[40]).Reshape(new[] { 2, 4, 5 });  // Batch of [4, 5]
+            var result = batchedMatMul(input1, input2);
+
+            // Assert
+            Assert.Equal(new[] { 2, 3, 5 }, result.Shape);
+        }
+
+        #endregion
+
+        #region Multi-Axis Tests from Spec
+
+        [Fact]
+        public void Vectorize_WithInAxes_NullAxis_ShouldNotVectorize()
+        {
+            // Arrange
+            Func<Tensor, Tensor, Tensor> multiply = (a, b) =>
+            {
+                var newData = a.Data.Zip(b.Data, (x, y) => x * y).ToArray();
+                return new Tensor(newData, a.Shape);
+            };
+            var batchedMultiply = Functional.Vectorize(multiply, new object[] { 0, null });
+
+            // Act
+            var batchedInput = Tensor.FromArray(new[] { 1f, 2f }).Reshape(new[] { 2, 1 });  // [2, 1]
+            var singleInput = Tensor.FromArray(new[] { 10f }).Reshape(new[] { 1 });  // [1]
+            var result = batchedMultiply(batchedInput, singleInput);
+
+            // Assert
+            Assert.Equal(new[] { 2, 1 }, result.Shape);
+            // Each batch element should be multiplied by the same single input
+            Assert.Equal(10f, result[0, 0].ToScalar());
+            Assert.Equal(20f, result[1, 0].ToScalar());
+        }
+
+        [Fact]
+        public void Vectorize_WithInAxes_DifferentAxes()
+        {
+            // Arrange
+            Func<Tensor, Tensor, Tensor> add = (a, b) => a + b;
+
+            // Act
+            var batchedAdd = Functional.Vectorize(add, new object[] { 0, 1 });
+
+            var input1 = Tensor.FromArray(new float[6]).Reshape(new[] { 2, 3 });  // [2, 3]
+            var input2 = Tensor.FromArray(new float[6]).Reshape(new[] { 2, 3 });  // [2, 3]
+            var result = batchedAdd(input1, input2);
+
+            // Assert
+            Assert.Equal(new[] { 2, 3 }, result.Shape);
+            // Should add corresponding elements
+            for (int i = 0; i < 2; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    Assert.Equal(input1[i, j].ToScalar() + input2[i, j].ToScalar(),
+                                 result[i, j].ToScalar());
+                }
+            }
+        }
+
+        [Fact]
+        public void Vectorize_WithInAxes_AllNull_ShouldThrow()
+        {
+            // Arrange
+            Func<Tensor, Tensor, Tensor> add = (a, b) => a + b;
+
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() =>
+                Functional.Vectorize(add, new object[] { null, null }));
+        }
+
+        [Fact]
+        public void Vectorize_WithInAxes_ShouldThrowForWrongLength()
+        {
+            // Arrange
+            Func<Tensor, Tensor, Tensor> add = (a, b) => a + b;
+
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() =>
+                Functional.Vectorize(add, new object[] { 0 }));  // Should have 2 axes
+        }
+
+        [Fact]
+        public void Vectorize_ShouldThrowForInvalidAxis()
+        {
+            // Arrange
+            Func<Tensor, Tensor> identity = t => t;
+            var input = Tensor.FromArray(new[] { 1f, 2f }).Reshape(new[] { 2, 1 });
+
+            // Act & Assert
+            var batchedIdentity = Functional.Vectorize(identity, axis: 5);
+            Assert.Throws<ArgumentException>(() => batchedIdentity(input));
+        }
+
+        #endregion
+
+        #region Real-World Scenarios from Spec
+
+        [Fact]
+        public void Vectorize_ComputeLossForBatch()
+        {
+            // Arrange
+            Func<Tensor, Tensor, Tensor> mseLoss = (predictions, targets) =>
+            {
+                var diffData = predictions.Data.Zip(targets.Data, (x, y) => x - y).ToArray();
+                var squaredData = diffData.Select(x => x * x).ToArray();
+                var mean = squaredData.Sum() / squaredData.Length;
+                return new Tensor(new[] { mean }, new[] { 1 });
+            };
+
+            var batchedMSE = Functional.Vectorize(mseLoss, axis: 0);
+
+            // Act
+            var predictions = Tensor.FromArray(new[] { 1f, 2f, 3f, 4f }).Reshape(new[] { 4, 1 });
+            var targets = Tensor.FromArray(new[] { 1.1f, 2.2f, 2.9f, 4.1f }).Reshape(new[] { 4, 1 });
+            var result = batchedMSE(predictions, targets);
+
+            // Assert
+            Assert.Single(result.Shape);  // Scalar result
+            Assert.True(result.ToScalar() > 0);
+        }
+
+        [Fact]
+        public void Vectorize_SoftmaxBatch()
+        {
+            // Arrange
+            Func<Tensor, Tensor> softmax = t =>
+            {
+                var expData = t.Data.Select(MathF.Exp).ToArray();
+                var sum = expData.Sum();
+                var resultData = expData.Select(x => x / sum).ToArray();
+                return new Tensor(resultData, t.Shape);
+            };
+
+            var batchedSoftmax = Functional.Vectorize(softmax, axis: 0);
+
+            // Act
+            var input = Tensor.FromArray(new[] { 1f, 2f, 3f, 1f, 2f, 3f }).Reshape(new[] { 2, 3 });
+            var result = batchedSoftmax(input);
+
+            // Assert
+            Assert.Equal(new[] { 2, 3 }, result.Shape);
+
+            // Each row should sum to 1 (approximately)
+            for (int i = 0; i < 2; i++)
+            {
+                float rowSum = 0;
+                for (int j = 0; j < 3; j++)
+                    rowSum += result[i, j].ToScalar();
+                Assert.InRange(rowSum, 0.99f, 1.01f);
+            }
+        }
+
+        #endregion
     }
 }
