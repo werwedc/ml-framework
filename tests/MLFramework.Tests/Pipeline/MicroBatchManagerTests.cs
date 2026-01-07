@@ -34,7 +34,7 @@ namespace MLFramework.Tests.Pipeline
         private Tensor CreateGradient(int size)
         {
             var data = new float[size];
-            for (int i = 0; i < size.Length; i++)
+            for (int i = 0; i < size; i++)
             {
                 data[i] = 1.0f;
             }
