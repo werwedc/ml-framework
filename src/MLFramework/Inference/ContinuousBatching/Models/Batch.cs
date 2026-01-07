@@ -8,6 +8,7 @@ namespace MLFramework.Inference.ContinuousBatching;
 public class Batch
 {
     private readonly ConcurrentDictionary<RequestId, Request> _requests;
+    private List<Request>? _snapshotRequests;
 
     /// <summary>
     /// Sequential identifier for the batch.
@@ -16,8 +17,13 @@ public class Batch
 
     /// <summary>
     /// List of active requests in batch.
+    /// Can be set for creating immutable snapshots.
     /// </summary>
-    public IReadOnlyList<Request> Requests => _requests.Values.ToList();
+    public IReadOnlyList<Request> Requests
+    {
+        get => _snapshotRequests ?? _requests.Values.ToList();
+        set => _snapshotRequests = value as List<Request> ?? new List<Request>(value);
+    }
 
     /// <summary>
     /// Time when the batch was created.
@@ -27,7 +33,7 @@ public class Batch
     /// <summary>
     /// Current number of requests in the batch.
     /// </summary>
-    public int Size => _requests.Count;
+    public int Size => _snapshotRequests?.Count ?? _requests.Count;
 
     /// <summary>
     /// Memory estimate for capacity management.
