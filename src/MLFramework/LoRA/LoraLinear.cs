@@ -199,6 +199,14 @@ namespace MLFramework.LoRA
             }
         }
 
+        /// <summary>
+        /// Gets the base Linear layer
+        /// </summary>
+        public Linear GetBaseLinear()
+        {
+            return _baseLinear;
+        }
+
         private Parameter InitializeLoraA(int outFeatures, int rank)
         {
             // Initialize A with small random values (std=0.01)
