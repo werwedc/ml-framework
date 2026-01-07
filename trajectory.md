@@ -92,7 +92,9 @@ Tensor Parallelism (TP): This involves splitting individual tensors (e.g., large
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/tensor_parallelism.md]
 
-Pipeline Parallelism (PP): Splitting the model vertically (by layers) across devices. To prevent "bubble" time where devices sit idle waiting for data, the framework must support micro-batching and asynchronous scheduling of forward/backward passes.  
+Pipeline Parallelism (PP): Splitting the model vertically (by layers) across devices. To prevent "bubble" time where devices sit idle waiting for data, the framework must support micro-batching and asynchronous scheduling of forward/backward passes.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/pipeline_parallelism.md]  
 
 4.2 Communication and Fault Tolerance
 

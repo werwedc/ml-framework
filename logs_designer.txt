@@ -1,18 +1,20 @@
-I'll help you create a new feature idea in `0_ideas/`. Let me first check the trajectory.md file to see what features are available, then create one feature idea file.
-[96m[1m| [0m[90m Read     [0mtrajectory.md
+I'll help you generate a new feature idea. Let me first check if there's a trajectory.md file to see what features might be planned.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"**/trajectory.md"}
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
-I can see the trajectory.md file contains comprehensive information about ML framework features. Let me create ONE new feature idea file. I'll select the **Quantization Ecosystem** feature from section 6.2, which includes Post-Training Quantization (PTQ) and Quantization Aware Training (QAT).
-[92m[1m| [0m[90m Write    [0m0_ideas\quantization_ecosystem.md
-Now I'll mark this feature as selected in trajectory.md:
+[96m[1m| [0m[90m Read     [0mtrajectory.md
+I can see the trajectory.md file contains a comprehensive roadmap. Looking at it, I notice that **Pipeline Parallelism** (line 95) is a critical feature that hasn't been selected yet. This is essential for training large models that need to be split across multiple devices vertically by layers.
+
+Let me create a feature idea file for Pipeline Parallelism:
+[92m[1m| [0m[90m Write    [0m0_ideas\pipeline_parallelism.md
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-Done! I've created ONE new feature idea file:
+Done! I've created **one** new feature idea file: `0_ideas/pipeline_parallelism.md`
 
-**`0_ideas/quantization_ecosystem.md`** - A comprehensive feature covering the Quantization Ecosystem including:
-- Post-Training Quantization (PTQ) with both Dynamic and Static quantization
-- Quantization-Aware Training (QAT) with fake quantization nodes
-- Calibration strategies and accuracy evaluation tools
-- Flexible quantization configuration API
-- Backend support for x86, ARM, and GPU
-- Benefits including 4x model size reduction and 2-4x inference speedup
+This feature covers **Pipeline Parallelism**, a critical distributed training strategy that splits large models vertically across devices by layers. The file includes:
 
-I've also marked this feature as selected in trajectory.md at line 144.
+- **Core requirements**: Layer partitioning, micro-batching, communication scheduling, and asynchronous execution
+- **Implementation details**: Scheduling strategies (1F1B, Interleaved), C# API components, communication interfaces
+- **Memory optimization**: Activation checkpointing, offloading, gradient accumulation
+- **Integration**: Compatibility with tensor parallelism, distributed optimizers, and mixed precision
+- **Success metrics**: Throughput, memory efficiency, bubble time minimization
+
+I've also marked this feature as selected in `trajectory.md` (line 95) with the checkmark notation.
