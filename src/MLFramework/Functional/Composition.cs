@@ -181,13 +181,31 @@ namespace MLFramework.Functional
         #region Vectorization
 
         /// <summary>
-        /// Vectorize a function to apply to batched inputs.
+        /// Transforms a function that operates on single tensors to work on batches.
         /// </summary>
-        public static Func<Tensor, Tensor> Vectorize<T>(Func<T, Tensor> func)
+        /// <param name="func">Function to vectorize.</param>
+        /// <param name="axis">Batch axis (default: 0).</param>
+        /// <returns>Batched function.</returns>
+        public static Func<Tensor, Tensor> Vectorize(
+            Func<Tensor, Tensor> func,
+            int axis = 0)
         {
-            // This is a placeholder - actual vectorization implementation
-            // would depend on the specific tensor operations framework
-            return tensor => tensor;
+            var transform = new VMapTransform(func, axis);
+            return (Func<Tensor, Tensor>)transform.Transform(func);
+        }
+
+        /// <summary>
+        /// Vectorize a function with multiple input tensors.
+        /// </summary>
+        /// <param name="func">Function to vectorize with two inputs.</param>
+        /// <param name="axis">Batch axis (default: 0).</param>
+        /// <returns>Batched function.</returns>
+        public static Func<Tensor, Tensor, Tensor> Vectorize(
+            Func<Tensor, Tensor, Tensor> func,
+            int axis = 0)
+        {
+            var transform = new VMapTransform(func, axis);
+            return (Func<Tensor, Tensor, Tensor>)transform.Transform(func);
         }
 
         #endregion
