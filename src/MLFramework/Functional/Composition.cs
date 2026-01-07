@@ -210,6 +210,42 @@ namespace MLFramework.Functional
 
         #endregion
 
+        #region Parallelization
+
+        /// <summary>
+        /// Parallelizes a function across a device mesh (SPMD).
+        /// </summary>
+        /// <param name="func">Function to parallelize.</param>
+        /// <param name="mesh">Device mesh for distribution.</param>
+        /// <param name="in_axes">Which axes to shard across devices (default: data axis).</param>
+        /// <returns>Parallel function that returns sharded result.</returns>
+        public static Func<Tensor, Tensor> Parallelize(
+            Func<Tensor, Tensor> func,
+            Distributed.DeviceMesh mesh,
+            object[] in_axes = null)
+        {
+            var transform = new Distributed.PMapTransform(func, mesh, in_axes);
+            return (Func<Tensor, Tensor>)transform.Transform(func);
+        }
+
+        /// <summary>
+        /// Parallelizes a function with multiple inputs.
+        /// </summary>
+        /// <param name="func">Function to parallelize.</param>
+        /// <param name="mesh">Device mesh for distribution.</param>
+        /// <param name="in_axes">Which axes to shard across devices (default: data axis).</param>
+        /// <returns>Parallel function that returns sharded result.</returns>
+        public static Func<Tensor, Tensor, Tensor> Parallelize(
+            Func<Tensor, Tensor, Tensor> func,
+            Distributed.DeviceMesh mesh,
+            object[] in_axes = null)
+        {
+            var transform = new Distributed.PMapTransform(func, mesh, in_axes);
+            return (Func<Tensor, Tensor, Tensor>)transform.Transform(func);
+        }
+
+        #endregion
+
         #region JIT Compilation
 
         /// <summary>
