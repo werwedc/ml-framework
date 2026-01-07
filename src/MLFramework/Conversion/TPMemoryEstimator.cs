@@ -23,13 +23,13 @@ public static class TPMemoryEstimator
         estimate.BaseMemoryMB = analysis.TotalMemoryBytes / 1024 / 1024;
 
         // Memory with TP (each rank stores only a fraction)
-        estimate.TPMemoryPerRankMB = (
+        estimate.TPMemoryPerRankMB = (long)(
             analysis.TotalMemoryBytes - analysis.ParallelizableMemoryBytes +
             analysis.ParallelizableMemoryBytes / worldSize
         ) / 1024 / 1024;
 
         // Communication overhead (temporary buffers)
-        estimate.CommunicationOverheadMB = estimate.TPMemoryPerRankMB * 0.1; // 10% overhead
+        estimate.CommunicationOverheadMB = (long)(estimate.TPMemoryPerRankMB * 0.1); // 10% overhead
 
         // Total memory per rank
         estimate.TotalMemoryPerRankMB = estimate.TPMemoryPerRankMB + estimate.CommunicationOverheadMB;

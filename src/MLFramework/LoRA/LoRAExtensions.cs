@@ -6,6 +6,7 @@ using RitterFramework.Core.Tensor;
 using MLFramework.Modules;
 using MLFramework.LoRA;
 using MLFramework.NN;
+using MLFrameworkIModule = MLFramework.Modules.IModule;
 
 namespace MLFramework.LoRA
 {
@@ -20,7 +21,7 @@ namespace MLFramework.LoRA
         /// </summary>
         /// <param name="model">The model to apply LoRA to</param>
         /// <param name="config">LoRA configuration (defaults to standard config)</param>
-        public static void ApplyLoRA(this IModule model, LoraConfig config = null)
+        public static void ApplyLoRA(this MLFrameworkIModule model, LoraConfig config = null)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -47,7 +48,7 @@ namespace MLFramework.LoRA
         /// Remove LoRA from a model, restoring the original layers.
         /// </summary>
         /// <param name="model">The model to remove LoRA from</param>
-        public static void RemoveLoRA(this IModule model)
+        public static void RemoveLoRA(this MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -72,7 +73,7 @@ namespace MLFramework.LoRA
         /// </summary>
         /// <param name="model">The model to get LoRA parameters from</param>
         /// <returns>List of trainable LoRA parameters</returns>
-        public static List<Tensor> GetLoRAParameters(this IModule model)
+        public static List<Tensor> GetLoRAParameters(this MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -101,7 +102,7 @@ namespace MLFramework.LoRA
         /// Freeze all non-LoRA parameters in a model.
         /// </summary>
         /// <param name="model">The model to freeze base parameters in</param>
-        public static void FreezeBase(this IModule model)
+        public static void FreezeBase(this MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -127,7 +128,7 @@ namespace MLFramework.LoRA
         /// Unfreeze all parameters in a model.
         /// </summary>
         /// <param name="model">The model to unfreeze</param>
-        public static void UnfreezeAll(this IModule model)
+        public static void UnfreezeAll(this MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -152,7 +153,7 @@ namespace MLFramework.LoRA
         /// </summary>
         /// <param name="model">The model to check</param>
         /// <returns>True if LoRA is applied, false otherwise</returns>
-        public static bool HasLoRA(this IModule model)
+        public static bool HasLoRA(this MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -178,7 +179,7 @@ namespace MLFramework.LoRA
         /// </summary>
         /// <param name="model">The model to get LoRA layers from</param>
         /// <returns>List of all LoRA layers</returns>
-        public static List<LoraLinear> GetLoRALayers(this IModule model)
+        public static List<LoraLinear> GetLoRALayers(this MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));

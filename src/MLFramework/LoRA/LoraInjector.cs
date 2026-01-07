@@ -7,6 +7,7 @@ using RitterFramework.Core.Tensor;
 using MLFramework.Modules;
 using MLFramework.LoRA;
 using MLFramework.NN;
+using MLFrameworkIModule = MLFramework.Modules.IModule;
 
 namespace MLFramework.LoRA
 {
@@ -39,7 +40,7 @@ namespace MLFramework.LoRA
         /// </summary>
         /// <param name="model">The model to inject LoRA into</param>
         /// <param name="config">LoRA configuration</param>
-        public static void Inject(IModule model, LoraConfig config)
+        public static void Inject(MLFrameworkIModule model, LoraConfig config)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -72,7 +73,7 @@ namespace MLFramework.LoRA
         /// Remove LoRA layers from a model using extension method
         /// </summary>
         /// <param name="model">The model to remove LoRA from</param>
-        public static void Remove(IModule model)
+        public static void Remove(MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -104,7 +105,7 @@ namespace MLFramework.LoRA
         /// </summary>
         /// <param name="model">The model to check</param>
         /// <returns>True if LoRA layers are present, false otherwise</returns>
-        public static bool HasLoRA(IModule model)
+        public static bool HasLoRA(MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
@@ -137,7 +138,7 @@ namespace MLFramework.LoRA
         /// </summary>
         /// <param name="model">The model to search</param>
         /// <returns>List of all LoraLinear layers in the model</returns>
-        public static List<LoraLinear> GetLoRALayers(IModule model)
+        public static List<LoraLinear> GetLoRALayers(MLFrameworkIModule model)
         {
             if (model == null)
                 throw new ArgumentNullException(nameof(model));
