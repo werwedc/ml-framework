@@ -1,28 +1,22 @@
-I'll help you create a new feature idea in the `0_ideas/` directory. Let me first read the AGENTS.md file and check for any trajectory.md file.
-[96m[1m| [0m[90m Read     [0mAGENTS.md
+I'll help you generate a new feature idea. Let me first check if trajectory.md exists to see what features might be available.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
 [96m[1m| [0m[90m Read     [0mtrajectory.md
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-I can see the trajectory.md file contains many potential features for the ML framework, and the `0_ideas/` directory is currently empty. I'll select a feature that's NOT yet marked as selected and create an idea file for it.
+I can see trajectory.md contains many features, and several are marked as selected. I'll pick **Continuous Batching** (line 174) which is not yet selected - it's a critical feature for efficient LLM serving.
 
-Looking at trajectory.md, I notice that "Kernel Fusion and Generation" from the compiler stack section (3.2) is not yet selected. This is a critical feature for optimizing ML framework performance.
-
-Let me create a feature idea file for Kernel Fusion:
-
-[92m[1m| [0m[90m Write    [0m0_ideas\kernel_fusion_and_generation.mdNow let me mark this feature as selected in the trajectory.md file:
+Let me create the feature idea file:
+[92m[1m| [0m[90m Write    [0m0_ideas\continuous_batching.md
+Now let me mark this feature as selected in trajectory.md:
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-Perfect! I've successfully created a new feature idea file for **Kernel Fusion and Generation** in the `0_ideas/` directory. 
+✓ **Task Complete**
 
-**What I did:**
+I've created a new feature idea file: `0_ideas/continuous_batching.md`
 
-1. ✅ Created `0_ideas/kernel_fusion_and_generation.md` - A comprehensive feature specification for implementing kernel fusion to optimize ML framework performance by combining multiple operations into single GPU kernel launches
+**Feature Selected:** Continuous Batching (Iteration-Level Scheduling)
 
-2. ✅ Marked the feature as selected in `trajectory.md` by adding the `[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/kernel_fusion_and_generation.md]` annotation
+This feature enables dynamic request management for LLM serving, allowing new requests to join an ongoing batch during token generation rather than waiting for batch completion. This provides:
 
-The feature idea covers:
-- Pattern detection for fusible operations
-- Fusion engine and kernel code generation
-- Autotuning system for optimal performance
-- API design for automatic and explicit fusion control
-- Performance goals targeting 1.5x-2x speedup on typical models
+- **2-5x higher throughput** for mixed workloads
+- **20-40% reduction** in per-token latency
+- **80-95% GPU utilization** (vs 40-60% in static batching)
 
-Task completed. The `0_ideas/` directory now contains exactly one new feature idea file.
+The feature has been marked as selected in trajectory.md (line 174) and is ready for the Architect to specify the implementation details.

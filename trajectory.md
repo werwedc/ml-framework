@@ -171,6 +171,7 @@ The unique characteristics of LLMs require specialized serving features.
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/pagedattention_kv_cache.md]
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/continuous_batching.md]
 Continuous Batching: Unlike standard dynamic batching, continuous batching (or iteration-level scheduling) allows new requests to join a running batch at the token generation step, rather than waiting for the entire previous batch to finish generation. This creates a much higher throughput system for text generation.  
 
 7.3 Edge and Mobile Deployment
