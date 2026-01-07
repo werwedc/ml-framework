@@ -140,7 +140,9 @@ Quantization reduces model size and latency by representing weights and activati
 
     Post-Training Quantization (PTQ): The framework should provide tools to convert trained FP32 models to Int8. This includes Dynamic Quantization (weights are Int8, activations quantized on-the-fly) and Static Quantization (requires a calibration dataset to determine activation ranges).   
 
-Quantization Aware Training (QAT): For minimal accuracy loss, the framework must support QAT. This involves inserting "fake quantization" nodes into the computation graph during training. These nodes simulate the rounding errors of Int8 arithmetic, allowing the model to learn weights that are robust to quantization noise.  
+Quantization Aware Training (QAT): For minimal accuracy loss, the framework must support QAT. This involves inserting "fake quantization" nodes into the computation graph during training. These nodes simulate the rounding errors of Int8 arithmetic, allowing the model to learn weights that are robust to quantization noise.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/quantization_ecosystem.md]  
 
 6.3 Parameter-Efficient Fine-Tuning (PEFT)
 
