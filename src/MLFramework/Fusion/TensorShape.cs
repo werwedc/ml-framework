@@ -23,6 +23,21 @@ public record TensorShape
     public int Rank => Dimensions.Count;
 
     /// <summary>
+    /// Gets the total number of elements in the tensor (alias for Size)
+    /// </summary>
+    public int TotalElements => Size;
+
+    /// <summary>
+    /// Gets the last dimension (width for 2D/4D tensors)
+    /// </summary>
+    public int Width => Dimensions.Count > 0 ? Dimensions[^1] : 1;
+
+    /// <summary>
+    /// Gets the second-to-last dimension (height for 4D tensors)
+    /// </summary>
+    public int Height => Dimensions.Count > 1 ? Dimensions[^2] : 1;
+
+    /// <summary>
     /// Creates a tensor shape from the given dimensions
     /// </summary>
     public static TensorShape Create(params int[] dimensions)
