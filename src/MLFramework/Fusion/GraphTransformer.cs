@@ -1,4 +1,5 @@
 using MLFramework.Core;
+using MLFramework.Fusion.Backends;
 
 namespace MLFramework.Fusion;
 
@@ -216,13 +217,14 @@ public class GraphTransformer
             OutputTensors = outputTensors,
             TemporaryMemoryBytes = ir.MemoryLayout.SharedMemoryBytes,
             RegisterBytes = ir.MemoryLayout.RegisterBytes,
-            ThreadBlockConfig = new ThreadBlockConfiguration
+            ThreadBlockConfig = new Backends.ThreadBlockConfiguration
             {
                 X = ir.ComputeRequirements.ThreadsPerBlock,
                 Y = 1,
                 Z = 1
             },
-            CompilationFlags = new List<string> { "-O3", "--use_fast_math" }
+            CompilationFlags = new List<string> { "-O3", "--use_fast_math" },
+            Parameters = Array.Empty<KernelLaunchParameter>()
         };
     }
 

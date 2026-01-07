@@ -77,17 +77,6 @@ namespace MLFramework.Fusion
     }
 
     /// <summary>
-    /// Thread block configuration for kernel execution
-    /// </summary>
-    public record ThreadBlockConfiguration
-    {
-        public required int X { get; init; }
-        public required int Y { get; init; }
-        public required int Z { get; init; }
-        public int Total => X * Y * Z;
-    }
-
-    /// <summary>
     /// Helper methods for Operation access
     /// </summary>
     public static class OperationExtensions
@@ -95,12 +84,10 @@ namespace MLFramework.Fusion
         /// <summary>
         /// Gets thread block configuration from operation attributes
         /// </summary>
-        public static ThreadBlockConfiguration? GetThreadBlockConfig(this Operation op)
+        public static Backends.ThreadBlockConfiguration? GetThreadBlockConfig(this Operation op)
         {
-            if (op.Attributes.TryGetValue("threadBlockConfig", out var config) && config is ThreadBlockConfiguration tbc)
-            {
+            if (op.Attributes.TryGetValue("threadBlockConfig", out var config) && config is Backends.ThreadBlockConfiguration tbc)
                 return tbc;
-            }
             return null;
         }
 

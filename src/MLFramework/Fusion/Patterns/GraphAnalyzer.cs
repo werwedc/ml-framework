@@ -188,8 +188,8 @@ namespace MLFramework.Fusion
         /// <summary>
         /// Gets operation thread block configuration if available
         /// </summary>
-        public ThreadBlockConfiguration? ThreadBlockConfig =>
-            Operation.Attributes.TryGetValue("threadBlockConfig", out var config) && config is ThreadBlockConfiguration tbc
+        public Backends.ThreadBlockConfiguration? ThreadBlockConfig =>
+            Operation.Attributes.TryGetValue("threadBlockConfig", out var config) && config is Backends.ThreadBlockConfiguration tbc
                 ? tbc
                 : null;
     }

@@ -1,4 +1,5 @@
 using MLFramework.Core;
+using MLFramework.Fusion.Backends;
 
 namespace MLFramework.Fusion;
 
@@ -39,52 +40,4 @@ public record FusedOperation : Operation
             Attributes = new Dictionary<string, object>()
         };
     }
-}
-
-/// <summary>
-/// Detailed specification for kernel compilation and execution
-/// </summary>
-public record KernelSpecification
-{
-    public required string KernelName { get; init; }
-    public required FusionStrategy Strategy { get; init; }
-    public required IReadOnlyList<FusionVariable> InputTensors { get; init; }
-    public required IReadOnlyList<FusionVariable> OutputTensors { get; init; }
-    public required int TemporaryMemoryBytes { get; init; }
-    public required int RegisterBytes { get; init; }
-    public required ThreadBlockConfiguration ThreadBlockConfig { get; init; }
-    public required IReadOnlyList<string> CompilationFlags { get; init; }
-}
-
-/// <summary>
-/// Kernel launch configuration
-/// </summary>
-public record KernelLaunchConfiguration
-{
-    public required ThreadBlockConfiguration BlockDim { get; init; }
-    public required ThreadBlockConfiguration GridDim { get; init; }
-    public required int SharedMemoryBytes { get; init; }
-    public required IReadOnlyList<KernelLaunchParameter> Parameters { get; init; }
-}
-
-/// <summary>
-/// Parameter for kernel launch
-/// </summary>
-public record KernelLaunchParameter
-{
-    public required string Name { get; init; }
-    public required object? Value { get; init; }
-    public required KernelParameterType Type { get; init; }
-}
-
-/// <summary>
-/// Type of kernel parameter
-/// </summary>
-public enum KernelParameterType
-{
-    Tensor,
-    Scalar,
-    Pointer,
-    Int,
-    Float
 }
