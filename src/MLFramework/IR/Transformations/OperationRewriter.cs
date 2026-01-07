@@ -52,8 +52,8 @@ namespace MLFramework.IR.Transformations
                 return mappedValue;
 
             // If value is from target context, return as-is
-            if (value.Context == _targetContext)
-                return value;
+            // Note: IRValue doesn't have Context property, so we can't check
+            // We assume values need to be remapped if not in the map
 
             // Create a new value in the target context with the same type
             var newValue = _targetContext.CreateValue(value.Type, value.Name);
