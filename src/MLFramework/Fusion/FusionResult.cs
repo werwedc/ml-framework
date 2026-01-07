@@ -38,6 +38,7 @@ public record FusionOptions
 {
     public bool EnableFusion { get; init; } = true;
     public int MaxFusionOps { get; init; } = 10;
+    public FusionBackend FusionBackend { get; init; } = FusionBackend.Triton;
     public int MinBenefitScore { get; init; } = 50;
     public bool EnableBatchNormFolding { get; init; } = true;
     public bool EnableConvActivationFusion { get; init; } = true;
@@ -52,4 +53,19 @@ public enum FusionAggressiveness
     Conservative,
     Medium,
     Aggressive
+}
+
+/// <summary>
+/// Fusion backend type
+/// </summary>
+public enum FusionBackend
+{
+    /// <summary>Triton GPU kernel compiler</summary>
+    Triton,
+    /// <summary>XLA (Accelerated Linear Algebra) compiler</summary>
+    XLA,
+    /// <summary>Custom fusion backend</summary>
+    Custom,
+    /// <summary>No backend</summary>
+    None
 }

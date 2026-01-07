@@ -1,6 +1,6 @@
 using NUnit.Framework;
 using MLFramework.Fusion;
-using MLFramework.Fusion.Backends;
+using FusionBackends = MLFramework.Fusion.Backends;
 using MLFramework.Fusion.Profiling;
 using MLFramework.Core;
 
@@ -362,9 +362,9 @@ public class FusionProfilingTests
 
     // Helper methods
 
-    private FusedOperation CreateTestFusedOperation()
+    private FusionBackends.FusedOperation CreateTestFusedOperation()
     {
-        return new FusedOperation
+        return new FusionBackends.FusedOperation
         {
             Id = "test_fused_op",
             Type = "Fused_ElementWise",

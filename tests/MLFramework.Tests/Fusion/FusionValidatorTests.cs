@@ -215,17 +215,5 @@ public class FusionValidatorTests
         return operations;
     }
 
-    private class TestOperation : Operation
-    {
-        public required string Id { get; init; }
-        public required string Type { get; init; }
-        public required string Name { get; init; }
-        public required DataType DataType { get; init; }
-        public required TensorLayout Layout { get; init; }
-        public required TensorShape InputShape { get; init; }
-        public required TensorShape OutputShape { get; init; }
-        public required IReadOnlyList<string> Inputs { get; init; }
-        public required IReadOnlyList<string> Outputs { get; init; }
-        public required IReadOnlyDictionary<string, object> Attributes { get; init; }
-    }
+    private record TestOperation : Operation;
 }

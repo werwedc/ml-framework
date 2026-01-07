@@ -63,7 +63,9 @@ Device Agnostic Code: The framework's API must allow users to write device-agnos
 
 The modern framework functions effectively as a compiler. It translates high-level Python code into optimized kernels.
 
-    Intermediate Representations (IR): The compilation process relies on a multi-stage IR. The framework converts user code into a high-level graph (like StableHLO or Torch IR) that preserves model semantics. This is then lowered to a hardware-specific IR (like LLVM IR or Triton IR) for code generation.   
+    Intermediate Representations (IR): The compilation process relies on a multi-stage IR. The framework converts user code into a high-level graph (like StableHLO or Torch IR) that preserves model semantics. This is then lowered to a hardware-specific IR (like LLVM IR or Triton IR) for code generation.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/intermediate_representations_ir.md]
 
 Kernel Fusion and Generation: The compiler's primary optimization duty is kernel fusion. Deep learning performance is often memory-bound (limited by HBM bandwidth) rather than compute-bound. The compiler must identify patterns (e.g., Conv2D -> BatchNorm -> ReLU) and fuse them into a single kernel to minimize read/write operations to global memory. Modern stacks leverage OpenAI Triton or XLA to generate these kernels automatically, often outperforming hand-written libraries like cuDNN for non-standard architectures.
 
@@ -92,7 +94,9 @@ Tensor Parallelism (TP): This involves splitting individual tensors (e.g., large
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/tensor_parallelism.md]
 
-Pipeline Parallelism (PP): Splitting the model vertically (by layers) across devices. To prevent "bubble" time where devices sit idle waiting for data, the framework must support micro-batching and asynchronous scheduling of forward/backward passes.  
+Pipeline Parallelism (PP): Splitting the model vertically (by layers) across devices. To prevent "bubble" time where devices sit idle waiting for data, the framework must support micro-batching and asynchronous scheduling of forward/backward passes.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/pipeline_parallelism.md]  
 
 4.2 Communication and Fault Tolerance
 
@@ -140,7 +144,9 @@ Quantization reduces model size and latency by representing weights and activati
 
     Post-Training Quantization (PTQ): The framework should provide tools to convert trained FP32 models to Int8. This includes Dynamic Quantization (weights are Int8, activations quantized on-the-fly) and Static Quantization (requires a calibration dataset to determine activation ranges).   
 
-Quantization Aware Training (QAT): For minimal accuracy loss, the framework must support QAT. This involves inserting "fake quantization" nodes into the computation graph during training. These nodes simulate the rounding errors of Int8 arithmetic, allowing the model to learn weights that are robust to quantization noise.  
+Quantization Aware Training (QAT): For minimal accuracy loss, the framework must support QAT. This involves inserting "fake quantization" nodes into the computation graph during training. These nodes simulate the rounding errors of Int8 arithmetic, allowing the model to learn weights that are robust to quantization noise.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/quantization_ecosystem.md]  
 
 6.3 Parameter-Efficient Fine-Tuning (PEFT)
 
@@ -171,6 +177,7 @@ The unique characteristics of LLMs require specialized serving features.
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/pagedattention_kv_cache.md]
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/continuous_batching.md]
 Continuous Batching: Unlike standard dynamic batching, continuous batching (or iteration-level scheduling) allows new requests to join a running batch at the token generation step, rather than waiting for the entire previous batch to finish generation. This creates a much higher throughput system for text generation.  
 
 7.3 Edge and Mobile Deployment
