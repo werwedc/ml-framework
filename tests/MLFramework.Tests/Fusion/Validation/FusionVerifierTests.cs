@@ -2,7 +2,7 @@ using NUnit.Framework;
 using MLFramework.Core;
 using MLFramework.Fusion;
 using MLFramework.Fusion.Validation;
-using MLFramework.Fusion.Backends;
+using FusionBackends = MLFramework.Fusion.Backends;
 using RitterFramework.Core;
 using Tensor = RitterFramework.Core.Tensor.Tensor;
 using MLFramework.Autotuning;
@@ -222,7 +222,7 @@ public class FusionVerifierTests
     {
         public void ExecuteFusedKernel(
             MLFramework.Fusion.FusedOperation fusedOp,
-            KernelLaunchConfiguration config,
+            FusionBackends.KernelLaunchConfiguration config,
             Tensor input)
         {
             // Mock implementation - does nothing

@@ -378,8 +378,5 @@ public class FusionApiTests
     /// <summary>
     /// Test operation implementation for testing
     /// </summary>
-    private class TestOperation : Operation
-    {
-        public required new string Type { get; init; }
-    }
+    private record TestOperation : Operation;
 }

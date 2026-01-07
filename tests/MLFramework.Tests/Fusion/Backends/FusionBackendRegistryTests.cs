@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using MLFramework.Core;
 using MLFramework.Fusion;
-using MLFramework.Fusion.Backends;
+using FusionBackends = MLFramework.Fusion.Backends;
 using MLFramework.Tests.Fusion;
 
 namespace MLFramework.Tests.Fusion.Backends;
@@ -126,7 +126,7 @@ public class FusionBackendRegistryTests
         Assert.IsNull(capableBackend);
     }
 
-    private IFusionBackend CreateMockBackend(string name)
+    private FusionBackends.IFusionBackend CreateMockBackend(string name)
     {
         return new MockFusionBackend(name);
     }
@@ -135,10 +135,10 @@ public class FusionBackendRegistryTests
 /// <summary>
 /// Mock backend for testing
 /// </summary>
-internal class MockFusionBackend : IFusionBackend
+internal class MockFusionBackend : FusionBackends.IFusionBackend
 {
     public string Name { get; }
-    public FusionBackendType Type => FusionBackendType.Custom;
+    public FusionBackends.FusionBackendType Type => FusionBackends.FusionBackendType.Custom;
 
     public MockFusionBackend(string name)
     {
@@ -150,19 +150,19 @@ internal class MockFusionBackend : IFusionBackend
         return operations.Count > 0;
     }
 
-    public FusionResult Fuse(IReadOnlyList<Operation> operations, FusionOptions options)
+    public FusionBackends.FusionResult Fuse(IReadOnlyList<Operation> operations, FusionBackends.FusionOptions options)
     {
         throw new NotImplementedException();
     }
 
-    public CompiledKernel Compile(FusedOperation fusedOp, CompilationOptions options)
+    public FusionBackends.CompiledKernel Compile(FusionBackends.FusedOperation fusedOp, FusionBackends.CompilationOptions options)
     {
         throw new NotImplementedException();
     }
 
-    public BackendCapabilities GetCapabilities()
+    public FusionBackends.BackendCapabilities GetCapabilities()
     {
-        return new BackendCapabilities
+        return new FusionBackends.BackendCapabilities
         {
             SupportedPatterns = new HashSet<FusionPatternType> { FusionPatternType.ElementWise },
             SupportedDataTypes = new HashSet<DataType> { DataType.Float32 },
@@ -173,7 +173,7 @@ internal class MockFusionBackend : IFusionBackend
         };
     }
 
-    public void Initialize(BackendConfiguration config)
+    public void Initialize(FusionBackends.BackendConfiguration config)
     {
         // No-op for mock
     }
