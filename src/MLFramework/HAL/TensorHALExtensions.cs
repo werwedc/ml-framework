@@ -95,4 +95,29 @@ public static class TensorHALExtensions
         }
         return result;
     }
+
+    /// <summary>
+    /// Transfer tensor to specified device
+    /// </summary>
+    /// <param name="tensor">Source tensor</param>
+    /// <param name="device">Target device</param>
+    /// <returns>New tensor on target device with copied data, or same tensor if already on target device</returns>
+    public static Tensor To(this Tensor tensor, IDevice device)
+    {
+        if (tensor == null)
+            throw new ArgumentNullException(nameof(tensor));
+
+        if (device == null)
+            throw new ArgumentNullException(nameof(device));
+
+        // For now, we only support CPU devices
+        if (device.DeviceType != DeviceType.CPU)
+        {
+            throw new NotSupportedException($"Device type {device.DeviceType} is not yet supported. Use Device.CPU for CPU operations.");
+        }
+
+        // If already on CPU (all tensors are currently on CPU), return same tensor
+        // This is a no-op for CPU-to-CPU transfers
+        return tensor;
+    }
 }
