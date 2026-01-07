@@ -499,10 +499,11 @@ public class ContinuousBatchingIntegrationTests
             _tokenizer = tokenizer;
         }
 
-        public Task<ModelOutput> ExecuteBatchAsync(
+        public Task<BatchOutput> ExecuteBatchAsync(
             Batch batch,
             CancellationToken cancellationToken = default)
         {
+            var generatedTokens = new Dictionary<RequestId, int>();
             var logits = new Dictionary<RequestId, float[]>();
 
             // Generate logits for each request
@@ -510,19 +511,16 @@ public class ContinuousBatchingIntegrationTests
             {
                 // Create mock logits
                 logits[request.Id] = new float[1000]; // Mock logits
-            }
 
-            // Generate tokens and add to requests directly
-            // Note: This is a workaround for the interface mismatch
-            foreach (var request in batch.Requests)
-            {
+                // Generate token
                 int tokenId = GenerateNextToken(request);
-                request.GeneratedTokenIds.Add(tokenId);
-                request.GeneratedTokens++;
+                generatedTokens[request.Id] = tokenId;
                 LastTokenGenerated = tokenId;
             }
 
-            return Task.FromResult(new ModelOutput(logits));
+            var isEosReached = new bool[batch.Requests.Count];
+
+            return Task.FromResult(new BatchOutput(generatedTokens, logits, isEosReached));
         }
 
         private int GenerateNextToken(Request request)
@@ -564,7 +562,7 @@ public class ContinuousBatchingIntegrationTests
             _failCounter = 0;
         }
 
-        public async Task<ModelOutput> ExecuteBatchAsync(
+        public async Task<BatchOutput> ExecuteBatchAsync(
             Batch batch,
             CancellationToken cancellationToken = default)
         {

@@ -156,11 +156,11 @@ public class ContinuousBatchScheduler : IDisposable
 
                 iterationCts.CancelAfter(_config.IterationTimeoutMs);
 
+                // Increment iteration count
+                _iterationCount++;
+
                 // Execute iteration
                 var result = await ExecuteIterationAsync(iterationCts.Token);
-
-                // Increment iteration count after successful execution
-                _iterationCount++;
 
                 // Record metrics
                 _metrics.RecordIteration(result);
@@ -188,8 +188,6 @@ public class ContinuousBatchScheduler : IDisposable
                 {
                     idleIterationCount = 0;
                 }
-
-                _iterationCount++;
             }
             catch (OperationCanceledException)
             {
@@ -211,7 +209,7 @@ public class ContinuousBatchScheduler : IDisposable
     /// </summary>
     private IterationResult ProcessBatch(
         Batch batch,
-        ModelOutput output,
+        BatchOutput output,
         Stopwatch stopwatch)
     {
         int totalTokensGenerated = 0;
@@ -220,10 +218,11 @@ public class ContinuousBatchScheduler : IDisposable
 
         foreach (var request in batch.Requests)
         {
-            if (request.GeneratedTokenIds.Count > 0)
+            if (output.GeneratedTokens.TryGetValue(request.Id, out int tokenId))
             {
-                // Token was already generated in mock executor
-                int tokenId = request.GeneratedTokenIds[^1];
+                // Update request state
+                request.GeneratedTokenIds.Add(tokenId);
+                request.GeneratedTokens++;
                 totalTokensGenerated++;
 
                 // Check completion

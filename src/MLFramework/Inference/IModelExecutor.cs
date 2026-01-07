@@ -12,13 +12,6 @@ public interface IModelExecutor
     /// </summary>
     /// <param name="batch">The batch of requests to execute.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The model output containing logits for each request.</returns>
-    Task<ModelOutput> ExecuteBatchAsync(Batch batch, CancellationToken cancellationToken = default);
+    /// <returns>The batch output containing generated tokens and logits for each request.</returns>
+    Task<BatchOutput> ExecuteBatchAsync(Batch batch, CancellationToken cancellationToken = default);
 }
-
-/// <summary>
-/// Model output containing logits for each request.
-/// </summary>
-public record ModelOutput(
-    Dictionary<RequestId, float[]> Logits
-);

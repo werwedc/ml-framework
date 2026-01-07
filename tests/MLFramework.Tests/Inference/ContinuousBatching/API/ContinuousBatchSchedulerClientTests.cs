@@ -41,16 +41,23 @@ public class ContinuousBatchSchedulerClientTests
 
     private class MockModelExecutor : IModelExecutor
     {
-        public Task<ModelOutput> ExecuteBatchAsync(Batch batch, CancellationToken cancellationToken = default)
+        public Task<BatchOutput> ExecuteBatchAsync(Batch batch, CancellationToken cancellationToken = default)
         {
+            var generatedTokens = new Dictionary<RequestId, int>();
             var logits = new Dictionary<RequestId, float[]>();
+            var isEosReached = new bool[batch.Requests.Count];
+
+            int index = 0;
             foreach (var request in batch.Requests)
             {
-                request.GeneratedTokens++;
-                request.GeneratedTokenIds.Add(1);
+                int tokenId = 1;
+                generatedTokens[request.Id] = tokenId;
                 logits[request.Id] = new float[] { 1.0f };
+                isEosReached[index] = false;
+                index++;
             }
-            return Task.FromResult(new ModelOutput(logits));
+
+            return Task.FromResult(new BatchOutput(generatedTokens, logits, isEosReached));
         }
     }
 

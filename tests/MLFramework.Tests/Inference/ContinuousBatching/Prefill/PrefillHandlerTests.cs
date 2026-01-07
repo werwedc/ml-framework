@@ -55,7 +55,11 @@ public class PrefillHandlerTests
 
         _mockTokenizer.Setup(t => t.Encode(request.Prompt)).Returns(expectedTokens);
         _mockModelExecutor.Setup(e => e.ExecuteBatchAsync(It.IsAny<Batch>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ModelOutput(new Dictionary<RequestId, float[]> { { request.Id, expectedLogits } }));
+            .ReturnsAsync(new BatchOutput(
+                new Dictionary<RequestId, int> { { request.Id, 0 } },
+                new Dictionary<RequestId, float[]> { { request.Id, expectedLogits } },
+                new bool[1]
+            ));
 
         // Act
         var result = await handler.ProcessPrefillAsync(request);
@@ -139,7 +143,11 @@ public class PrefillHandlerTests
                     2 => chunk2Logits,
                     _ => chunk3Logits
                 };
-                return new ModelOutput(new Dictionary<RequestId, float[]> { { request.Id, logits } });
+                return new BatchOutput(
+                    new Dictionary<RequestId, int> { { request.Id, 0 } },
+                    new Dictionary<RequestId, float[]> { { request.Id, logits } },
+                    new bool[1]
+                );
             });
 
         // Act
@@ -168,7 +176,11 @@ public class PrefillHandlerTests
         {
             _mockTokenizer.Setup(t => t.Encode(request.Prompt)).Returns(new[] { 1, 2, 3 });
             _mockModelExecutor.Setup(e => e.ExecuteBatchAsync(It.IsAny<Batch>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ModelOutput(new Dictionary<RequestId, float[]> { { request.Id, new[] { 0.1f, 0.2f, 0.3f } } }));
+                .ReturnsAsync(new BatchOutput(
+                    new Dictionary<RequestId, int> { { request.Id, 0 } },
+                    new Dictionary<RequestId, float[]> { { request.Id, new[] { 0.1f, 0.2f, 0.3f } } },
+                    new bool[1]
+                ));
         }
 
         // Act
@@ -216,7 +228,11 @@ public class PrefillHandlerTests
         {
             _mockTokenizer.Setup(t => t.Encode(request.Prompt)).Returns(new[] { 1, 2, 3 });
             _mockModelExecutor.Setup(e => e.ExecuteBatchAsync(It.IsAny<Batch>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ModelOutput(new Dictionary<RequestId, float[]> { { request.Id, new[] { 0.1f, 0.2f, 0.3f } } }));
+                .ReturnsAsync(new BatchOutput(
+                    new Dictionary<RequestId, int> { { request.Id, 0 } },
+                    new Dictionary<RequestId, float[]> { { request.Id, new[] { 0.1f, 0.2f, 0.3f } } },
+                    new bool[1]
+                ));
         }
 
         // Act
@@ -265,7 +281,11 @@ public class PrefillHandlerTests
 
         _mockTokenizer.Setup(t => t.Encode(request.Prompt)).Returns(expectedTokens);
         _mockModelExecutor.Setup(e => e.ExecuteBatchAsync(It.IsAny<Batch>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ModelOutput(new Dictionary<RequestId, float[]> { { request.Id, expectedLogits } }));
+            .ReturnsAsync(new BatchOutput(
+                new Dictionary<RequestId, int> { { request.Id, 0 } },
+                new Dictionary<RequestId, float[]> { { request.Id, expectedLogits } },
+                new bool[1]
+            ));
 
         // Act - First call
         var result1 = await handler.ProcessPrefillAsync(request);
@@ -317,7 +337,11 @@ public class PrefillHandlerTests
 
         _mockTokenizer.Setup(t => t.Encode(request.Prompt)).Returns(expectedTokens);
         _mockModelExecutor.Setup(e => e.ExecuteBatchAsync(It.IsAny<Batch>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ModelOutput(new Dictionary<RequestId, float[]> { { request.Id, expectedLogits } }));
+            .ReturnsAsync(new BatchOutput(
+                new Dictionary<RequestId, int> { { request.Id, 0 } },
+                new Dictionary<RequestId, float[]> { { request.Id, expectedLogits } },
+                new bool[1]
+            ));
 
         // Act - First call
         var result1 = await handler.ProcessPrefillAsync(request);
@@ -534,7 +558,11 @@ public class PrefillHandlerTests
                     cts.Cancel(); // Cancel on second chunk
                 }
                 float[] logits = Enumerable.Repeat(0.1f, 5).ToArray();
-                return new ModelOutput(new Dictionary<RequestId, float[]> { { request.Id, logits } });
+                return new BatchOutput(
+                    new Dictionary<RequestId, int> { { request.Id, 0 } },
+                    new Dictionary<RequestId, float[]> { { request.Id, logits } },
+                    new bool[1]
+                );
             });
 
         // Act & Assert
