@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MLFramework.IR.Graph;
-using MLFramework.IR.Operations;
-using MLFramework.IR.Values;
 
 namespace MLFramework.IR.Transformations
 {
+    using MLFramework.IR.Graph;
+    using MLFramework.IR.Operations;
+    using MLFramework.IR.Values;
+
     /// <summary>
     /// Rewriter for remapping values and blocks during IR transformations
     /// </summary>
@@ -83,7 +84,7 @@ namespace MLFramework.IR.Transformations
         /// <param name="sourceBlock">The block to remap</param>
         /// <param name="targetContext">The target IR context</param>
         /// <returns>A new block in the target context</returns>
-        public IRBlock RemapBlock(IRBlock sourceBlock, IRContext targetContext)
+        public Graph.IRBlock RemapBlock(Graph.IRBlock sourceBlock, IRContext targetContext)
         {
             if (sourceBlock == null)
                 throw new ArgumentNullException(nameof(sourceBlock));
@@ -151,7 +152,7 @@ namespace MLFramework.IR.Transformations
         /// <param name="sourceFunction">The function to remap</param>
         /// <param name="targetContext">The target IR context</param>
         /// <returns>A new function in the target context</returns>
-        public HLIRFunction RemapFunction(HLIRFunction sourceFunction, IRContext targetContext)
+        public Graph.HLIRFunction RemapFunction(Graph.HLIRFunction sourceFunction, IRContext targetContext)
         {
             if (sourceFunction == null)
                 throw new ArgumentNullException(nameof(sourceFunction));

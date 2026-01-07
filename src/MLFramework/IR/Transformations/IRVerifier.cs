@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MLFramework.IR.Graph;
-using MLFramework.IR.Operations;
-using MLFramework.IR.Values;
 
 namespace MLFramework.IR.Transformations
 {
+    using MLFramework.IR.Graph;
+    using MLFramework.IR.Operations;
+    using MLFramework.IR.Values;
+
     /// <summary>
     /// Verifier for checking IR correctness and validity
     /// </summary>
@@ -50,7 +51,7 @@ namespace MLFramework.IR.Transformations
         /// </summary>
         /// <param name="module">The module to verify</param>
         /// <returns>True if verification succeeded (no errors), false otherwise</returns>
-        public override bool Run(HLIRModule module)
+        public override bool Run(Graph.HLIRModule module)
         {
             _errors.Clear();
             _warnings.Clear();
@@ -85,7 +86,7 @@ namespace MLFramework.IR.Transformations
         /// Verifies a single function
         /// </summary>
         /// <param name="function">The function to verify</param>
-        private void VerifyFunction(HLIRFunction function)
+        private void VerifyFunction(Graph.HLIRFunction function)
         {
             if (function == null)
             {
@@ -120,7 +121,7 @@ namespace MLFramework.IR.Transformations
         /// Verifies function parameters
         /// </summary>
         /// <param name="function">The function whose parameters to verify</param>
-        private void VerifyParameters(HLIRFunction function)
+        private void VerifyParameters(Graph.HLIRFunction function)
         {
             foreach (var param in function.Parameters)
             {
@@ -141,7 +142,7 @@ namespace MLFramework.IR.Transformations
         /// Verifies function results
         /// </summary>
         /// <param name="function">The function whose results to verify</param>
-        private void VerifyResults(HLIRFunction function)
+        private void VerifyResults(Graph.HLIRFunction function)
         {
             foreach (var result in function.Results)
             {
@@ -164,7 +165,7 @@ namespace MLFramework.IR.Transformations
         /// <param name="block">The block to verify</param>
         /// <param name="functionName">The name of the function containing the block</param>
         /// <param name="blockContext">Context description of the block</param>
-        private void VerifyBlock(IRBlock block, string functionName, string blockContext)
+        private void VerifyBlock(Graph.IRBlock block, string functionName, string blockContext)
         {
             if (block == null)
             {
@@ -180,18 +181,18 @@ namespace MLFramework.IR.Transformations
             {
                 if (arg == null)
                 {
-                    _errors.Add($"Function '{function.Name}' block '{block.Name}' has null argument");
+                    _errors.Add($"Function '{functionName}' block '{block.Name}' has null argument");
                     continue;
                 }
 
                 if (!definedValues.Add(arg.Id))
                 {
-                    _errors.Add($"Function '{function.Name}' block '{block.Name}' has duplicate argument ID: {arg.Id}");
+                    _errors.Add($"Function '{functionName}' block '{block.Name}' has duplicate argument ID: {arg.Id}");
                 }
 
                 if (arg.Type == null)
                 {
-                    _errors.Add($"Function '{function.Name}' block '{block.Name}' argument '{arg.Name}' has no type");
+                    _errors.Add($"Function '{functionName}' block '{block.Name}' argument '{arg.Name}' has no type");
                 }
             }
 
@@ -206,13 +207,13 @@ namespace MLFramework.IR.Transformations
             {
                 if (ret == null)
                 {
-                    _errors.Add($"Function '{function.Name}' block '{block.Name}' has null return value");
+                    _errors.Add($"Function '{functionName}' block '{block.Name}' has null return value");
                     continue;
                 }
 
                 if (!definedValues.Contains(ret.Id))
                 {
-                    _errors.Add($"Function '{function.Name}' block '{block.Name}' return value {ret.Id} is not defined");
+                    _errors.Add($"Function '{functionName}' block '{block.Name}' return value {ret.Id} is not defined");
                 }
             }
         }
@@ -291,10 +292,13 @@ namespace MLFramework.IR.Transformations
         /// Verifies module-level constants
         /// </summary>
         /// <param name="module">The module whose constants to verify</param>
-        private void VerifyConstants(HLIRModule module)
+        private void VerifyConstants(Graph.HLIRModule module)
         {
-            foreach (var (name, value) in module.Constants)
+            foreach (var kvp in module.Constants)
             {
+                var name = kvp.Key;
+                var value = kvp.Value;
+
                 if (string.IsNullOrEmpty(name))
                 {
                     _warnings.Add("Module has constant with empty name");

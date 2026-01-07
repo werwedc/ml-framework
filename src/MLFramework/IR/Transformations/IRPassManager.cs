@@ -4,6 +4,8 @@ using System.Linq;
 
 namespace MLFramework.IR.Transformations
 {
+    using MLFramework.IR.Graph;
+
     /// <summary>
     /// Manager for running IR transformation passes in a specified order
     /// </summary>
@@ -65,7 +67,7 @@ namespace MLFramework.IR.Transformations
         /// </summary>
         /// <param name="module">The module to transform</param>
         /// <returns>True if any pass modified the module, false otherwise</returns>
-        public bool RunAll(HLIRModule module)
+        public bool RunAll(Graph.HLIRModule module)
         {
             bool changed = false;
             foreach (var pass in _passes)
@@ -89,7 +91,7 @@ namespace MLFramework.IR.Transformations
         /// </summary>
         /// <param name="module">The module to analyze</param>
         /// <returns>True if any analysis pass reported issues, false otherwise</returns>
-        public bool RunAnalysisPasses(HLIRModule module)
+        public bool RunAnalysisPasses(Graph.HLIRModule module)
         {
             bool changed = false;
             foreach (var pass in _passesByType[PassType.Analysis])
@@ -113,7 +115,7 @@ namespace MLFramework.IR.Transformations
         /// </summary>
         /// <param name="module">The module to optimize</param>
         /// <returns>True if any optimization pass modified the module, false otherwise</returns>
-        public bool RunOptimizationPasses(HLIRModule module)
+        public bool RunOptimizationPasses(Graph.HLIRModule module)
         {
             bool changed = false;
             foreach (var pass in _passesByType[PassType.Optimization])
@@ -137,7 +139,7 @@ namespace MLFramework.IR.Transformations
         /// </summary>
         /// <param name="module">The module to lower</param>
         /// <returns>True if any lowering pass modified the module, false otherwise</returns>
-        public bool RunLoweringPasses(HLIRModule module)
+        public bool RunLoweringPasses(Graph.HLIRModule module)
         {
             bool changed = false;
             foreach (var pass in _passesByType[PassType.Lowering])
@@ -161,7 +163,7 @@ namespace MLFramework.IR.Transformations
         /// </summary>
         /// <param name="module">The module to validate</param>
         /// <returns>True if all validation passes succeeded, false if any failed</returns>
-        public bool RunValidationPasses(HLIRModule module)
+        public bool RunValidationPasses(Graph.HLIRModule module)
         {
             bool allValid = true;
             foreach (var pass in _passesByType[PassType.Validation])
