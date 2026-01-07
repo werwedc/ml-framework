@@ -104,9 +104,13 @@ Pipeline Parallelism (PP): Splitting the model vertically (by layers) across dev
 
 4.2 Communication and Fault Tolerance
 
-    Communication Primitives: The framework must wrap high-performance libraries like NCCL (NVIDIA), RCCL (AMD), or MPI. It must expose collective operations (Broadcast, AllReduce, Barrier) as high-level APIs.   
+    Communication Primitives: The framework must wrap high-performance libraries like NCCL (NVIDIA), RCCL (AMD), or MPI. It must expose collective operations (Broadcast, AllReduce, Barrier) as high-level APIs.
 
-Elastic Training: In cloud environments, nodes may be preempted (spot instances). The framework must support elastic training, where the job can continue or resize dynamically if a node fails, without a complete restart.  
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/communication_primitives.md]
+
+    Elastic Training: In cloud environments, nodes may be preempted (spot instances). The framework must support elastic training, where the job can continue or resize dynamically if a node fails, without a complete restart.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/elastic_training.md]
 
 Distributed Checkpointing: Saving the state of a model sharded across 1000 GPUs is non-trivial. The framework must provide unified checkpointing APIs that can save a sharded state and reload it onto a different topology (e.g., saving from 128 GPUs and loading onto 64 GPUs).  
 

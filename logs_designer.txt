@@ -1,22 +1,20 @@
-I'll help you generate a new feature idea. Let me first check the trajectory.md file and see what's already in the 0_ideas/ directory.
-[96m[1m| [0m[90m Read     [0mtrajectory.md
+I'll help you generate a new feature idea. Let me first check if there's a trajectory.md file with existing feature ideas.
+
+[96m[1m| [0m[90m Read     [0mtrajectory.mdNow let me check what feature ideas already exist in the `0_ideas/` directory:
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-I can see that the trajectory.md file exists with many features described, and some are marked as selected, but the 0_ideas/ directory is empty. Let me choose a feature from trajectory.md that hasn't been marked as selected yet.
-
-I'll select **"Functional Transformations and Vectorization"** from Section 2.2. This is a core feature that includes automatic vectorization (vmap), parallelization (pmap), and JIT compilation - all critical for a modern ML framework.
-
-[92m[1m| [0m[90m Write    [0m0_ideas\functional_transformations.mdNow let me mark this feature as selected in trajectory.md:
+I can see the trajectory.md file has many features listed. Several are marked as selected (with ✓), but there's still a `0_ideas/` directory that needs to be populated. Let me create a new feature idea file for **Communication Primitives**, which is a critical feature for distributed training that hasn't been selected yet.
+[92m[1m| [0m[90m Write    [0m0_ideas\communication_primitives.md
+Now I need to update trajectory.md to mark this feature as selected:
+[96m[1m| [0m[90m Read     [0mtrajectory.md
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-Perfect! I've successfully created **ONE new feature idea file** in `0_ideas/`:
+Done! I've created a new feature idea file in `0_ideas/communication_primitives.md` and marked it as selected in trajectory.md.
 
-**File Created:** `0_ideas/functional_transformations.md`
+The feature covers **Communication Primitives** for distributed training, which includes:
+- Core collective operations (Broadcast, AllReduce, Reduce, etc.)
+- Backend abstraction for NCCL, RCCL, and MPI
+- Asynchronous operations to overlap communication with computation
+- Point-to-point communication
+- Process group management
+- Performance optimizations and fault tolerance
 
-This feature covers **Functional Transformations and Vectorization** from trajectory.md Section 2.2, including:
-- **Vectorization (vmap)** - automatic batching transformations
-- **Parallelization (pmap/shard_map)** - SPMD device parallelism
-- **Just-In-Time Compilation (jit)** - tracing and optimization
-- **Function Composition** - building complex computations from pure functions
-
-I've also updated `trajectory.md` to mark this section as completed with the reference to the new file.
-
-Task complete. Stopping immediately.
+This is a foundational feature that will enable the framework to support data parallelism, model parallelism, and other distributed training strategies.
