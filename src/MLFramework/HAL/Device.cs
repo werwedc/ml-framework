@@ -81,8 +81,10 @@ public static class Device
 
     private static IDevice CreateDevice(DeviceType type, int deviceId)
     {
-        // This will be implemented when we create concrete device classes
-        // For now, throw NotImplementedException
-        throw new NotImplementedException($"Device type {type} not yet implemented");
+        return type switch
+        {
+            DeviceType.CPU => new CpuDevice(deviceId),
+            _ => throw new NotImplementedException($"Device type {type} not yet implemented")
+        };
     }
 }
