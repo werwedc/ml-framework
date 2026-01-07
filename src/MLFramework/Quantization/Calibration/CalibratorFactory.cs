@@ -5,7 +5,7 @@ namespace MLFramework.Quantization.Calibration
     /// <summary>
     /// Factory for creating calibrator instances based on calibration method.
     /// </summary>
-    public static class CalibratorFactory
+    public class CalibratorFactory : ICalibratorFactory
     {
         /// <summary>
         /// Creates a calibrator instance based on the specified calibration method.
@@ -13,7 +13,7 @@ namespace MLFramework.Quantization.Calibration
         /// <param name="method">The calibration method to use.</param>
         /// <returns>An instance of ICalibrator appropriate for the specified method.</returns>
         /// <exception cref="ArgumentException">Thrown when an unknown calibration method is specified.</exception>
-        public static ICalibrator Create(CalibrationMethod method)
+        public ICalibrator Create(CalibrationMethod method)
         {
             return method switch
             {
@@ -34,7 +34,7 @@ namespace MLFramework.Quantization.Calibration
         /// <param name="quantMax">Maximum quantized value.</param>
         /// <returns>An instance of ICalibrator with the specified configuration.</returns>
         /// <exception cref="ArgumentException">Thrown when an unknown calibration method is specified.</exception>
-        public static ICalibrator Create(CalibrationMethod method, bool symmetric, int quantMin = -128, int quantMax = 127)
+        public ICalibrator Create(CalibrationMethod method, bool symmetric, int quantMin = -128, int quantMax = 127)
         {
             return method switch
             {
@@ -54,7 +54,7 @@ namespace MLFramework.Quantization.Calibration
         /// <param name="quantMin">Minimum quantized value.</param>
         /// <param name="quantMax">Maximum quantized value.</param>
         /// <returns>A PercentileCalibrator instance with the specified configuration.</returns>
-        public static ICalibrator CreatePercentile(float percentile, bool symmetric = false, int quantMin = -128, int quantMax = 127)
+        public ICalibrator CreatePercentile(float percentile, bool symmetric = false, int quantMin = -128, int quantMax = 127)
         {
             return new PercentileCalibrator(percentile, symmetric, quantMin, quantMax);
         }
@@ -67,7 +67,7 @@ namespace MLFramework.Quantization.Calibration
         /// <param name="quantMin">Minimum quantized value.</param>
         /// <param name="quantMax">Maximum quantized value.</param>
         /// <returns>A MovingAverageCalibrator instance with the specified configuration.</returns>
-        public static ICalibrator CreateMovingAverage(int windowSize, bool symmetric = false, int quantMin = -128, int quantMax = 127)
+        public ICalibrator CreateMovingAverage(int windowSize, bool symmetric = false, int quantMin = -128, int quantMax = 127)
         {
             return new MovingAverageCalibrator(windowSize, symmetric, quantMin, quantMax);
         }
