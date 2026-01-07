@@ -65,7 +65,9 @@ The modern framework functions effectively as a compiler. It translates high-lev
 
     Intermediate Representations (IR): The compilation process relies on a multi-stage IR. The framework converts user code into a high-level graph (like StableHLO or Torch IR) that preserves model semantics. This is then lowered to a hardware-specific IR (like LLVM IR or Triton IR) for code generation.   
 
-Kernel Fusion and Generation: The compiler's primary optimization duty is kernel fusion. Deep learning performance is often memory-bound (limited by HBM bandwidth) rather than compute-bound. The compiler must identify patterns (e.g., Conv2D -> BatchNorm -> ReLU) and fuse them into a single kernel to minimize read/write operations to global memory. Modern stacks leverage OpenAI Triton or XLA to generate these kernels automatically, often outperforming hand-written libraries like cuDNN for non-standard architectures.  
+Kernel Fusion and Generation: The compiler's primary optimization duty is kernel fusion. Deep learning performance is often memory-bound (limited by HBM bandwidth) rather than compute-bound. The compiler must identify patterns (e.g., Conv2D -> BatchNorm -> ReLU) and fuse them into a single kernel to minimize read/write operations to global memory. Modern stacks leverage OpenAI Triton or XLA to generate these kernels automatically, often outperforming hand-written libraries like cuDNN for non-standard architectures.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/kernel_fusion_and_generation.md]  
 
 Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. The compiler must support dynamic shapes, generating kernels that can handle variable dimensions without triggering a full recompilation of the graph, which would destroy performance.  
 
