@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MLFramework.IR.Graph;
 using MLFramework.IR.Operations;
 using MLFramework.IR.Values;
 
@@ -150,7 +151,7 @@ namespace MLFramework.IR.Transformations
         /// <param name="sourceFunction">The function to remap</param>
         /// <param name="targetContext">The target IR context</param>
         /// <returns>A new function in the target context</returns>
-        public HIRFunction RemapFunction(HIRFunction sourceFunction, IRContext targetContext)
+        public HLIRFunction RemapFunction(HLIRFunction sourceFunction, IRContext targetContext)
         {
             if (sourceFunction == null)
                 throw new ArgumentNullException(nameof(sourceFunction));
@@ -158,7 +159,7 @@ namespace MLFramework.IR.Transformations
                 throw new ArgumentNullException(nameof(targetContext));
 
             // Create a new function in the target context
-            var targetFunction = new HIRFunction(sourceFunction.Name, targetContext);
+            var targetFunction = new HLIRFunction(sourceFunction.Name, targetContext);
 
             // Remap parameters
             foreach (var param in sourceFunction.Parameters)

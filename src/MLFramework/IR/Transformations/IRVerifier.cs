@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MLFramework.IR.Graph;
 using MLFramework.IR.Operations;
 using MLFramework.IR.Values;
 
@@ -84,7 +85,7 @@ namespace MLFramework.IR.Transformations
         /// Verifies a single function
         /// </summary>
         /// <param name="function">The function to verify</param>
-        private void VerifyFunction(HIRFunction function)
+        private void VerifyFunction(HLIRFunction function)
         {
             if (function == null)
             {
@@ -119,7 +120,7 @@ namespace MLFramework.IR.Transformations
         /// Verifies function parameters
         /// </summary>
         /// <param name="function">The function whose parameters to verify</param>
-        private void VerifyParameters(HIRFunction function)
+        private void VerifyParameters(HLIRFunction function)
         {
             foreach (var param in function.Parameters)
             {
@@ -140,7 +141,7 @@ namespace MLFramework.IR.Transformations
         /// Verifies function results
         /// </summary>
         /// <param name="function">The function whose results to verify</param>
-        private void VerifyResults(HIRFunction function)
+        private void VerifyResults(HLIRFunction function)
         {
             foreach (var result in function.Results)
             {

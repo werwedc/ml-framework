@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using MLFramework.IR.Graph;
 using MLFramework.IR.Operations;
 using MLFramework.IR.Values;
 
@@ -60,7 +61,7 @@ namespace MLFramework.IR.Transformations
         /// <param name="function">The function to lower</param>
         /// <param name="targetContext">The target IR context</param>
         /// <returns>True if any operation was lowered, false otherwise</returns>
-        protected virtual bool LowerFunction(HIRFunction function, IRContext targetContext)
+        protected virtual bool LowerFunction(HLIRFunction function, IRContext targetContext)
         {
             bool changed = false;
             var rewriter = new OperationRewriter(function.Context, targetContext);
