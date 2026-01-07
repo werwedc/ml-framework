@@ -1,5 +1,6 @@
 using System;
 using MLFramework.Modules;
+using MLFramework.NN;
 using RitterFramework.Core.Tensor;
 
 namespace MLFramework.Conversion;
@@ -56,7 +57,7 @@ public static class TPModelConverter
 
             // Recursively convert the wrapped module
             var convertedModule = ConvertModuleRecursive(
-                wrapper.WrappedModule,
+                wrapper.Module,
                 worldSize,
                 processGroup,
                 newPrefix);

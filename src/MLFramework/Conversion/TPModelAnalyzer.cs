@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RitterFramework.Core.Tensor;
 using MLFramework.Modules;
+using MLFramework.NN;
 
 namespace MLFramework.Conversion;
 
@@ -48,7 +49,7 @@ public static class TPModelAnalyzer
             string newPrefix = string.IsNullOrEmpty(prefix)
                 ? wrapper.Name
                 : $"{prefix}.{wrapper.Name}";
-            AnalyzeModule(wrapper.WrappedModule, report, newPrefix);
+            AnalyzeModule(wrapper.Module, report, newPrefix);
         }
         else
         {

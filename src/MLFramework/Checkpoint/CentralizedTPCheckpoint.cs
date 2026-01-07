@@ -114,13 +114,23 @@ public class CentralizedTPCheckpoint
 
     private void CollectParameters(IModule module, Dictionary<string, Tensor> stateDict)
     {
-        int paramIndex = 0;
-        foreach (var param in module.Parameters)
+        // Use reflection to get Parameters property if it exists
+        var parametersProperty = module.GetType().GetProperty("Parameters");
+
+        if (parametersProperty != null && parametersProperty.PropertyType.IsGenericType)
         {
-            if (param != null)
+            var parameters = parametersProperty.GetValue(module);
+            if (parameters != null)
             {
-                stateDict[$"{module.ModuleType}_param_{paramIndex}"] = param;
-                paramIndex++;
+                int paramIndex = 0;
+                foreach (var param in (System.Collections.IEnumerable)parameters)
+                {
+                    if (param != null && param is Tensor tensor)
+                    {
+                        stateDict[$"{module.ModuleType}_param_{paramIndex}"] = tensor;
+                        paramIndex++;
+                    }
+                }
             }
         }
     }
@@ -131,7 +141,8 @@ public class CentralizedTPCheckpoint
         {
             if (param.Data != null)
             {
-                stateDict[name] = param.Data;
+                // Create a Tensor from the data array
+                stateDict[name] = new Tensor(param.Data, param.Shape, param.RequiresGrad, param.Dtype);
             }
         }
     }
@@ -350,17 +361,27 @@ public class CentralizedTPCheckpoint
 
     private void LoadParameters(IModule module, Dictionary<string, Tensor> stateDict)
     {
-        int paramIndex = 0;
-        foreach (var param in module.Parameters)
+        // Use reflection to get Parameters property if it exists
+        var parametersProperty = module.GetType().GetProperty("Parameters");
+
+        if (parametersProperty != null && parametersProperty.PropertyType.IsGenericType)
         {
-            if (param != null)
+            var parameters = parametersProperty.GetValue(module);
+            if (parameters != null)
             {
-                var key = $"{module.ModuleType}_param_{paramIndex}";
-                if (stateDict.TryGetValue(key, out var tensor))
+                int paramIndex = 0;
+                foreach (var param in (System.Collections.IEnumerable)parameters)
                 {
-                    param.CopyFrom(tensor);
+                    if (param != null && param is Tensor tensor)
+                    {
+                        var key = $"{module.ModuleType}_param_{paramIndex}";
+                        if (stateDict.TryGetValue(key, out var stateTensor))
+                        {
+                            tensor.CopyFrom(stateTensor);
+                        }
+                        paramIndex++;
+                    }
                 }
-                paramIndex++;
             }
         }
     }
@@ -371,7 +392,7 @@ public class CentralizedTPCheckpoint
         {
             if (stateDict.TryGetValue(name, out var tensor))
             {
-                param.Data.CopyFrom(tensor);
+                param.CopyFrom(tensor);
             }
         }
     }
