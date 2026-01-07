@@ -59,6 +59,15 @@ public class Tensor
 
         return new Tensor(contents, shape, false, dtype);
     }
+
+    public static Tensor FromArray(float[] data, DataType dtype = DataType.Float32)
+    {
+        if (data == null) throw new ArgumentNullException(nameof(data));
+        if (data.Length == 0) throw new ArgumentException("Data array cannot be empty", nameof(data));
+
+        var shape = new int[] { data.Length };
+        return new Tensor(data, shape, false, dtype);
+    }
     
     public float this[int[] indices]
     {
@@ -150,6 +159,58 @@ public class Tensor
         Array.Copy(_shape, newShape, _shape.Length);
 
         return new Tensor(newData, newShape, RequiresGrad, Dtype);
+    }
+
+    /// <summary>
+    /// Reshapes the tensor to the specified shape.
+    /// </summary>
+    public Tensor Reshape(int[] newShape)
+    {
+        long newSize = 1;
+        foreach (var dim in newShape)
+            newSize *= dim;
+
+        if (newSize != _data.Length)
+            throw new ArgumentException($"Cannot reshape tensor of size {_data.Length} to shape [{string.Join(", ", newShape)}]");
+
+        return new Tensor(_data, newShape, RequiresGrad, Dtype);
+    }
+
+    /// <summary>
+    /// Transposes a 2D tensor.
+    /// </summary>
+    public Tensor Transpose()
+    {
+        if (Dimensions != 2)
+            throw new InvalidOperationException("Transpose is only supported for 2D tensors");
+
+        int rows = _shape[0];
+        int cols = _shape[1];
+        var newData = new float[_data.Length];
+
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                newData[j * rows + i] = _data[i * cols + j];
+            }
+        }
+
+        return new Tensor(newData, new[] { cols, rows }, RequiresGrad, Dtype);
+    }
+
+    /// <summary>
+    /// Copies data from another tensor into this tensor.
+    /// </summary>
+    public void CopyFrom(Tensor other)
+    {
+        if (other == null)
+            throw new ArgumentNullException(nameof(other));
+
+        if (Size != other.Size)
+            throw new ArgumentException("Tensor sizes must match for copy operation");
+
+        Array.Copy(other.Data, _data, _data.Length);
     }
     
     private int[] ComputeStrides(int[] shape)

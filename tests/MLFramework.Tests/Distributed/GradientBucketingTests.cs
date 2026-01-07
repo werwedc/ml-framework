@@ -4,6 +4,8 @@ using RitterFramework.Core.Tensor;
 using System.Linq;
 using System.Threading.Tasks;
 
+namespace MLFramework.Tests.Distributed
+{
     [TestClass]
     public class GradientBucketingTests
     {
