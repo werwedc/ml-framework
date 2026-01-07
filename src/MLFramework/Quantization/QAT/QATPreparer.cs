@@ -54,7 +54,7 @@ public interface IQATModel
 /// Quantization-Aware Training (QAT) preparer.
 /// Handles preparing models for QAT, converting to quantized models, and collecting statistics.
 /// </summary>
-public class QATPreparer
+public class QATPreparer : IQATPreparer
 {
     /// <summary>
     /// Prepares a model for quantization-aware training.
