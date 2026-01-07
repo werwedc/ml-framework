@@ -2,159 +2,346 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using RitterFramework.Core.Tensor;
-using MLFramework.Pipeline;
+using MLFramework.HAL;
+using MLFramework.HAL.CUDA;
 
 namespace MLFramework.Pipeline
 {
     /// <summary>
-    /// Asynchronous pipeline executor for overlapping compute and communication
+    /// Manages asynchronous execution for pipeline stages
+    /// Overlaps computation and communication to maximize throughput
     /// </summary>
     public class AsyncPipelineExecutor : IDisposable
     {
-        private readonly GPipeScheduler _scheduler;
+        private readonly PipelineStage _stage;
         private readonly IPipelineCommunicator _communicator;
-        private readonly List<Task> _activeStreams;
-        private int _disposed;
+        private readonly StreamManager _computeStreamManager;
+        private readonly StreamManager _commStreamManager;
+        private readonly List<AsyncOperation> _activeOperations;
+        private readonly int _disposed;
+        private readonly int _numComputeStreams;
+        private readonly int _numCommStreams;
 
         /// <summary>
-        /// Gets the number of active async streams
+        /// Number of CUDA streams for compute
         /// </summary>
-        public int ActiveStreamsCount => _activeStreams.Count;
+        public int NumComputeStreams => _numComputeStreams;
+
+        /// <summary>
+        /// Number of CUDA streams for communication
+        /// </summary>
+        public int NumCommStreams => _numCommStreams;
+
+        /// <summary>
+        /// Count of currently active operations
+        /// </summary>
+        public int ActiveOperationsCount => _activeOperations.Count;
 
         public AsyncPipelineExecutor(
-            GPipeScheduler scheduler,
-            IPipelineCommunicator communicator)
+            PipelineStage stage,
+            IPipelineCommunicator communicator,
+            int numStreams = 2)
         {
-            if (scheduler == null)
-                throw new ArgumentNullException(nameof(scheduler));
-            if (communicator == null)
-                throw new ArgumentNullException(nameof(communicator));
+            _stage = stage ?? throw new ArgumentNullException(nameof(stage));
+            _communicator = communicator ?? throw new ArgumentNullException(nameof(communicator));
 
-            _scheduler = scheduler;
-            _communicator = communicator;
-            _activeStreams = new List<Task>();
+            if (numStreams <= 0)
+            {
+                throw new ArgumentException("Number of streams must be greater than 0", nameof(numStreams));
+            }
+
+            _numComputeStreams = numStreams;
+            _numCommStreams = numStreams;
+
+            // Get the device from the stage
+            var device = _stage.Device as CudaDevice;
+            if (device == null)
+            {
+                throw new ArgumentException("Stage must be on a CUDA device", nameof(stage));
+            }
+
+            // Create stream managers
+            _computeStreamManager = new StreamManager(device, _numComputeStreams);
+            _commStreamManager = new StreamManager(device, _numCommStreams);
+            _activeOperations = new List<AsyncOperation>();
+            _disposed = 0;
         }
 
         /// <summary>
-        /// Execute forward pass asynchronously with compute/communication overlap
+        /// Execute forward pass asynchronously on a specific stream
         /// </summary>
-        public async Task<Tensor> ForwardAsync(Tensor input, int microBatchIdx)
+        /// <param name="input">Input tensor</param>
+        /// <param name="streamIndex">Stream index</param>
+        /// <returns>Task that completes when forward pass is done</returns>
+        public async Task<Tensor> ForwardAsync(Tensor input, int streamIndex = 0)
         {
             ThrowIfDisposed();
 
             if (input == null)
                 throw new ArgumentNullException(nameof(input));
 
-            // Start forward pass
-            var task = Task.Run(async () =>
+            var stream = GetComputeStream(streamIndex);
+
+            // Create task for forward pass
+            var task = Task.Run(() =>
             {
-                // In a real implementation, this would overlap compute and communication
-                // by using separate threads for computation and communication
-                return await _scheduler.ForwardAsync(input, microBatchIdx);
+                try
+                {
+                    // In a real implementation, we would set the stream context
+                    // before executing the forward pass
+                    return _stage.Forward(input);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Forward pass failed on stream {streamIndex}", ex);
+                }
             });
 
-            _activeStreams.Add(task);
-            await task;
-            _activeStreams.Remove(task);
+            // Track the operation
+            var operation = new AsyncOperation(
+                Guid.NewGuid(),
+                OperationType.Forward,
+                -1, // micro-batch index not tracked at this level
+                streamIndex,
+                task);
 
-            return task.Result;
+            lock (_activeOperations)
+            {
+                _activeOperations.Add(operation);
+            }
+
+            try
+            {
+                await task;
+                return task.Result;
+            }
+            finally
+            {
+                lock (_activeOperations)
+                {
+                    _activeOperations.Remove(operation);
+                }
+            }
         }
 
         /// <summary>
-        /// Execute backward pass asynchronously with compute/communication overlap
+        /// Execute backward pass asynchronously on a specific stream
         /// </summary>
-        public async Task<List<Tensor>> BackwardAsync(Tensor gradient, int microBatchIdx)
+        /// <param name="gradOutput">Gradient tensor</param>
+        /// <param name="streamIndex">Stream index</param>
+        /// <returns>Task that completes when backward pass is done</returns>
+        public async Task<Tensor> BackwardAsync(Tensor gradOutput, int streamIndex = 0)
         {
             ThrowIfDisposed();
 
-            if (gradient == null)
-                throw new ArgumentNullException(nameof(gradient));
+            if (gradOutput == null)
+                throw new ArgumentNullException(nameof(gradOutput));
 
-            // Start backward pass
-            var task = Task.Run(async () =>
+            var stream = GetComputeStream(streamIndex);
+
+            // Create task for backward pass
+            var task = Task.Run(() =>
             {
-                // In a real implementation, this would overlap compute and communication
-                return await _scheduler.BackwardAsync(gradient, microBatchIdx);
+                try
+                {
+                    // In a real implementation, we would use autograd to compute gradients
+                    // For now, we return the gradient as-is
+                    return gradOutput;
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Backward pass failed on stream {streamIndex}", ex);
+                }
             });
 
-            _activeStreams.Add(task);
-            await task;
-            _activeStreams.Remove(task);
+            // Track the operation
+            var operation = new AsyncOperation(
+                Guid.NewGuid(),
+                OperationType.Backward,
+                -1, // micro-batch index not tracked at this level
+                streamIndex,
+                task);
 
-            return task.Result;
+            lock (_activeOperations)
+            {
+                _activeOperations.Add(operation);
+            }
+
+            try
+            {
+                await task;
+                return task.Result;
+            }
+            finally
+            {
+                lock (_activeOperations)
+                {
+                    _activeOperations.Remove(operation);
+                }
+            }
         }
 
         /// <summary>
-        /// Execute overlapped compute and communication
+        /// Send tensor asynchronously on communication stream
         /// </summary>
-        public async Task OverlappedComputeAndCommAsync(
-            Func<Tensor> computeFunc,
-            Func<Task> commFunc)
+        public async Task<Tensor> SendAsync(Tensor tensor, int destinationRank, int streamIndex = 0)
         {
             ThrowIfDisposed();
 
-            if (computeFunc == null)
-                throw new ArgumentNullException(nameof(computeFunc));
-            if (commFunc == null)
-                throw new ArgumentNullException(nameof(commFunc));
+            if (tensor == null)
+                throw new ArgumentNullException(nameof(tensor));
 
-            // In a real implementation, this would:
-            // 1. Start compute task
-            // 2. Start communication task
-            // 3. Run them in parallel using Task.WhenAll
+            var stream = GetCommStream(streamIndex);
 
-            var computeTask = Task.Run(() => computeFunc());
-            var commTask = commFunc();
+            // Create task for send operation
+            var task = _communicator.SendAsync(tensor, destinationRank);
 
-            await Task.WhenAll(computeTask, commTask);
+            // Track the operation
+            var operation = new AsyncOperation(
+                Guid.NewGuid(),
+                OperationType.SendForward,
+                -1, // micro-batch index not tracked at this level
+                streamIndex,
+                task);
+
+            lock (_activeOperations)
+            {
+                _activeOperations.Add(operation);
+            }
+
+            try
+            {
+                await task;
+                return tensor;
+            }
+            finally
+            {
+                lock (_activeOperations)
+                {
+                    _activeOperations.Remove(operation);
+                }
+            }
         }
 
         /// <summary>
-        /// Wait for all active streams to complete
+        /// Receive tensor asynchronously on communication stream
+        /// </summary>
+        public async Task<Tensor> ReceiveAsync(int sourceRank, int streamIndex = 0)
+        {
+            ThrowIfDisposed();
+
+            var stream = GetCommStream(streamIndex);
+
+            // Create task for receive operation
+            var task = _communicator.ReceiveAsync(sourceRank);
+
+            // Track the operation
+            var operation = new AsyncOperation(
+                Guid.NewGuid(),
+                OperationType.ReceiveForward,
+                -1, // micro-batch index not tracked at this level
+                streamIndex,
+                task);
+
+            lock (_activeOperations)
+            {
+                _activeOperations.Add(operation);
+            }
+
+            try
+            {
+                var result = await task;
+                return result;
+            }
+            finally
+            {
+                lock (_activeOperations)
+                {
+                    _activeOperations.Remove(operation);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Synchronize all compute streams
+        /// </summary>
+        public Task SyncComputeAsync()
+        {
+            ThrowIfDisposed();
+            return _computeStreamManager.SynchronizeAllAsync();
+        }
+
+        /// <summary>
+        /// Synchronize all communication streams
+        /// </summary>
+        public Task SyncCommAsync()
+        {
+            ThrowIfDisposed();
+            return _commStreamManager.SynchronizeAllAsync();
+        }
+
+        /// <summary>
+        /// Synchronize all streams
         /// </summary>
         public async Task SyncAllAsync()
         {
             ThrowIfDisposed();
 
-            if (_activeStreams.Count > 0)
+            // Wait for all active operations to complete
+            List<AsyncOperation> operationsCopy;
+            lock (_activeOperations)
             {
-                await Task.WhenAll(_activeStreams);
-                _activeStreams.Clear();
+                operationsCopy = new List<AsyncOperation>(_activeOperations);
             }
+
+            await Task.WhenAll(operationsCopy.ConvertAll(op => op.Task));
+
+            // Synchronize all streams
+            await Task.WhenAll(
+                _computeStreamManager.SynchronizeAllAsync(),
+                _commStreamManager.SynchronizeAllAsync());
         }
 
         /// <summary>
-        /// Cancel all active streams
+        /// Get stream for a specific micro-batch (compute stream)
         /// </summary>
-        public void CancelAll()
+        public CudaStream GetComputeStream(int microBatchIndex)
         {
             ThrowIfDisposed();
 
-            // Note: In a real implementation with proper cancellation tokens,
-            // we would cancel all tasks here
-            _activeStreams.Clear();
+            // Use round-robin to select stream based on micro-batch index
+            int streamIndex = microBatchIndex % _numComputeStreams;
+            return _computeStreamManager.GetStream(streamIndex);
         }
 
         /// <summary>
-        /// Execute a full forward-backward pass asynchronously
+        /// Get communication stream for a specific micro-batch
         /// </summary>
-        public async Task<List<Tensor>> ExecuteIterationAsync(Tensor input, int microBatchIdx)
+        public CudaStream GetCommStream(int microBatchIndex)
         {
             ThrowIfDisposed();
 
-            if (input == null)
-                throw new ArgumentNullException(nameof(input));
+            // Use round-robin to select stream based on micro-batch index
+            int streamIndex = microBatchIndex % _numCommStreams;
+            return _commStreamManager.GetStream(streamIndex);
+        }
 
-            // Forward pass
-            var output = await ForwardAsync(input, microBatchIdx);
+        /// <summary>
+        /// Get compute stream by index
+        /// </summary>
+        public CudaStream GetComputeStreamByIndex(int index)
+        {
+            ThrowIfDisposed();
+            return _computeStreamManager.GetStream(index);
+        }
 
-            // In a real implementation, compute loss and its gradient
-            var dummyGradient = output.Clone();
-
-            // Backward pass
-            var gradients = await BackwardAsync(dummyGradient, microBatchIdx);
-
-            return gradients;
+        /// <summary>
+        /// Get communication stream by index
+        /// </summary>
+        public CudaStream GetCommStreamByIndex(int index)
+        {
+            ThrowIfDisposed();
+            return _commStreamManager.GetStream(index);
         }
 
         private void ThrowIfDisposed()
@@ -168,10 +355,8 @@ namespace MLFramework.Pipeline
             if (_disposed == 1)
                 return;
 
-            // Cancel all active streams
-            CancelAll();
-
-            _disposed = 1;
+            _computeStreamManager.Dispose();
+            _commStreamManager.Dispose();
         }
     }
 }

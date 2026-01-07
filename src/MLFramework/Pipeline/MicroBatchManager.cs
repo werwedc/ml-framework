@@ -284,7 +284,7 @@ namespace MLFramework.Pipeline
         private Tensor SliceTensor(Tensor tensor, int start, int end)
         {
             // Get dimensions
-            long[] fullShape = tensor.Shape;
+            int[] fullShape = tensor.Shape;
             long batchSize = end - start;
 
             // Calculate size of remaining dimensions

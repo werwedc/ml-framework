@@ -222,9 +222,9 @@ namespace MLFramework.Tests.Pipeline
             _kernelSize = kernelSize;
 
             // Create parameters
-            long weightShape[] = { outChannels, inChannels, kernelSize, kernelSize };
+            int[] weightShape = { outChannels, inChannels, kernelSize, kernelSize };
             _weight = new Parameter(Tensor.Zeros(weightShape), "weight");
-            _bias = new Parameter(Tensor.Zeros(new long[] { outChannels }), "bias");
+            _bias = new Parameter(Tensor.Zeros(new int[] { outChannels }), "bias");
         }
 
         public override Tensor Forward(Tensor input)
