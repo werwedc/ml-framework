@@ -1,3 +1,5 @@
+using MLFramework.HAL.CUDA;
+
 namespace MLFramework.HAL;
 
 /// <summary>
@@ -84,6 +86,7 @@ public static class Device
         return type switch
         {
             DeviceType.CPU => new CpuDevice(deviceId),
+            DeviceType.CUDA => new CudaDevice(deviceId),
             _ => throw new NotImplementedException($"Device type {type} not yet implemented")
         };
     }
