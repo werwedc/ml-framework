@@ -8,8 +8,6 @@ namespace MLFramework.Shapes
     /// </summary>
     public sealed class SymbolicShape : IEquatable<SymbolicShape>
     {
-        private readonly bool? _cachedIsFullyKnown;
-        private readonly bool? _cachedIsPartiallyKnown;
 
         /// <summary>
         /// Gets the dimensions of this shape.
@@ -103,9 +101,6 @@ namespace MLFramework.Shapes
         /// <returns>True if all dimensions are known; otherwise, false.</returns>
         public bool IsFullyKnown()
         {
-            if (_cachedIsFullyKnown.HasValue)
-                return _cachedIsFullyKnown.Value;
-
             return Dimensions.All(dim => dim.IsKnown());
         }
 
@@ -115,9 +110,6 @@ namespace MLFramework.Shapes
         /// <returns>True if at least one dimension is known; otherwise, false.</returns>
         public bool IsPartiallyKnown()
         {
-            if (_cachedIsPartiallyKnown.HasValue)
-                return _cachedIsPartiallyKnown.Value;
-
             return Dimensions.Any(dim => dim.IsKnown());
         }
 
