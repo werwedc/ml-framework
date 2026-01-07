@@ -63,7 +63,9 @@ Device Agnostic Code: The framework's API must allow users to write device-agnos
 
 The modern framework functions effectively as a compiler. It translates high-level Python code into optimized kernels.
 
-    Intermediate Representations (IR): The compilation process relies on a multi-stage IR. The framework converts user code into a high-level graph (like StableHLO or Torch IR) that preserves model semantics. This is then lowered to a hardware-specific IR (like LLVM IR or Triton IR) for code generation.   
+    Intermediate Representations (IR): The compilation process relies on a multi-stage IR. The framework converts user code into a high-level graph (like StableHLO or Torch IR) that preserves model semantics. This is then lowered to a hardware-specific IR (like LLVM IR or Triton IR) for code generation.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/intermediate_representations_ir.md]
 
 Kernel Fusion and Generation: The compiler's primary optimization duty is kernel fusion. Deep learning performance is often memory-bound (limited by HBM bandwidth) rather than compute-bound. The compiler must identify patterns (e.g., Conv2D -> BatchNorm -> ReLU) and fuse them into a single kernel to minimize read/write operations to global memory. Modern stacks leverage OpenAI Triton or XLA to generate these kernels automatically, often outperforming hand-written libraries like cuDNN for non-standard architectures.
 
