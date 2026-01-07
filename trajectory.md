@@ -57,6 +57,8 @@ Unified Memory Management: The HAL must abstract memory allocation primitives (l
 
 Device Agnostic Code: The framework's API must allow users to write device-agnostic code (e.g., tensor.to(device)), where the specific execution target is determined at runtime configuration rather than hardcoded into the model logic.  
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/hardware_abstraction_layer.md]
+
 3.2 The Compiler Stack: XLA, Inductor, and Triton
 
 The modern framework functions effectively as a compiler. It translates high-level Python code into optimized kernels.
