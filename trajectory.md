@@ -71,7 +71,9 @@ Kernel Fusion and Generation: The compiler's primary optimization duty is kernel
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/kernel_fusion_and_generation.md]  
 
-Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. The compiler must support dynamic shapes, generating kernels that can handle variable dimensions without triggering a full recompilation of the graph, which would destroy performance.  
+Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. The compiler must support dynamic shapes, generating kernels that can handle variable dimensions without triggering a full recompilation of the graph, which would destroy performance.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/dynamic_shapes.md]  
 
 CUDA Graph Integration: To reduce the CPU overhead of launching thousands of small kernels (kernel launch latency), the framework must integrate with hardware features like CUDA Graphs. This allows the framework to record a sequence of kernel launches and replay them as a single GPU command, significantly reducing CPU utilization.  
 
