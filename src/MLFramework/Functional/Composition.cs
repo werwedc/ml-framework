@@ -191,6 +191,33 @@ namespace MLFramework.Functional
         }
 
         #endregion
+
+        #region JIT Compilation
+
+        /// <summary>
+        /// Just-in-time compile a function for optimization.
+        /// </summary>
+        public static Func<Tensor, Tensor> Compile(Func<Tensor, Tensor> func)
+        {
+            var transform = new Compilation.JITTransform(func);
+            return (Func<Tensor, Tensor>)transform.Transform(func);
+        }
+
+        public static Func<Tensor, Tensor, Tensor> Compile(Func<Tensor, Tensor, Tensor> func)
+        {
+            var transform = new Compilation.JITTransform(func);
+            return (Func<Tensor, Tensor, Tensor>)transform.Transform(func);
+        }
+
+        /// <summary>
+        /// Clear the JIT compilation cache.
+        /// </summary>
+        public static void ClearJITCache()
+        {
+            Compilation.JITTransform.ClearCache();
+        }
+
+        #endregion
     }
 
     #region Tap Extension Methods
