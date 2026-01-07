@@ -1,24 +1,21 @@
-I'll help you generate one new feature idea in `0_ideas/`. Let me first check the `trajectory.md` file and see what's already in the `0_ideas/` directory.
+I'll help you generate ONE new feature idea in `0_ideas/`. Let me first check if there's a `trajectory.md` file to see what features might be planned, then create the idea file.
 [96m[1m| [0m[90m Read     [0mtrajectory.md
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
-Looking at trajectory.md, I can see several features are already marked as selected and in progress. The `0_ideas/` directory is currently empty, which suggests those files have been moved forward. 
+[91m[1m| [0m[90m Bash     [0mList files in 0_ideas directory
+I can see the `trajectory.md` file contains a comprehensive roadmap. I notice that several features have already been selected (marked with ✓), but there are many important features remaining. Let me create a new feature idea for **Tensor Parallelism**, which is a critical feature for large model training that hasn't been selected yet.
 
-I'll select a new feature from trajectory.md that hasn't been implemented yet: **Parameter-Efficient Fine-Tuning (PEFT) with LoRA** from Section 6.3. This is a critical modern feature for adapting large foundation models without full retraining.
-
-Let me create this new feature idea file:
-[92m[1m| [0m[90m Write    [0m0_ideas\parameter_efficient_finetuning_lora.md
-Now let me mark this feature as selected in trajectory.md:
+[92m[1m| [0m[90m Write    [0m0_ideas\tensor_parallelism.mdNow let me update the trajectory.md file to mark this feature as selected:
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-✓ **Task Complete**
+✅ **Task Complete!**
 
-I've created **exactly one** new feature idea file in `0_ideas/`:
+I've created a new feature idea file: **`0_ideas/tensor_parallelism.md`**
 
-**`parameter_efficient_finetuning_lora.md`** - Parameter-Efficient Fine-Tuning with LoRA
+This feature focuses on **Tensor Parallelism (TP)** - a critical model parallelism technique that splits individual tensors (like large matrix multiplications) across multiple devices. This is essential for training models with layers that exceed single GPU memory capacity, such as large language models with massive embedding and projection layers.
 
-This feature implements Low-Rank Adaptation (LoRA) technology, which is essential for modern ML frameworks. It enables:
-- **99.5% reduction** in trainable parameters for large language models
-- **Multi-tenancy**: Multiple fine-tuned adapters can be loaded and switched at runtime
-- **Extreme memory efficiency**: Fine-tune 7B+ parameter models on consumer GPUs
-- **Zero inference overhead**: After merging adapters, no computational penalty
+The feature idea includes:
+- Column and Row parallelism implementations
+- Automatic communication injection (all-reduce, all-gather)
+- Drop-in replacement for standard Linear layers
+- Integration with 3D parallelism (combining with DDP and FSDP)
+- Memory efficiency for massive models
 
-The feature has been marked as selected in `trajectory.md` (Section 6.3). This is a production-critical feature for foundation model fine-tuning and aligns with the project's goal of building a comprehensive ML framework.
+I've also updated `trajectory.md` to mark this feature as selected with a ✓ note.

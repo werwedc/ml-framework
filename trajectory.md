@@ -84,7 +84,9 @@ Fully Sharded Data Parallelism (FSDP): For large models, keeping a full copy on 
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/fsdp_sharding.md]  
 
-Tensor Parallelism (TP): This involves splitting individual tensors (e.g., large matrix multiplications) across devices. This is essential for models with individual layers that are too large for a single GPU's memory. The framework needs to insert the necessary all-gather and reduce-scatter communications automatically within the layer execution.  
+Tensor Parallelism (TP): This involves splitting individual tensors (e.g., large matrix multiplications) across devices. This is essential for models with individual layers that are too large for a single GPU's memory. The framework needs to insert the necessary all-gather and reduce-scatter communications automatically within the layer execution.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/tensor_parallelism.md]
 
 Pipeline Parallelism (PP): Splitting the model vertically (by layers) across devices. To prevent "bubble" time where devices sit idle waiting for data, the framework must support micro-batching and asynchronous scheduling of forward/backward passes.  
 
