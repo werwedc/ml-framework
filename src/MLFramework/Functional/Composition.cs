@@ -195,6 +195,20 @@ namespace MLFramework.Functional
         }
 
         /// <summary>
+        /// Transforms a function that operates on single tensors to work on batches with per-parameter axis specification.
+        /// </summary>
+        /// <param name="func">Function to vectorize.</param>
+        /// <param name="in_axes">Array of axes for each parameter. Use null for non-batched parameters.</param>
+        /// <returns>Batched function.</returns>
+        public static Func<Tensor, Tensor> Vectorize(
+            Func<Tensor, Tensor> func,
+            object[] in_axes)
+        {
+            var transform = new VMapTransform(func, in_axes);
+            return (Func<Tensor, Tensor>)transform.Transform(func);
+        }
+
+        /// <summary>
         /// Vectorize a function with multiple input tensors.
         /// </summary>
         /// <param name="func">Function to vectorize with two inputs.</param>
@@ -205,6 +219,20 @@ namespace MLFramework.Functional
             int axis = 0)
         {
             var transform = new VMapTransform(func, axis);
+            return (Func<Tensor, Tensor, Tensor>)transform.Transform(func);
+        }
+
+        /// <summary>
+        /// Vectorize a function with multiple input tensors with per-parameter axis specification.
+        /// </summary>
+        /// <param name="func">Function to vectorize with two inputs.</param>
+        /// <param name="in_axes">Array of axes for each parameter. Use null for non-batched parameters.</param>
+        /// <returns>Batched function.</returns>
+        public static Func<Tensor, Tensor, Tensor> Vectorize(
+            Func<Tensor, Tensor, Tensor> func,
+            object[] in_axes)
+        {
+            var transform = new VMapTransform(func, in_axes);
             return (Func<Tensor, Tensor, Tensor>)transform.Transform(func);
         }
 

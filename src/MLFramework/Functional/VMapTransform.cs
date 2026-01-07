@@ -11,18 +11,94 @@ namespace MLFramework.Functional
     /// </summary>
     public class VMapTransform : BaseTransformation
     {
-        private readonly int _axis;
+        private readonly int[] _axes;  // -1 means no vectorization for that param
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="VMapTransform"/> class.
+        /// Initializes a new instance of the <see cref="VMapTransform"/> class with multi-axis support.
+        /// </summary>
+        /// <param name="original">The original function to transform.</param>
+        /// <param name="in_axes">Array of axes for each parameter. Use null for non-batched parameters.</param>
+        public VMapTransform(Delegate original, object[] in_axes)
+            : base("vmap", TransformationType.Vectorization)
+        {
+            ValidateDelegate(original);
+
+            // Normalize in_axes to int array
+            var paramCount = original.Method.GetParameters().Length;
+            _axes = new int[paramCount];
+
+            if (in_axes == null)
+            {
+                // Default: vectorize all params on axis 0
+                for (int i = 0; i < paramCount; i++)
+                    _axes[i] = 0;
+            }
+            else
+            {
+                if (in_axes.Length != paramCount)
+                {
+                    throw new ArgumentException($"in_axes length ({in_axes.Length}) must match parameter count ({paramCount})");
+                }
+
+                for (int i = 0; i < paramCount; i++)
+                {
+                    if (in_axes[i] == null)
+                    {
+                        _axes[i] = -1;  // Don't vectorize this parameter
+                    }
+                    else if (in_axes[i] is int axis)
+                    {
+                        _axes[i] = axis;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"in_axes[{i}] must be int or null");
+                    }
+                }
+            }
+
+            ValidateInAxes();
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VMapTransform"/> class (legacy constructor for backward compatibility).
         /// </summary>
         /// <param name="original">The original function to transform.</param>
         /// <param name="axis">The batch axis (default: 0).</param>
         public VMapTransform(Delegate original, int axis = 0)
             : base("vmap", TransformationType.Vectorization)
         {
-            _axis = axis;
             ValidateDelegate(original);
+
+            // Normalize to int array with all parameters using the same axis
+            var paramCount = original.Method.GetParameters().Length;
+            _axes = new int[paramCount];
+
+            for (int i = 0; i < paramCount; i++)
+                _axes[i] = axis;
+
+            ValidateInAxes();
+        }
+
+        /// <summary>
+        /// Validates the in_axes configuration.
+        /// </summary>
+        private void ValidateInAxes()
+        {
+            // Check that at least one axis is vectorized
+            if (_axes.All(axis => axis == -1))
+            {
+                throw new ArgumentException("At least one parameter must be vectorized (axis != null)");
+            }
+
+            // Check that all vectorized axes are non-negative
+            for (int i = 0; i < _axes.Length; i++)
+            {
+                if (_axes[i] < -1)
+                {
+                    throw new ArgumentException($"Invalid axis {_axes[i]} for parameter {i}");
+                }
+            }
         }
 
         /// <summary>
@@ -67,31 +143,39 @@ namespace MLFramework.Functional
         /// </summary>
         private Func<Tensor, Tensor> CreateSingleInputWrapper(Func<Tensor, Tensor> original)
         {
-            return (Tensor batchInput) =>
+            int axis = _axes[0];
+
+            return (Tensor input) =>
             {
-                // Validate input has batch dimension
-                if (batchInput.Dimensions <= _axis)
+                if (axis == -1)
                 {
-                    throw new ArgumentException(
-                        $"Input tensor must have at least {_axis + 1} dimensions for axis={_axis}. " +
-                        $"Current dimensions: {batchInput.Dimensions}",
-                        nameof(batchInput));
+                    // No vectorization needed
+                    return original(input);
                 }
 
-                var batchSize = batchInput.Shape[_axis];
+                // Validate input has batch dimension
+                if (input.Dimensions <= axis)
+                {
+                    throw new ArgumentException(
+                        $"Input tensor must have at least {axis + 1} dimensions for axis={axis}. " +
+                        $"Current dimensions: {input.Dimensions}",
+                        nameof(input));
+                }
+
+                var batchSize = input.Shape[axis];
                 var outputs = new List<Tensor>();
 
                 // Iterate over batch dimension
                 for (int i = 0; i < batchSize; i++)
                 {
                     // Extract single element from batch
-                    var singleInput = batchInput.Take(_axis, i);
+                    var singleInput = input.Take(axis, i);
                     var output = original(singleInput);
                     outputs.Add(output);
                 }
 
                 // Stack outputs along batch dimension
-                return outputs.Stack(_axis);
+                return outputs.Stack(axis);
             };
         }
 
@@ -100,46 +184,53 @@ namespace MLFramework.Functional
         /// </summary>
         private Func<Tensor, Tensor, Tensor> CreateDoubleInputWrapper(Func<Tensor, Tensor, Tensor> original)
         {
-            return (Tensor batchInput1, Tensor batchInput2) =>
+            int axis1 = _axes[0];
+            int axis2 = _axes[1];
+
+            return (Tensor input1, Tensor input2) =>
             {
-                // Validate inputs have same batch size
-                if (batchInput1.Dimensions <= _axis)
+                // Determine batch dimension
+                int? batchSize = null;
+
+                if (axis1 != -1)
                 {
-                    throw new ArgumentException(
-                        $"First input tensor must have at least {_axis + 1} dimensions for axis={_axis}. " +
-                        $"Current dimensions: {batchInput1.Dimensions}",
-                        nameof(batchInput1));
+                    if (input1.Dimensions <= axis1)
+                        throw new ArgumentException($"Input1 must have at least {axis1 + 1} dimensions for axis={axis1}. " +
+                            $"Current dimensions: {input1.Dimensions}", nameof(input1));
+                    batchSize = input1.Shape[axis1];
                 }
 
-                if (batchInput2.Dimensions <= _axis)
+                if (axis2 != -1)
                 {
-                    throw new ArgumentException(
-                        $"Second input tensor must have at least {_axis + 1} dimensions for axis={_axis}. " +
-                        $"Current dimensions: {batchInput2.Dimensions}",
-                        nameof(batchInput2));
+                    if (input2.Dimensions <= axis2)
+                        throw new ArgumentException($"Input2 must have at least {axis2 + 1} dimensions for axis={axis2}. " +
+                            $"Current dimensions: {input2.Dimensions}", nameof(input2));
+                    int batchSize2 = input2.Shape[axis2];
+                    if (batchSize.HasValue && batchSize.Value != batchSize2)
+                        throw new ArgumentException($"Batch dimensions must match: {batchSize.Value} != {batchSize2}");
+                    batchSize = batchSize ?? batchSize2;
                 }
 
-                var batchSize1 = batchInput1.Shape[_axis];
-                var batchSize2 = batchInput2.Shape[_axis];
-
-                if (batchSize1 != batchSize2)
+                // Handle case where no vectorization is needed
+                if (batchSize == null)
                 {
-                    throw new ArgumentException(
-                        $"Batch dimensions must match at axis {_axis}: {batchSize1} != {batchSize2}");
+                    return original(input1, input2);
                 }
 
-                var batchSize = batchSize1;
+                int finalBatchSize = batchSize.Value;
                 var outputs = new List<Tensor>();
 
-                for (int i = 0; i < batchSize; i++)
+                for (int i = 0; i < finalBatchSize; i++)
                 {
-                    var singleInput1 = batchInput1.Take(_axis, i);
-                    var singleInput2 = batchInput2.Take(_axis, i);
+                    var singleInput1 = axis1 != -1 ? input1.Take(axis1, i) : input1;
+                    var singleInput2 = axis2 != -1 ? input2.Take(axis2, i) : input2;
                     var output = original(singleInput1, singleInput2);
                     outputs.Add(output);
                 }
 
-                return outputs.Stack(_axis);
+                // Determine output axis (first non -1 axis)
+                int outputAxis = axis1 != -1 ? axis1 : axis2;
+                return outputs.Stack(outputAxis);
             };
         }
     }
