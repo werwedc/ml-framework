@@ -15,9 +15,9 @@ namespace MLFramework.Pipeline
         int WorldSize { get; }
 
         /// <summary>
-        /// Gets the rank of this stage (0 to WorldSize-1)
+        /// Rank of the current process/device
         /// </summary>
-        int Rank { get; }
+        int CurrentRank { get; }
 
         /// <summary>
         /// Send a tensor to a specific stage
@@ -43,5 +43,31 @@ namespace MLFramework.Pipeline
         /// Synchronize all stages (barrier)
         /// </summary>
         Task BarrierAsync();
+
+        /// <summary>
+        /// Send forward activation to next stage asynchronously
+        /// </summary>
+        /// <param name="tensor">Tensor to send</param>
+        /// <param name="destinationRank">Destination stage rank</param>
+        Task<Tensor> SendForwardAsync(Tensor tensor, int destinationRank);
+
+        /// <summary>
+        /// Receive forward activation from previous stage asynchronously
+        /// </summary>
+        /// <param name="sourceRank">Source stage rank</param>
+        Task<Tensor> ReceiveForwardAsync(int sourceRank);
+
+        /// <summary>
+        /// Send backward gradient to previous stage asynchronously
+        /// </summary>
+        /// <param name="tensor">Tensor to send</param>
+        /// <param name="destinationRank">Destination stage rank</param>
+        Task<Tensor> SendBackwardAsync(Tensor tensor, int destinationRank);
+
+        /// <summary>
+        /// Receive backward gradient from next stage asynchronously
+        /// </summary>
+        /// <param name="sourceRank">Source stage rank</param>
+        Task<Tensor> ReceiveBackwardAsync(int sourceRank);
     }
 }

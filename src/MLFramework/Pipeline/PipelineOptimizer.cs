@@ -31,9 +31,14 @@ namespace MLFramework.Pipeline
         }
 
         /// <summary>
-        /// Gets the number of pipeline stages
+        /// Number of pipeline stages
         /// </summary>
         public int NumStages => _stages.Count;
+
+        /// <summary>
+        /// Rank of this stage
+        /// </summary>
+        public int CurrentRank => _communicator.CurrentRank;
 
         public PipelineOptimizer(
             List<PipelineStage> stages,
@@ -144,6 +149,39 @@ namespace MLFramework.Pipeline
         }
 
         /// <summary>
+        /// Zero the gradients for all parameters (alias for ZeroGradients)
+        /// </summary>
+        public void ZeroGrad() => ZeroGradients();
+
+        /// <summary>
+        /// Set gradients for parameters (for testing)
+        /// </summary>
+        public void SetGradients(List<Tensor> gradients)
+        {
+            ThrowIfDisposed();
+
+            if (gradients == null)
+                throw new ArgumentNullException(nameof(gradients));
+
+            int paramIndex = 0;
+            foreach (var stage in _stages)
+            {
+                foreach (var parameter in stage.GetParameters())
+                {
+                    if (paramIndex >= gradients.Count)
+                        break;
+
+                    if (parameter.Gradient != null && gradients[paramIndex] != null)
+                    {
+                        Array.Copy(gradients[paramIndex].Data, parameter.Gradient.Data,
+                                   Math.Min(gradients[paramIndex].Data.Length, parameter.Gradient.Data.Length));
+                    }
+                    paramIndex++;
+                }
+            }
+        }
+
+        /// <summary>
         /// Set learning rate
         /// </summary>
         public void SetLearningRate(float lr)
@@ -157,6 +195,39 @@ namespace MLFramework.Pipeline
         /// Get current learning rate
         /// </summary>
         public float GetLearningRate() => _learningRate;
+
+        /// <summary>
+        /// Get optimizer state for inspection
+        /// </summary>
+        public Dictionary<string, object> GetState()
+        {
+            ThrowIfDisposed();
+
+            var state = new Dictionary<string, object>
+            {
+                ["learning_rate"] = _learningRate,
+                ["num_stages"] = NumStages,
+                ["current_rank"] = CurrentRank
+            };
+
+            return state;
+        }
+
+        /// <summary>
+        /// Load optimizer state
+        /// </summary>
+        public void LoadState(Dictionary<string, object> state)
+        {
+            ThrowIfDisposed();
+
+            if (state == null)
+                throw new ArgumentNullException(nameof(state));
+
+            if (state.ContainsKey("learning_rate") && state["learning_rate"] is float lr)
+            {
+                LearningRate = lr;
+            }
+        }
 
         private void ThrowIfDisposed()
         {

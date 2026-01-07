@@ -43,6 +43,11 @@ namespace MLFramework.Pipeline
         public int Rank => _rank;
 
         /// <summary>
+        /// Current rank (alias for Rank)
+        /// </summary>
+        public int CurrentRank => _rank;
+
+        /// <summary>
         /// Total number of processes/devices
         /// </summary>
         public int WorldSize => _worldSize;
@@ -177,6 +182,64 @@ namespace MLFramework.Pipeline
                     }
                 }
             });
+        }
+
+        /// <summary>
+        /// Send forward activation to next stage asynchronously
+        /// </summary>
+        public async Task<Tensor> SendForwardAsync(Tensor tensor, int destinationRank)
+        {
+            ThrowIfDisposed();
+
+            if (tensor == null)
+                throw new ArgumentNullException(nameof(tensor));
+            if (destinationRank < 0 || destinationRank >= _worldSize)
+                throw new ArgumentOutOfRangeException(nameof(destinationRank), $"Destination rank must be in [0, {_worldSize - 1}]");
+
+            await SendAsync(tensor, destinationRank);
+            return tensor;
+        }
+
+        /// <summary>
+        /// Receive forward activation from previous stage asynchronously
+        /// </summary>
+        public async Task<Tensor> ReceiveForwardAsync(int sourceRank)
+        {
+            ThrowIfDisposed();
+
+            if (sourceRank < 0 || sourceRank >= _worldSize)
+                throw new ArgumentOutOfRangeException(nameof(sourceRank), $"Source rank must be in [0, {_worldSize - 1}]");
+
+            return await ReceiveAsync(sourceRank);
+        }
+
+        /// <summary>
+        /// Send backward gradient to previous stage asynchronously
+        /// </summary>
+        public async Task<Tensor> SendBackwardAsync(Tensor tensor, int destinationRank)
+        {
+            ThrowIfDisposed();
+
+            if (tensor == null)
+                throw new ArgumentNullException(nameof(tensor));
+            if (destinationRank < 0 || destinationRank >= _worldSize)
+                throw new ArgumentOutOfRangeException(nameof(destinationRank), $"Destination rank must be in [0, {_worldSize - 1}]");
+
+            await SendAsync(tensor, destinationRank);
+            return tensor;
+        }
+
+        /// <summary>
+        /// Receive backward gradient from next stage asynchronously
+        /// </summary>
+        public async Task<Tensor> ReceiveBackwardAsync(int sourceRank)
+        {
+            ThrowIfDisposed();
+
+            if (sourceRank < 0 || sourceRank >= _worldSize)
+                throw new ArgumentOutOfRangeException(nameof(sourceRank), $"Source rank must be in [0, {_worldSize - 1}]");
+
+            return await ReceiveAsync(sourceRank);
         }
 
         private void ThrowIfDisposed()

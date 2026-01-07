@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using RitterFramework.Core.Tensor;
 using MLFramework.Pipeline;
@@ -18,10 +19,22 @@ namespace MLFramework.Pipeline
         private readonly ActivationCheckpointManager _checkpointManager;
         private int _disposed;
 
+        // Timing statistics
+        private float _forwardTime;
+        private float _backwardTime;
+        private float _forwardBubbleTime;
+        private float _backwardBubbleTime;
+        private readonly Stopwatch _stopwatch;
+
         /// <summary>
         /// Gets the number of pipeline stages
         /// </summary>
         public int NumStages => _stages.Count;
+
+        /// <summary>
+        /// Gets the number of micro-batches
+        /// </summary>
+        public int MicroBatches => _config.MicroBatches;
 
         /// <summary>
         /// Gets the pipeline configuration
@@ -51,6 +64,7 @@ namespace MLFramework.Pipeline
             _microBatchManager = microBatchManager;
             _config = config;
             _checkpointManager = checkpointManager;
+            _stopwatch = new Stopwatch();
         }
 
         /// <summary>
@@ -175,13 +189,28 @@ namespace MLFramework.Pipeline
         }
 
         /// <summary>
-        /// Reset the scheduler state
+        /// Reset scheduler state
         /// </summary>
         public void Reset()
         {
             ThrowIfDisposed();
             _microBatchManager.ResetGradients();
             _checkpointManager.Clear();
+
+            // Reset statistics
+            _forwardTime = 0;
+            _backwardTime = 0;
+            _forwardBubbleTime = 0;
+            _backwardBubbleTime = 0;
+        }
+
+        /// <summary>
+        /// Get pipeline statistics (bubble time, utilization, etc.)
+        /// </summary>
+        public PipelineStats GetStats()
+        {
+            ThrowIfDisposed();
+            return new PipelineStats(_forwardTime, _backwardTime, _forwardBubbleTime, _backwardBubbleTime);
         }
 
         private void ThrowIfDisposed()
