@@ -48,6 +48,92 @@ public class AdvancedFeatureSchedulerTests
         Assert.True(lrQuadratic < lrLinear);
     }
 
+    [Fact]
+    public void PolynomialDecayScheduler_AtHalfSteps_ReturnsIntermediateValue()
+    {
+        var scheduler = new PolynomialDecayScheduler(
+            initialLearningRate: 0.01f,
+            finalLearningRate: 0.001f,
+            totalSteps: 1000f,
+            power: 1.0f
+        );
+
+        float lr = scheduler.GetLearningRate(500, 0.1f);
+
+        // Linear decay: should be halfway between initial and final
+        Assert.Equal(0.0055f, lr);
+    }
+
+    [Fact]
+    public void PolynomialDecayScheduler_BeyondTotalSteps_ReturnsFinalLR()
+    {
+        var scheduler = new PolynomialDecayScheduler(
+            initialLearningRate: 0.01f,
+            finalLearningRate: 0.0001f,
+            totalSteps: 1000f
+        );
+
+        float lr1 = scheduler.GetLearningRate(1000, 0.1f);
+        float lr2 = scheduler.GetLearningRate(2000, 0.1f);
+
+        // Both should return final LR
+        Assert.Equal(0.0001f, lr1);
+        Assert.Equal(0.0001f, lr2);
+    }
+
+    [Fact]
+    public void PolynomialDecayScheduler_StateSerialization_Works()
+    {
+        var scheduler = new PolynomialDecayScheduler(
+            initialLearningRate: 0.01f,
+            finalLearningRate: 0.001f,
+            totalSteps: 1000f,
+            power: 2.0f
+        );
+
+        scheduler.Step();
+        scheduler.Step();
+        scheduler.StepEpoch();
+
+        var state = scheduler.GetState();
+
+        Assert.Equal(0.01f, state.Get<float>("initial_lr"));
+        Assert.Equal(0.001f, state.Get<float>("final_lr"));
+        Assert.Equal(1000f, state.Get<float>("total_steps"));
+        Assert.Equal(2.0f, state.Get<float>("power"));
+        Assert.Equal(3, state.Get<int>("step_count"));
+        Assert.Equal(1, state.Get<int>("epoch_count"));
+    }
+
+    [Fact]
+    public void PolynomialDecayScheduler_StateDeserialization_Works()
+    {
+        var scheduler1 = new PolynomialDecayScheduler(
+            initialLearningRate: 0.01f,
+            finalLearningRate: 0.001f,
+            totalSteps: 1000f,
+            power: 2.0f
+        );
+
+        scheduler1.Step();
+        scheduler1.Step();
+        scheduler1.StepEpoch();
+
+        var state = scheduler1.GetState();
+
+        var scheduler2 = new PolynomialDecayScheduler(
+            initialLearningRate: 0.02f, // Different initial
+            finalLearningRate: 0.002f, // Different final
+            totalSteps: 2000f,
+            power: 1.0f
+        );
+
+        scheduler2.LoadState(state);
+
+        Assert.Equal(3, scheduler2.StepCount);
+        Assert.Equal(1, scheduler2.EpochCount);
+    }
+
     #endregion
 
     #region LayerWiseLRDecayScheduler Tests
@@ -98,6 +184,75 @@ public class AdvancedFeatureSchedulerTests
         Assert.Equal(1.0f, multiplier);
     }
 
+    [Fact]
+    public void LayerWiseLRDecayScheduler_SingleLayer_HasMultiplierOne()
+    {
+        var scheduler = new LayerWiseLRDecayScheduler(decayFactor: 0.8f);
+
+        float multiplier = scheduler.GetLayerMultiplier(
+            layerIndex: 0,
+            totalLayers: 1
+        );
+
+        Assert.Equal(1.0f, multiplier);
+    }
+
+    [Fact]
+    public void LayerWiseLRDecayScheduler_DifferentDecayFactors_WorkCorrectly()
+    {
+        var scheduler1 = new LayerWiseLRDecayScheduler(decayFactor: 0.9f);
+        var scheduler2 = new LayerWiseLRDecayScheduler(decayFactor: 0.5f);
+
+        float m1 = scheduler1.GetLayerMultiplier(0, 3);
+        float m2 = scheduler2.GetLayerMultiplier(0, 3);
+
+        // Lower decay factor means faster decay
+        Assert.True(m2 < m1);
+    }
+
+    [Fact]
+    public void LayerWiseLRDecayScheduler_StateSerialization_Works()
+    {
+        var scheduler = new LayerWiseLRDecayScheduler(
+            decayFactor: 0.8f,
+            excludedLayers: new[] { "embedding", "layer_norm" }
+        );
+
+        scheduler.Step();
+        scheduler.StepEpoch();
+
+        var state = scheduler.GetState();
+
+        Assert.Equal(0.8f, state.Get<float>("decay_factor"));
+        Assert.Equal(new[] { "embedding", "layer_norm" }, state.Get<string[]>("excluded_layers"));
+        Assert.Equal(1, state.Get<int>("step_count"));
+        Assert.Equal(1, state.Get<int>("epoch_count"));
+    }
+
+    [Fact]
+    public void LayerWiseLRDecayScheduler_StateDeserialization_Works()
+    {
+        var scheduler1 = new LayerWiseLRDecayScheduler(
+            decayFactor: 0.8f,
+            excludedLayers: new[] { "embedding" }
+        );
+
+        scheduler1.Step();
+        scheduler1.StepEpoch();
+
+        var state = scheduler1.GetState();
+
+        var scheduler2 = new LayerWiseLRDecayScheduler(
+            decayFactor: 0.9f,
+            excludedLayers: new[] { "layer_norm" }
+        );
+
+        scheduler2.LoadState(state);
+
+        Assert.Equal(1, scheduler2.StepCount);
+        Assert.Equal(1, scheduler2.EpochCount);
+    }
+
     #endregion
 
     #region DiscriminativeLRScheduler Tests
@@ -127,6 +282,67 @@ public class AdvancedFeatureSchedulerTests
 
         Assert.Equal(0.001f, scheduler.GetGroupLearningRate(0, "encoder"));
         Assert.Equal(0.01f, scheduler.GetGroupLearningRate(1, "decoder"));
+    }
+
+    [Fact]
+    public void DiscriminativeLRScheduler_OutOfRangeIndex_ReturnsLastMultiplier()
+    {
+        var scheduler = new DiscriminativeLRScheduler(
+            baseLearningRate: 0.01f,
+            layerMultipliers: new[] { 0.1f, 0.2f, 0.5f, 1.0f }
+        );
+
+        float lr = scheduler.GetGroupLearningRate(10);
+
+        // Should return last multiplier (1.0 * baseLR)
+        Assert.Equal(0.01f, lr);
+    }
+
+    [Fact]
+    public void DiscriminativeLRScheduler_StateSerialization_Works()
+    {
+        var scheduler = new DiscriminativeLRScheduler(
+            baseLearningRate: 0.01f,
+            layerMultipliers: new[] { 0.1f, 0.2f, 0.5f, 1.0f },
+            layerNames: new[] { "encoder.1", "encoder.2", "decoder.1", "decoder.2" }
+        );
+
+        scheduler.Step();
+        scheduler.StepEpoch();
+
+        var state = scheduler.GetState();
+
+        Assert.Equal(0.01f, state.Get<float>("base_lr"));
+        Assert.Equal(new[] { 0.1f, 0.2f, 0.5f, 1.0f }, state.Get<float[]>("layer_multipliers"));
+        Assert.Equal(new[] { "encoder.1", "encoder.2", "decoder.1", "decoder.2" }, state.Get<string[]>("layer_names"));
+        Assert.Equal(1, state.Get<int>("step_count"));
+        Assert.Equal(1, state.Get<int>("epoch_count"));
+    }
+
+    [Fact]
+    public void DiscriminativeLRScheduler_StateDeserialization_Works()
+    {
+        var scheduler1 = new DiscriminativeLRScheduler(
+            baseLearningRate: 0.01f,
+            layerMultipliers: new[] { 0.1f, 1.0f },
+            layerNames: new[] { "encoder", "decoder" }
+        );
+
+        scheduler1.Step();
+        scheduler1.StepEpoch();
+
+        var state = scheduler1.GetState();
+
+        var scheduler2 = new DiscriminativeLRScheduler(
+            baseLearningRate: 0.001f,
+            layerMultipliers: new[] { 0.2f, 0.5f },
+            layerNames: new[] { "layer1", "layer2" }
+        );
+
+        scheduler2.LoadState(state);
+
+        Assert.Equal(1, scheduler2.StepCount);
+        Assert.Equal(1, scheduler2.EpochCount);
     }
 
     #endregion
