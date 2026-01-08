@@ -13,6 +13,12 @@ namespace MLFramework.Data;
         public abstract int Count { get; }
 
         /// <summary>
+        /// Gets the total number of items in the dataset.
+        /// Kept for backward compatibility - returns Count.
+        /// </summary>
+        public virtual int Length => Count;
+
+        /// <summary>
         /// Retrieves a single item by index.
         /// </summary>
         /// <param name="index">The index of the item to retrieve.</param>
