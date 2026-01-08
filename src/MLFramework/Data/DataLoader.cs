@@ -35,6 +35,21 @@ public class DataLoader<T> : IEnumerable<object>
     public long NumBatches { get; }
 
     /// <summary>
+    /// Event raised when a worker encounters an error.
+    /// </summary>
+    public event Action<WorkerError>? OnWorkerError;
+
+    /// <summary>
+    /// Event raised when recovery from errors is complete.
+    /// </summary>
+    public event Action? OnRecoveryComplete;
+
+    /// <summary>
+    /// Event raised when a critical failure occurs (e.g., all workers dead).
+    /// </summary>
+    public event Action? OnCriticalFailure;
+
+    /// <summary>
     /// Initializes a new instance of the DataLoader class.
     /// </summary>
     /// <param name="dataset">The dataset to load data from.</param>
@@ -94,6 +109,26 @@ public class DataLoader<T> : IEnumerable<object>
         // Simple stacking logic
         // More sophisticated implementations will be added later
         return batch;
+    }
+
+    /// <summary>
+    /// Gets all errors that have been encountered during data loading.
+    /// </summary>
+    /// <returns>A read-only list of errors (empty for synchronous DataLoader).</returns>
+    public IReadOnlyList<WorkerError> GetErrors()
+    {
+        // Synchronous DataLoader doesn't track errors in an ErrorAggregator
+        return Array.Empty<WorkerError>();
+    }
+
+    /// <summary>
+    /// Gets the error aggregator for this data loader.
+    /// </summary>
+    /// <returns>null for synchronous DataLoader.</returns>
+    public ErrorAggregator? GetErrorAggregator()
+    {
+        // Synchronous DataLoader doesn't use ErrorAggregator
+        return null;
     }
 
     /// <summary>

@@ -1,812 +1,304 @@
-# Spec: Error Handling and Fault Tolerance
+# Spec: Error Handling and Robustness
 
 ## Overview
-Implement robust error handling, timeout mechanisms, and fault tolerance for distributed communication operations.
+Implement comprehensive error handling, worker crash detection, timeout management, and graceful recovery mechanisms for the data loading pipeline.
 
-## Dependencies
-- `spec_communication_interfaces.md`
-- `spec_async_operations.md`
+## Requirements
 
-## Technical Requirements
-
-### 1. Timeout Manager
-Manage timeouts for communication operations.
+### 1. WorkerError Class
+Encapsulates information about worker errors.
 
 ```csharp
-namespace MLFramework.Communication.FaultTolerance
+public class WorkerError
 {
-    /// <summary>
-    /// Manages timeouts for communication operations
-    /// </summary>
-    public class TimeoutManager : IDisposable
+    public int WorkerId { get; }
+    public Exception Exception { get; }
+    public DateTime Timestamp { get; }
+    public string Context { get; }
+
+    public WorkerError(int workerId, Exception exception, string context = "")
+}
+```
+
+### 2. ErrorPolicy Enum
+Defines how errors should be handled.
+
+```csharp
+public enum ErrorPolicy
+{
+    FailFast,           // Stop entire dataloader on any error
+    Continue,           // Skip failed worker, continue with others
+    Restart,            // Attempt to restart failed worker
+    Ignore              // Silently ignore errors (not recommended)
+}
+```
+
+### 3. Error Handling Configuration
+
+**Add to DataLoaderConfig:**
+```csharp
+public ErrorPolicy ErrorPolicy { get; set; } = ErrorPolicy.Continue;
+public int MaxWorkerRetries { get; set; } = 3;
+public TimeSpan WorkerTimeout { get; set; } = TimeSpan.FromSeconds(30);
+public bool LogErrors { get; set; } = true;
+```
+
+### 4. Worker Crash Detection
+
+**Crash Detector:**
+```csharp
+public class WorkerCrashDetector
+{
+    private readonly Dictionary<int, Task> _workerTasks;
+    private readonly Dictionary<int, DateTime> _lastHeartbeat;
+    private readonly TimeSpan _heartbeatTimeout;
+    private readonly ErrorPolicy _errorPolicy;
+
+    public event Action<WorkerError>? OnWorkerCrashed;
+}
+```
+
+**Methods:**
+
+**Register Worker:**
+```csharp
+public void RegisterWorker(int workerId, Task workerTask)
+```
+
+**Behavior:**
+- Tracks worker task and start time
+- Starts heartbeat monitoring
+
+**Heartbeat Check:**
+```csharp
+public void UpdateHeartbeat(int workerId)
+```
+
+**Behavior:**
+- Updates last heartbeat timestamp for worker
+- Called periodically by workers
+
+**Monitor Workers:**
+```csharp
+public async Task MonitorAsync(CancellationToken cancellationToken)
+```
+
+**Behavior:**
+- Periodically checks worker task status
+- Detects crashed workers (faulted or cancelled unexpectedly)
+- Detects stalled workers (no heartbeat within timeout)
+- Raises OnWorkerCrashed event when crash detected
+
+### 5. Worker Recovery
+
+**Worker Recovery Service:**
+```csharp
+public class WorkerRecoveryService
+{
+    public event Action<int, int>? OnWorkerRestarted;  // workerId, retryCount
+    public event Action<int>? OnWorkerFailed;            // workerId
+
+    public Task<bool> TryRestartWorkerAsync(int workerId, WorkerError error)
+    public void MarkWorkerFailed(int workerId)
+}
+```
+
+**Behavior:**
+
+**TryRestartWorker:**
+- Determines if restart is allowed based on ErrorPolicy
+- Checks if retry limit exceeded
+- Creates new worker task
+- Returns `true` if restart successful, `false` otherwise
+
+**MarkWorkerFailed:**
+- Permanently marks worker as failed
+- Prevents future restart attempts
+- Raises OnWorkerFailed event
+
+### 6. Timeout Management
+
+**Worker Timeout Tracker:**
+```csharp
+public class WorkerTimeoutTracker
+{
+    private readonly Dictionary<int, DateTime> _operationStartTimes;
+    private readonly TimeSpan _timeout;
+
+    public event Action<int, TimeSpan>? OnWorkerTimeout;
+
+    public void StartOperation(int workerId)
+    public void EndOperation(int workerId)
+    public async Task MonitorTimeoutsAsync(CancellationToken cancellationToken)
+}
+```
+
+**Behavior:**
+
+**MonitorTimeouts:**
+- Continuously checks for operations exceeding timeout
+- Raises OnWorkerTimeout event when timeout detected
+- Can trigger worker restart or cancellation based on policy
+
+### 7. Error Aggregator
+
+**Error Aggregator:**
+```csharp
+public class ErrorAggregator
+{
+    private readonly List<WorkerError> _errors;
+    private readonly object _lock = new object();
+
+    public void AddError(WorkerError error)
+    public IReadOnlyList<WorkerError> GetErrors()
+    public WorkerError? GetLastError()
+    public int GetErrorCount(int workerId)
+    public void ClearErrors()
+}
+```
+
+**Behavior:**
+- Thread-safe collection of all errors
+- Provides query methods for error statistics
+- Supports filtering by worker ID
+
+### 8. Logging Integration
+
+**Error Logger (Optional - depends on logging framework):**
+```csharp
+public interface IErrorLogger
+{
+    void LogError(WorkerError error);
+    void LogWarning(string message);
+    void LogInfo(string message);
+}
+
+public class ConsoleErrorLogger : IErrorLogger
+{
+    // Simple implementation for now
+}
+```
+
+### 9. Worker Pool Error Handling Integration
+
+**Update WorkerPool<T> with Error Handling:**
+
+**Add Events:**
+```csharp
+public event Action<WorkerError>? OnWorkerError;
+public event Action<int>? OnWorkerRestarted;
+public event Action<int>? OnWorkerFailed;
+```
+
+**Add Properties:**
+```csharp
+public ErrorAggregator ErrorAggregator { get; }
+public int FailedWorkers { get; }
+```
+
+**Update Worker Task Loop:**
+```csharp
+while (!cancellationToken.IsCancellationRequested)
+{
+    try
     {
-        private readonly Dictionary<int, CancellationTokenSource> _operationTimeouts;
-        private readonly object _lock;
-        private readonly int _defaultTimeoutMs;
-        private bool _disposed;
+        // Update heartbeat
+        crashDetector.UpdateHeartbeat(workerId);
 
-        /// <summary>
-        /// Default timeout in milliseconds
-        /// </summary>
-        public int DefaultTimeoutMs => _defaultTimeoutMs;
+        // Perform work
+        T result = workerFunc(workerId, cancellationToken);
 
-        /// <summary>
-        /// Create a timeout manager
-        /// </summary>
-        /// <param name="defaultTimeoutMs">Default timeout (default: 5 minutes)</param>
-        public TimeoutManager(int defaultTimeoutMs = 300000)
+        // Enqueue result
+        outputQueue.Enqueue(result);
+
+        // Clear error count on success
+        errorAggregator.ClearErrors();
+    }
+    catch (OperationCanceledException)
+    {
+        // Expected shutdown
+        break;
+    }
+    catch (Exception ex)
+    {
+        // Handle error based on policy
+        var error = new WorkerError(workerId, ex, "WorkerLoop");
+        errorAggregator.AddError(error);
+        OnWorkerError?.Invoke(error);
+
+        if (errorPolicy == ErrorPolicy.Restart && retryCount < maxRetries)
         {
-            _defaultTimeoutMs = defaultTimeoutMs;
-            _operationTimeouts = new Dictionary<int, CancellationTokenSource>();
-            _lock = new object();
+            retryCount++;
+            // Delay before retry
+            await Task.Delay(100 * retryCount, cancellationToken);
+            continue;
         }
-
-        /// <summary>
-        /// Start a timeout for an operation
-        /// </summary>
-        /// <returns>Cancellation token for the operation</returns>
-        public CancellationToken StartTimeout(int operationId, int? timeoutMs = null)
+        else if (errorPolicy == ErrorPolicy.Continue)
         {
-            lock (_lock)
-            {
-                // Cancel existing timeout if any
-                if (_operationTimeouts.ContainsKey(operationId))
-                {
-                    _operationTimeouts[operationId].Cancel();
-                    _operationTimeouts[operationId].Dispose();
-                }
-
-                var cts = new CancellationTokenSource();
-                var timeout = timeoutMs ?? _defaultTimeoutMs;
-
-                if (timeout > 0)
-                {
-                    cts.CancelAfter(timeout);
-                }
-
-                _operationTimeouts[operationId] = cts;
-                return cts.Token;
-            }
+            // Skip this worker
+            break;
         }
-
-        /// <summary>
-        /// Cancel timeout for an operation
-        /// </summary>
-        public void CancelTimeout(int operationId)
+        else // FailFast
         {
-            lock (_lock)
-            {
-                if (_operationTimeouts.TryGetValue(operationId, out var cts))
-                {
-                    cts.Cancel();
-                    cts.Dispose();
-                    _operationTimeouts.Remove(operationId);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Extend timeout for an operation
-        /// </summary>
-        public void ExtendTimeout(int operationId, int additionalTimeoutMs)
-        {
-            lock (_lock)
-            {
-                if (_operationTimeouts.TryGetValue(operationId, out var cts))
-                {
-                    if (!cts.Token.IsCancellationRequested)
-                    {
-                        cts.CancelAfter(additionalTimeoutMs);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Cancel all timeouts
-        /// </summary>
-        public void CancelAll()
-        {
-            lock (_lock)
-            {
-                foreach (var cts in _operationTimeouts.Values)
-                {
-                    cts.Cancel();
-                    cts.Dispose();
-                }
-                _operationTimeouts.Clear();
-            }
-        }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                CancelAll();
-                _disposed = true;
-            }
+            throw;
         }
     }
 }
 ```
 
-### 2. Error Recovery Manager
-Handle and recover from communication errors.
+### 10. DataLoader Error Handling
 
+**Add to DataLoader<T>:**
+
+**Add Events:**
 ```csharp
-namespace MLFramework.Communication.FaultTolerance
-{
-    /// <summary>
-    /// Error severity levels
-    /// </summary>
-    public enum ErrorSeverity
-    {
-        Warning,
-        Recoverable,
-        Fatal
-    }
-
-    /// <summary>
-    /// Error information
-    /// </summary>
-    public class CommunicationError
-    {
-        public int OperationId { get; set; }
-        public string OperationType { get; set; }
-        public ErrorSeverity Severity { get; set; }
-        public Exception Exception { get; set; }
-        public DateTime Timestamp { get; set; }
-        public int? Rank { get; set; }
-        public Dictionary<string, string> Context { get; set; }
-
-        public override string ToString()
-        {
-            return $"[{Timestamp:HH:mm:ss.fff}] {OperationType} (Rank: {Rank?.ToString() ?? "N/A"}): " +
-                   $"{Severity} - {Exception.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Error recovery strategy
-    /// </summary>
-    public enum RecoveryStrategy
-    {
-        Retry,
-        FallbackToDifferentBackend,
-        UseDifferentAlgorithm,
-        Abort
-    }
-
-    /// <summary>
-    /// Manages error recovery for communication operations
-    /// </summary>
-    public class ErrorRecoveryManager : IDisposable
-    {
-        private readonly List<CommunicationError> _errorHistory;
-        private readonly Dictionary<Type, RecoveryStrategy> _recoveryStrategies;
-        private readonly object _lock;
-        private readonly int _maxRetries;
-        private readonly TimeSpan _retryDelay;
-        private bool _disposed;
-
-        /// <summary>
-        /// Maximum number of retries for recoverable errors
-        /// </summary>
-        public int MaxRetries => _maxRetries;
-
-        /// <summary>
-        /// Create an error recovery manager
-        /// </summary>
-        public ErrorRecoveryManager(int maxRetries = 3, TimeSpan? retryDelay = null)
-        {
-            _errorHistory = new List<CommunicationError>();
-            _recoveryStrategies = new Dictionary<Type, RecoveryStrategy>();
-            _lock = new object();
-            _maxRetries = maxRetries;
-            _retryDelay = retryDelay ?? TimeSpan.FromMilliseconds(100);
-
-            // Set default recovery strategies
-            SetDefaultStrategies();
-        }
-
-        private void SetDefaultStrategies()
-        {
-            _recoveryStrategies[typeof(CommunicationTimeoutException)] = RecoveryStrategy.Retry;
-            _recoveryStrategies[typeof(RankMismatchException)] = RecoveryStrategy.Abort;
-            _recoveryStrategies[typeof(IOException)] = RecoveryStrategy.Retry;
-        }
-
-        /// <summary>
-        /// Set recovery strategy for a specific exception type
-        /// </summary>
-        public void SetRecoveryStrategy(Type exceptionType, RecoveryStrategy strategy)
-        {
-            lock (_lock)
-            {
-                _recoveryStrategies[exceptionType] = strategy;
-            }
-        }
-
-        /// <summary>
-        /// Handle a communication error
-        /// </summary>
-        /// <returns>True if operation should be retried, false if it should abort</returns>
-        public bool HandleError(CommunicationError error)
-        {
-            lock (_lock)
-            {
-                _errorHistory.Add(error);
-
-                // Log error
-                LogError(error);
-
-                // Determine recovery strategy
-                var strategy = GetRecoveryStrategy(error.Exception.GetType());
-
-                switch (strategy)
-                {
-                    case RecoveryStrategy.Retry:
-                        return CanRetry(error);
-
-                    case RecoveryStrategy.FallbackToDifferentBackend:
-                    case RecoveryStrategy.UseDifferentAlgorithm:
-                        // These would need additional context
-                        return false;
-
-                    case RecoveryStrategy.Abort:
-                    default:
-                        return false;
-                }
-            }
-        }
-
-        private bool CanRetry(CommunicationError error)
-        {
-            // Check if this operation has been retried too many times
-            var retryCount = _errorHistory.Count(e =>
-                e.OperationId == error.OperationId &&
-                e.OperationType == error.OperationType);
-
-            return retryCount <= _maxRetries;
-        }
-
-        private RecoveryStrategy GetRecoveryStrategy(Type exceptionType)
-        {
-            // Look for exact match
-            if (_recoveryStrategies.TryGetValue(exceptionType, out var strategy))
-            {
-                return strategy;
-            }
-
-            // Look for base type match
-            foreach (var kvp in _recoveryStrategies)
-            {
-                if (kvp.Key.IsAssignableFrom(exceptionType))
-                {
-                    return kvp.Value;
-                }
-            }
-
-            return RecoveryStrategy.Abort;
-        }
-
-        private void LogError(CommunicationError error)
-        {
-            Console.WriteLine($"[ERROR] {error}");
-        }
-
-        /// <summary>
-        /// Get error history
-        /// </summary>
-        public IReadOnlyList<CommunicationError> GetErrorHistory()
-        {
-            lock (_lock)
-            {
-                return _errorHistory.ToList();
-            }
-        }
-
-        /// <summary>
-        /// Get error statistics
-        /// </summary>
-        public ErrorStatistics GetStatistics()
-        {
-            lock (_lock)
-            {
-                return new ErrorStatistics
-                {
-                    TotalErrors = _errorHistory.Count,
-                    ErrorsByType = _errorHistory
-                        .GroupBy(e => e.Exception.GetType().Name)
-                        .ToDictionary(g => g.Key, g => g.Count()),
-                    ErrorsBySeverity = _errorHistory
-                        .GroupBy(e => e.Severity)
-                        .ToDictionary(g => g.Key, g => g.Count()),
-                    ErrorsByOperation = _errorHistory
-                        .GroupBy(e => e.OperationType)
-                        .ToDictionary(g => g.Key, g => g.Count())
-                };
-            }
-        }
-
-        /// <summary>
-        /// Clear error history
-        /// </summary>
-        public void ClearHistory()
-        {
-            lock (_lock)
-            {
-                _errorHistory.Clear();
-            }
-        }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                lock (_lock)
-                {
-                    _errorHistory.Clear();
-                }
-                _disposed = true;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Error statistics
-    /// </summary>
-    public class ErrorStatistics
-    {
-        public int TotalErrors { get; set; }
-        public Dictionary<string, int> ErrorsByType { get; set; }
-        public Dictionary<ErrorSeverity, int> ErrorsBySeverity { get; set; }
-        public Dictionary<string, int> ErrorsByOperation { get; set; }
-
-        public override string ToString()
-        {
-            return $"Total Errors: {TotalErrors}, " +
-                   $"By Type: {string.Join(", ", ErrorsByType.Select(kvp => $"{kvp.Key}={kvp.Value}"))}, " +
-                   $"By Severity: {string.Join(", ", ErrorsBySeverity.Select(kvp => $"{kvp.Key}={kvp.Value}"))}";
-        }
-    }
-}
+public event Action<WorkerError>? OnWorkerError;
+public event Action? OnRecoveryComplete;
+public event Action? OnCriticalFailure;
 ```
 
-### 3. Fault Tolerant Communication Wrapper
-Wrapper that adds fault tolerance to communication operations.
-
+**Add Methods:**
 ```csharp
-namespace MLFramework.Communication.FaultTolerance
-{
-    /// <summary>
-    /// Fault-tolerant wrapper for communication operations
-    /// </summary>
-    public class FaultTolerantCommunication : ICommunicationBackend, IAsyncCommunicationBackend
-    {
-        private readonly ICommunicationBackend _innerBackend;
-        private readonly IAsyncCommunicationBackend? _innerAsyncBackend;
-        private readonly TimeoutManager _timeoutManager;
-        private readonly ErrorRecoveryManager _errorRecoveryManager;
-        private readonly CommunicationConfig _config;
-        private int _nextOperationId;
-        private bool _disposed;
-
-        public int Rank => _innerBackend.Rank;
-        public int WorldSize => _innerBackend.WorldSize;
-        public string BackendName => $"FT_{_innerBackend.BackendName}";
-
-        public FaultTolerantCommunication(
-            ICommunicationBackend backend,
-            CommunicationConfig config)
-        {
-            _innerBackend = backend ?? throw new ArgumentNullException(nameof(backend));
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _timeoutManager = new TimeoutManager(config.TimeoutMs);
-            _errorRecoveryManager = new ErrorRecoveryManager();
-            _innerAsyncBackend = backend as IAsyncCommunicationBackend;
-            _nextOperationId = 1;
-        }
-
-        public void Broadcast<T>(Tensor<T> tensor, int rootRank)
-        {
-            ExecuteWithRetry("Broadcast", () => _innerBackend.Broadcast(tensor, rootRank));
-        }
-
-        public Tensor<T> Reduce<T>(Tensor<T> tensor, ReduceOp operation, int rootRank)
-        {
-            return ExecuteWithRetry("Reduce", () => _innerBackend.Reduce(tensor, operation, rootRank));
-        }
-
-        public Tensor<T> AllReduce<T>(Tensor<T> tensor, ReduceOp operation)
-        {
-            return ExecuteWithRetry("AllReduce", () => _innerBackend.AllReduce(tensor, operation));
-        }
-
-        public Tensor<T> AllGather<T>(Tensor<T> tensor)
-        {
-            return ExecuteWithRetry("AllGather", () => _innerBackend.AllGather(tensor));
-        }
-
-        public Tensor<T> ReduceScatter<T>(Tensor<T> tensor, ReduceOp operation)
-        {
-            return ExecuteWithRetry("ReduceScatter", () => _innerBackend.ReduceScatter(tensor, operation));
-        }
-
-        public void Barrier()
-        {
-            ExecuteWithRetry("Barrier", () => _innerBackend.Barrier());
-        }
-
-        private T ExecuteWithRetry<T>(string operationType, Func<T> func)
-        {
-            int operationId = Interlocked.Increment(ref _nextOperationId);
-            int retryCount = 0;
-
-            while (retryCount <= _errorRecoveryManager.MaxRetries)
-            {
-                try
-                {
-                    using var cts = _timeoutManager.StartTimeout(operationId);
-                    return func();
-                }
-                catch (OperationCanceledException)
-                {
-                    var error = new CommunicationError
-                    {
-                        OperationId = operationId,
-                        OperationType = operationType,
-                        Severity = ErrorSeverity.Recoverable,
-                        Exception = new CommunicationTimeoutException(
-                            $"Operation {operationType} timed out after {_config.TimeoutMs}ms",
-                            TimeSpan.FromMilliseconds(_config.TimeoutMs)),
-                        Timestamp = DateTime.Now,
-                        Rank = _innerBackend.Rank,
-                        Context = new Dictionary<string, string> { ["RetryCount"] = retryCount.ToString() }
-                    };
-
-                    if (!_errorRecoveryManager.HandleError(error))
-                    {
-                        throw error.Exception;
-                    }
-
-                    retryCount++;
-                    Thread.Sleep((int)_errorRecoveryManager._retryDelay.TotalMilliseconds);
-                }
-                catch (Exception ex)
-                {
-                    var error = new CommunicationError
-                    {
-                        OperationId = operationId,
-                        OperationType = operationType,
-                        Severity = ErrorSeverity.Fatal,
-                        Exception = ex,
-                        Timestamp = DateTime.Now,
-                        Rank = _innerBackend.Rank,
-                        Context = new Dictionary<string, string> { ["RetryCount"] = retryCount.ToString() }
-                    };
-
-                    if (!_errorRecoveryManager.HandleError(error))
-                    {
-                        throw error.Exception;
-                    }
-
-                    retryCount++;
-                }
-                finally
-                {
-                    _timeoutManager.CancelTimeout(operationId);
-                }
-            }
-
-            throw new CommunicationException(
-                $"Operation {operationType} failed after {_errorRecoveryManager.MaxRetries} retries");
-        }
-
-        // Async operations
-        public ICommunicationHandle BroadcastAsync<T>(Tensor<T> tensor, int rootRank)
-        {
-            if (_innerAsyncBackend == null)
-                throw new NotSupportedException("Backend does not support async operations");
-
-            return ExecuteWithRetryAsync("BroadcastAsync", () => _innerAsyncBackend.BroadcastAsync(tensor, rootRank));
-        }
-
-        public ICommunicationHandle AllReduceAsync<T>(Tensor<T> tensor, ReduceOp operation)
-        {
-            if (_innerAsyncBackend == null)
-                throw new NotSupportedException("Backend does not support async operations");
-
-            return ExecuteWithRetryAsync("AllReduceAsync", () => _innerAsyncBackend.AllReduceAsync(tensor, operation));
-        }
-
-        public ICommunicationHandle BarrierAsync()
-        {
-            if (_innerAsyncBackend == null)
-                throw new NotSupportedException("Backend does not support async operations");
-
-            return ExecuteWithRetryAsync("BarrierAsync", () => _innerAsyncBackend.BarrierAsync());
-        }
-
-        private ICommunicationHandle ExecuteWithRetryAsync(
-            string operationType,
-            Func<ICommunicationHandle> func)
-        {
-            int operationId = Interlocked.Increment(ref _nextOperationId);
-            int retryCount = 0;
-
-            while (retryCount <= _errorRecoveryManager.MaxRetries)
-            {
-                try
-                {
-                    return func();
-                }
-                catch (Exception ex)
-                {
-                    var error = new CommunicationError
-                    {
-                        OperationId = operationId,
-                        OperationType = operationType,
-                        Severity = ErrorSeverity.Recoverable,
-                        Exception = ex,
-                        Timestamp = DateTime.Now,
-                        Rank = _innerBackend.Rank,
-                        Context = new Dictionary<string, string> { ["RetryCount"] = retryCount.ToString() }
-                    };
-
-                    if (!_errorRecoveryManager.HandleError(error))
-                    {
-                        throw error.Exception;
-                    }
-
-                    retryCount++;
-                }
-            }
-
-            throw new CommunicationException(
-                $"Async operation {operationType} failed after {_errorRecoveryManager.MaxRetries} retries");
-        }
-
-        /// <summary>
-        /// Get error recovery manager
-        /// </summary>
-        public ErrorRecoveryManager ErrorRecoveryManager => _errorRecoveryManager;
-
-        /// <summary>
-        /// Get timeout manager
-        /// </summary>
-        public TimeoutManager TimeoutManager => _timeoutManager;
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                _timeoutManager.Dispose();
-                _errorRecoveryManager.Dispose();
-                _disposed = true;
-            }
-        }
-    }
-}
+public IReadOnlyList<WorkerError> GetErrors()
+public ErrorAggregator GetErrorAggregator()
 ```
 
-### 4. Health Check and Heartbeat
-Monitor health of communication channels.
+**Error Propagation:**
+- Propagate worker errors to dataloader events
+- On critical failure (all workers dead), raise OnCriticalFailure
+- On successful recovery, raise OnRecoveryComplete
 
-```csharp
-namespace MLFramework.Communication.FaultTolerance
-{
-    /// <summary>
-    /// Health status of a rank
-    /// </summary>
-    public enum RankHealthStatus
-    {
-        Healthy,
-        Unresponsive,
-        Failed
-    }
-
-    /// <summary>
-    /// Monitors health of ranks and communication channels
-    /// </summary>
-    public class HealthMonitor : IDisposable
-    {
-        private readonly ICommunicationBackend _backend;
-        private readonly Dictionary<int, RankHealthStatus> _rankStatus;
-        private readonly Dictionary<int, DateTime> _lastHeartbeat;
-        private readonly object _lock;
-        private readonly TimeSpan _heartbeatTimeout;
-        private readonly CancellationTokenSource _cts;
-        private Task? _heartbeatTask;
-        private bool _disposed;
-
-        public int UnresponsiveRanksCount
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    return _rankStatus.Count(kvp => kvp.Value != RankHealthStatus.Healthy);
-                }
-            }
-        }
-
-        public HealthMonitor(
-            ICommunicationBackend backend,
-            TimeSpan? heartbeatTimeout = null)
-        {
-            _backend = backend ?? throw new ArgumentNullException(nameof(backend));
-            _heartbeatTimeout = heartbeatTimeout ?? TimeSpan.FromSeconds(30);
-            _rankStatus = new Dictionary<int, RankHealthStatus>();
-            _lastHeartbeat = new Dictionary<int, DateTime>();
-            _lock = new object();
-            _cts = new CancellationTokenSource();
-
-            // Initialize all ranks as healthy
-            for (int i = 0; i < backend.WorldSize; i++)
-            {
-                _rankStatus[i] = RankHealthStatus.Healthy;
-                _lastHeartbeat[i] = DateTime.Now;
-            }
-        }
-
-        /// <summary>
-        /// Start health monitoring
-        /// </summary>
-        public void StartMonitoring()
-        {
-            _heartbeatTask = Task.Run(MonitorHealthAsync, _cts.Token);
-        }
-
-        /// <summary>
-        /// Stop health monitoring
-        /// </summary>
-        public void StopMonitoring()
-        {
-            _cts.Cancel();
-            _heartbeatTask?.Wait();
-            _heartbeatTask?.Dispose();
-        }
-
-        private async Task MonitorHealthAsync()
-        {
-            while (!_cts.Token.IsCancellationRequested)
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(5), _cts.Token);
-                    CheckHealth();
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[HealthMonitor] Error: {ex.Message}");
-                }
-            }
-        }
-
-        private void CheckHealth()
-        {
-            lock (_lock)
-            {
-                var now = DateTime.Now;
-
-                foreach (var kvp in _lastHeartbeat.ToList())
-                {
-                    var rank = kvp.Key;
-                    var lastHeartbeat = kvp.Value;
-
-                    if (now - lastHeartbeat > _heartbeatTimeout * 2)
-                    {
-                        _rankStatus[rank] = RankHealthStatus.Failed;
-                        Console.WriteLine($"[HealthMonitor] Rank {rank} is marked as FAILED");
-                    }
-                    else if (now - lastHeartbeat > _heartbeatTimeout)
-                    {
-                        _rankStatus[rank] = RankHealthStatus.Unresponsive;
-                        Console.WriteLine($"[HealthMonitor] Rank {rank} is marked as UNRESPONSIVE");
-                    }
-                    else
-                    {
-                        _rankStatus[rank] = RankHealthStatus.Healthy;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Update heartbeat for a rank
-        /// </summary>
-        public void UpdateHeartbeat(int rank)
-        {
-            lock (_lock)
-            {
-                if (_rankStatus.ContainsKey(rank))
-                {
-                    _lastHeartbeat[rank] = DateTime.Now;
-                    _rankStatus[rank] = RankHealthStatus.Healthy;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Get health status of a rank
-        /// </summary>
-        public RankHealthStatus GetRankHealthStatus(int rank)
-        {
-            lock (_lock)
-            {
-                return _rankStatus.TryGetValue(rank, out var status) ? status : RankHealthStatus.Failed;
-            }
-        }
-
-        /// <summary>
-        /// Get all healthy ranks
-        /// </summary>
-        public List<int> GetHealthyRanks()
-        {
-            lock (_lock)
-            {
-                return _rankStatus
-                    .Where(kvp => kvp.Value == RankHealthStatus.Healthy)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-            }
-        }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-            {
-                StopMonitoring();
-                _cts.Dispose();
-                _disposed = true;
-            }
-        }
-    }
-}
+## File Structure
 ```
-
-## Implementation Notes
-
-1. **File Structure:**
-   - `src/MLFramework/Communication/FaultTolerance/TimeoutManager.cs`
-   - `src/MLFramework/Communication/FaultTolerance/CommunicationError.cs`
-   - `src/MLFramework/Communication/FaultTolerance/ErrorRecoveryManager.cs`
-   - `src/MLFramework/Communication/FaultTolerance/FaultTolerantCommunication.cs`
-   - `src/MLFramework/Communication/FaultTolerance/HealthMonitor.cs`
-
-2. **Design Decisions:**
-   - Timeout manager uses cancellation tokens
-   - Error recovery manager tracks history and statistics
-   - Fault-tolerant wrapper adds retries to all operations
-   - Health monitor checks rank status periodically
-
-3. **Error Handling:**
-   - Graceful degradation on network failures
-   - Automatic retries for transient errors
-   - Health monitoring for rank failures
-   - Detailed error logging and statistics
-
-4. **Performance Considerations:**
-   - Minimize overhead in happy path
-   - Efficient data structures for tracking
-   - Async health monitoring
-   - Configurable retry delays
-
-## Testing Requirements
-- Tests for timeout manager
-- Tests for error recovery strategies
-- Tests for fault-tolerant wrapper with mock backend
-- Tests for health monitor
-- Tests for graceful degradation
+src/
+  Data/
+    WorkerError.cs              (Error information class)
+    ErrorPolicy.cs              (Enum definition)
+    WorkerCrashDetector.cs      (Crash detection)
+    WorkerRecoveryService.cs    (Recovery logic)
+    WorkerTimeoutTracker.cs     (Timeout management)
+    ErrorAggregator.cs          (Error collection)
+    IErrorLogger.cs             (Logging interface - optional)
+    ConsoleErrorLogger.cs       (Simple logger - optional)
+```
 
 ## Success Criteria
-- Timeout manager correctly cancels operations
-- Error recovery manager handles all error types
-- Fault-tolerant wrapper retries failed operations
-- Health monitor correctly tracks rank status
-- All components integrate correctly
+- [ ] Worker crashes are detected within timeout period
+- [ ] Workers can be restarted successfully
+- [ ] Retry limit is respected
+- [ ] Different error policies work correctly
+- [ ] Timeouts trigger appropriate action
+- [ ] Errors are aggregated and queryable
+- [ ] Events fire at appropriate times
+- [ ] Recovery doesn't cause data corruption
+- [ ] Critical failure stops dataloader appropriately
+- [ ] Unit tests cover all error scenarios
+- [ ] Unit tests verify recovery logic
+
+## Notes
+- This spec integrates with WorkerPool and DataLoader specs
+- Error handling should be non-blocking where possible
+- Consider exponential backoff for worker restarts
+- Heartbeat interval should be configurable
+- Logging is optional; provide stub implementation
+- This spec enhances robustness of the entire data loading pipeline

@@ -125,9 +125,11 @@ A machine learning model is only as fast as its data pipeline. If the GPU spends
 
     Multiprocessing and GIL Avoidance: Python's Global Interpreter Lock (GIL) limits concurrency. The data loader must use multiprocessing to spawn worker processes that load and process data in parallel, bypassing the GIL. These workers must communicate with the main training process via shared memory to avoid serialization overhead.   
 
-Prefetching: The framework must implement a prefetch queue. While the GPU computes batch N, the CPU workers should be preparing batch N+1, N+2, etc. This pipelining hides the latency of disk I/O and preprocessing.  
+    Prefetching: The framework must implement a prefetch queue. While the GPU computes batch N, the CPU workers should be preparing batch N+1, N+2, etc. This pipelining hides the latency of disk I/O and preprocessing.  
 
-Memory Pinning: To maximize data transfer speeds over the PCIe bus, the framework must support "pinned" (page-locked) memory. Tensors in pinned memory can be transferred to the GPU using asynchronous Direct Memory Access (DMA), allowing data transfer to overlap with GPU computation.  
+    Memory Pinning: To maximize data transfer speeds over the PCIe bus, the framework must support "pinned" (page-locked) memory. Tensors in pinned memory can be transferred to the GPU using asynchronous Direct Memory Access (DMA), allowing data transfer to overlap with GPU computation.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/multiprocess_data_loading.md]
 
 5.2 Flexible Data Abstractions
 
