@@ -16,14 +16,19 @@ public class ValidationResult
     public List<string> Warnings { get; } = new List<string>();
 
     /// <summary>
+    /// Sub-results from nested validations
+    /// </summary>
+    public List<ValidationResult> SubResults { get; } = new List<ValidationResult>();
+
+    /// <summary>
     /// Whether the validation passed
     /// </summary>
-    public bool IsValid => Errors.Count == 0;
+    public bool IsValid => Errors.Count == 0 && SubResults.All(r => r.IsValid);
 
     /// <summary>
     /// Whether there are any warnings
     /// </summary>
-    public bool HasWarnings => Warnings.Count > 0;
+    public bool HasWarnings => Warnings.Count > 0 || SubResults.Any(r => r.HasWarnings);
 
     /// <summary>
     /// Add an error to the validation result
@@ -44,21 +49,28 @@ public class ValidationResult
     }
 
     /// <summary>
+    /// Add sub-results from nested validations
+    /// </summary>
+    public void AddSubResults(ValidationResult subResult)
+    {
+        SubResults.Add(subResult);
+        foreach (var error in subResult.Errors)
+        {
+            Errors.Add($"{subResult.GetType().Name}: {error}");
+        }
+        foreach (var warning in subResult.Warnings)
+        {
+            Warnings.Add($"{subResult.GetType().Name}: {warning}");
+        }
+    }
+
+    /// <summary>
     /// Get a summary of the validation results
     /// </summary>
     public string GetSummary()
     {
         var summary = new System.Text.StringBuilder();
-        summary.AppendLine($"Validation: {(IsValid ? "PASSED" : "FAILED")}");
-
-        if (HasWarnings)
-        {
-            summary.AppendLine($"Warnings ({Warnings.Count}):");
-            foreach (var warning in Warnings)
-            {
-                summary.AppendLine($"  - {warning}");
-            }
-        }
+        summary.AppendLine($"Validation Result: {(IsValid ? "VALID" : "INVALID")}");
 
         if (Errors.Count > 0)
         {
@@ -66,6 +78,15 @@ public class ValidationResult
             foreach (var error in Errors)
             {
                 summary.AppendLine($"  - {error}");
+            }
+        }
+
+        if (Warnings.Count > 0)
+        {
+            summary.AppendLine($"Warnings ({Warnings.Count}):");
+            foreach (var warning in Warnings)
+            {
+                summary.AppendLine($"  - {warning}");
             }
         }
 

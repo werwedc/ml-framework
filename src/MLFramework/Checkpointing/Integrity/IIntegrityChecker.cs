@@ -6,17 +6,15 @@ namespace MachineLearning.Checkpointing;
 public interface IIntegrityChecker
 {
     /// <summary>
-    /// Check the integrity of checkpoint data
+    /// Name of the integrity checker
     /// </summary>
-    Task<IntegrityCheckResult> CheckIntegrityAsync(
-        byte[] checkpointData,
-        CheckpointMetadata? metadata = null,
-        CancellationToken cancellationToken = default);
+    string Name { get; }
 
     /// <summary>
-    /// Check the integrity of a checkpoint file
+    /// Check the integrity of shard data
     /// </summary>
-    Task<IntegrityCheckResult> CheckFileIntegrityAsync(
-        string filePath,
+    Task<ValidationResult> CheckIntegrityAsync(
+        byte[] shardData,
+        ShardMetadata shardMeta,
         CancellationToken cancellationToken = default);
 }

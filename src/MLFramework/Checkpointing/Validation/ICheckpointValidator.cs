@@ -11,4 +11,19 @@ public interface ICheckpointValidator
     Task<ValidationResult> ValidateCheckpointAsync(
         string checkpointPath,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validate checkpoint metadata
+    /// </summary>
+    Task<ValidationResult> ValidateMetadataAsync(
+        CheckpointMetadata metadata,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validate checkpoint shards
+    /// </summary>
+    Task<ValidationResult> ValidateShardsAsync(
+        CheckpointMetadata metadata,
+        string checkpointPrefix,
+        CancellationToken cancellationToken = default);
 }
