@@ -21,7 +21,7 @@ public class NaturalGradientOptimizer : SecondOrderOptimizer
     /// <summary>
     /// Gets or sets the learning rate for natural gradient descent.
     /// </summary>
-    public float LearningRate
+    public new float LearningRate
     {
         get => _learningRate;
         set => _learningRate = value;

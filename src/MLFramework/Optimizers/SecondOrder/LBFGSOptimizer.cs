@@ -23,7 +23,7 @@ public class LBFGSOptimizer : Optimizer
     /// Gets or sets the learning rate (default: 1.0).
     /// L-BFGS typically uses unit learning rate with line search.
     /// </summary>
-    public float LearningRate
+    public new float LearningRate
     {
         get => _learningRate;
         set => _learningRate = value;
@@ -77,7 +77,7 @@ public class LBFGSOptimizer : Optimizer
     private List<Tensor> _yHistory;  // Gradient differences: y_k = g_{k+1} - g_k
     private List<Tensor> _rhoHistory; // 1 / (s_k^T y_k)
     private Tensor[] _previousParameters;
-    private Tensor[] _previousGradients;
+    private Tensor[]? _previousGradients;
 
     /// <summary>
     /// Initializes a new instance of the LBFGSOptimizer class.
@@ -259,6 +259,11 @@ public class LBFGSOptimizer : Optimizer
     /// </summary>
     private void UpdateHistory(Tensor[] parameters, Tensor[] gradients)
     {
+        // This method is only called when _previousGradients is not null,
+        // but we add a check to satisfy the compiler
+        if (_previousGradients == null)
+            return;
+
         // Compute s = x_new - x_old
         var sData = new float[GetTotalParameterSize()];
         int offset = 0;

@@ -1,373 +1,278 @@
-# Spec: Optimizer Integration for Learning Rate Schedulers
+# Spec: Higher-Order Derivatives Optimizer Integration
 
 ## Overview
-Integrate learning rate schedulers into the Optimizer class. This spec defines how schedulers interact with optimizers during training, including automatic learning rate updates and state management.
+Integrate higher-order derivative computations with existing optimizer classes. Enable second-order optimization methods (Newton's method, natural gradient) and enhance first-order optimizers with curvature information.
 
-## Dependencies
-- `spec_scheduler_base_interface.md` (must be completed first)
-- Existing Optimizer class (will be modified)
-- Target namespace: `MLFramework.Optimizers`
+## Requirements
 
-## Files to Modify
-- `src/Optimizers/Optimizer.cs` (add scheduler support)
-- May need to modify other optimizer classes if they inherit from Optimizer
+### Core Functionality
+- Extend existing optimizer interfaces to support Hessian/HVP information
+- Implement second-order optimizers (Newton's method, quasi-Newton)
+- Add natural gradient optimization support
+- Enable Hessian-aware learning rate adaptation
 
-## Technical Specifications
+### API Design
 
-### 1. Optimizer Class Modifications
-
-**Purpose**: Add scheduler support to the base Optimizer class without breaking existing functionality.
-
-**Additions to Optimizer.cs**:
-
+#### Optimizer Base Extensions
 ```csharp
-namespace MLFramework.Optimizers;
-
-public abstract class Optimizer
+// Extend Optimizer base class
+public abstract class SecondOrderOptimizer : Optimizer
 {
-    // Existing properties and methods...
+    // Hessian computation options
+    public HessianMode HessianMode { get; set; } = HessianMode.HVP;
+    public bool UseCheckpointing { get; set; } = false;
 
-    // New properties
-    private ILearningRateScheduler _scheduler;
-    private float _baseLearningRate;
+    // Abstract method to compute update step
+    protected abstract Tensor ComputeUpdateStep(
+        Model model,
+        Tensor loss,
+        Tensor[] gradients,
+        Tensor[] parameters);
 
-    // Existing base learning rate property (may already exist)
-    public abstract float BaseLearningRate { get; }
-
-    // New property for scheduler access
-    public ILearningRateScheduler Scheduler
-    {
-        get => _scheduler;
-    }
-
-    /// <summary>
-    /// Sets a learning rate scheduler for this optimizer.
-    /// </summary>
-    /// <param name="scheduler">The scheduler to use, or null to disable scheduling.</param>
-    public void SetScheduler(ILearningRateScheduler scheduler)
-    {
-        _scheduler = scheduler;
-        if (_scheduler != null)
-        {
-            // Store the current learning rate as the base for the scheduler
-            _baseLearningRate = BaseLearningRate;
-        }
-    }
-
-    /// <summary>
-    /// Gets the current learning rate from the scheduler or base learning rate.
-    /// </summary>
-    /// <returns>Current learning rate.</returns>
-    protected float GetCurrentLearningRate()
-    {
-        if (_scheduler != null)
-        {
-            return _scheduler.GetLearningRate(StepCount, _baseLearningRate);
-        }
-        return BaseLearningRate;
-    }
-
-    /// <summary>
-    /// Updates the learning rate based on the scheduler (if any) before applying gradients.
-    /// This should be called at the start of Step().
-    /// </summary>
-    protected virtual void UpdateLearningRate()
-    {
-        if (_scheduler != null)
-        {
-            float newLR = _scheduler.GetLearningRate(StepCount, _baseLearningRate);
-            SetLearningRate(newLR);
-        }
-    }
-
-    /// <summary>
-    /// Steps the scheduler forward (if any) after applying gradients.
-    /// This should be called at the end of Step().
-    /// </summary>
-    protected virtual void StepScheduler()
-    {
-        _scheduler?.Step();
-    }
-
-    // Modify the existing Step() method or ensure these are called in concrete implementations
-    public abstract void Step();
+    // Hessian computation helpers
+    protected Tensor ComputeHVP(Tensor loss, Tensor[] parameters, Tensor vector);
+    protected Tensor ComputeHessian(Tensor loss, Tensor[] parameters);
 }
 ```
 
-### 2. Concrete Optimizer Example (SGD)
-
-**Purpose**: Show how concrete optimizer implementations should integrate scheduler support.
-
-**Modifications to SGD.cs**:
-
+#### Newton's Method Optimizer
 ```csharp
-namespace MLFramework.Optimizers;
-
-public class SGD : Optimizer
+public class NewtonOptimizer : SecondOrderOptimizer
 {
-    // Existing code...
-
-    public override void Step()
+    public NewtonOptimizer(double learningRate = 1.0, double damping = 1e-4)
     {
-        // Update learning rate from scheduler
-        UpdateLearningRate();
+        LearningRate = learningRate;
+        Damping = damping; // Add damping to avoid singular Hessian
+    }
 
-        // Apply gradients (existing logic)
-        // ...
+    public double LearningRate { get; set; }
+    public double Damping { get; set; }
 
-        // Step the scheduler forward
-        StepScheduler();
+    protected override Tensor ComputeUpdateStep(
+        Model model,
+        Tensor loss,
+        Tensor[] gradients,
+        Tensor[] parameters)
+    {
+        // Solve: (H + λI) * Δp = -g
+        // Use Hessian-vector products with conjugate gradient
+        var hessianInverseGradient = SolveLinearSystem(loss, parameters, gradients);
+        return -LearningRate * hessianInverseGradient;
+    }
 
-        // Increment step count (existing)
-        _stepCount++;
+    private Tensor SolveLinearSystem(Tensor loss, Tensor[] parameters, Tensor[] gradients)
+    {
+        // Solve (H + λI) * x = b using conjugate gradient
+        // Use HVP for matrix-free multiplication
+        return ConjugateGradient(
+            b: gradients,
+            matrixVectorProduct: v => ComputeHVP(loss, parameters, v) + Damping * v);
     }
 }
 ```
 
-### 3. Example Optimizer Without Scheduler Support
-
-If an optimizer currently has a Step() method like:
-
+#### Quasi-Newton Optimizer (BFGS/L-BFGS)
 ```csharp
-// Before
-public override void Step()
+public class LBFGSOptimizer : Optimizer
 {
-    // Gradient computation
-    // Parameter update
-    _stepCount++;
-}
-```
+    public int HistorySize { get; set; } = 10;
+    public int MaxIterations { get; set; } = 20;
+    public double Tolerance { get; set; } = 1e-5;
 
-It should be modified to:
+    // L-BFGS state
+    private List<Tensor> sHistory; // Parameter differences
+    private List<Tensor> yHistory; // Gradient differences
 
-```csharp
-// After
-public override void Step()
-{
-    UpdateLearningRate();  // New: update LR from scheduler
-
-    // Gradient computation (existing)
-    // ...
-
-    // Parameter update (existing)
-    // ...
-
-    StepScheduler();        // New: step scheduler
-
-    _stepCount++;           // Existing
-}
-```
-
-### 4. Optimizer State Management
-
-**Purpose**: Ensure optimizer state includes scheduler state for checkpointing.
-
-```csharp
-// Add to Optimizer.cs
-public override StateDict GetState()
-{
-    var state = base.GetState();  // Existing optimizer state
-
-    if (_scheduler != null)
+    protected override Tensor[] ComputeGradients(Model model, Tensor loss, Tensor[] parameters)
     {
-        state.Set("scheduler_state", _scheduler.GetState());
-        state.Set("base_lr", _baseLearningRate);
+        var gradients = base.ComputeGradients(model, loss, parameters);
+
+        // Compute update step using L-BFGS two-loop recursion
+        var updateStep = ComputeLBFGSUpdate(gradients);
+
+        // Update history
+        UpdateHistory(gradients);
+
+        return updateStep;
     }
 
-    return state;
-}
-
-public override void LoadState(StateDict state)
-{
-    base.LoadState(state);  // Load existing optimizer state
-
-    var schedulerState = state.Get<StateDict>("scheduler_state");
-    if (schedulerState != null && _scheduler != null)
+    private Tensor ComputeLBFGSUpdate(Tensor[] gradients)
     {
-        _scheduler.LoadState(schedulerState);
-        _baseLearningRate = state.Get<float>("base_lr", _baseLearningRate);
+        // Implement two-loop recursion algorithm
+        // Uses gradient history to approximate Hessian inverse
     }
 }
 ```
 
-## Implementation Notes
-
-### Design Decisions
-
-1. **Non-Breaking Changes**:
-   - All scheduler integration is additive (no breaking changes)
-   - Optimizers work the same way when no scheduler is set
-   - `_scheduler` is nullable, defaulting to null
-
-2. **Base Learning Rate Storage**:
-   - When a scheduler is set, store the current learning rate as `_baseLearningRate`
-   - Scheduler uses this as reference for all calculations
-   - Prevents confusion when optimizer's learning rate changes during training
-
-3. **Step Integration Points**:
-   - `UpdateLearningRate()`: Called at start of Step() to apply scheduled LR
-   - `StepScheduler()`: Called at end of Step() to advance scheduler state
-   - Both are `protected virtual` to allow customization
-
-4. **Scheduler Interface Compatibility**:
-   - All schedulers implement `ILearningRateScheduler`
-   - No special handling needed for different scheduler types
-
-### Edge Cases
-
-- **Scheduler is null**: Optimizer behaves normally without scheduling
-- **Scheduler is set mid-training**: Scheduler uses current step count from optimizer
-- **Scheduler is replaced**: New scheduler starts from current step count
-- **Step counting**: Scheduler and optimizer step counts may differ slightly; use optimizer's StepCount for scheduler queries
-
-### Performance Considerations
-
-- Minimal overhead: two method calls per optimizer step
-- `UpdateLearningRate`: One scheduler.GetLearningRate() call
-- `StepScheduler`: One scheduler.Step() call
-- No additional allocations in the hot path
-
-## Usage Examples
-
-### Example 1: Basic Scheduler Usage
-
+#### Natural Gradient Optimizer
 ```csharp
-// Create optimizer and scheduler
-var optimizer = new SGD(parameters, learningRate: 0.1f);
-var scheduler = new CosineAnnealingScheduler(tMax: 1000f);
-
-// Attach scheduler to optimizer
-optimizer.SetScheduler(scheduler);
-
-// Training loop
-for (int epoch = 0; epoch < epochs; epoch++)
+public class NaturalGradientOptimizer : SecondOrderOptimizer
 {
-    foreach (var batch in trainData)
+    public NaturalGradientOptimizer(double learningRate = 1e-3)
     {
-        // Forward and backward pass
-        var loss = model.Forward(batch.Inputs);
-        loss.Backward();
+        LearningRate = learningRate;
+    }
 
-        // Optimizer step (automatically applies scheduler LR)
-        optimizer.Step();
-        optimizer.ZeroGrad();
+    public double LearningRate { get; set; }
+
+    protected override Tensor ComputeUpdateStep(
+        Model model,
+        Tensor loss,
+        Tensor[] gradients,
+        Tensor[] parameters)
+    {
+        // Natural gradient: F^(-1) * ∇L
+        // Where F is Fisher information matrix (approximated as Hessian)
+        var fisherInverseGradient = SolveFisherSystem(loss, parameters, gradients);
+        return -LearningRate * fisherInverseGradient;
+    }
+
+    private Tensor SolveFisherSystem(Tensor loss, Tensor[] parameters, Tensor[] gradients)
+    {
+        // Solve F * x = g using HVP (F ≈ Hessian for expected loss)
+        return ConjugateGradient(
+            b: gradients,
+            matrixVectorProduct: v => ComputeHVP(loss, parameters, v));
     }
 }
 ```
 
-### Example 2: Warmup + Decay
-
+#### Enhanced First-Order Optimizers
 ```csharp
-var optimizer = new Adam(parameters, learningRate: 1e-3f);
+// Adam with adaptive learning rate based on Hessian eigenvalues
+public class HessianAwareAdam : Adam
+{
+    protected override Tensor[] ComputeGradients(Model model, Tensor loss, Tensor[] parameters)
+    {
+        var gradients = base.ComputeGradients(model, loss, parameters);
 
-// Create warmup + decay schedule
-var baseScheduler = new CosineAnnealingScheduler(tMax: 9000f);
-var scheduler = new LinearWarmupScheduler(baseScheduler, warmupSteps: 1000);
+        // Estimate maximum eigenvalue of Hessian
+        var maxEigenvalue = EstimateMaxEigenvalue(loss, parameters);
 
-optimizer.SetScheduler(scheduler);
+        // Adapt learning rate based on curvature
+        var adaptedLearningRate = LearningRate / (1 + maxEigenvalue);
 
-// Train...
+        return AdaptGradients(gradients, adaptedLearningRate);
+    }
+
+    private double EstimateMaxEigenvalue(Tensor loss, Tensor[] parameters)
+    {
+        // Use power iteration with HVP
+        return PowerIteration(
+            matrixVectorProduct: v => ComputeHVP(loss, parameters, v),
+            numIterations: 10);
+    }
+}
 ```
 
-### Example 3: Changing Scheduler Mid-Training
+### Helper Classes
 
+#### Conjugate Gradient Solver
 ```csharp
-var optimizer = new SGD(parameters, learningRate: 0.1f);
-
-// Phase 1: Constant learning rate
-var scheduler1 = new ConstantLR(0.1f);
-optimizer.SetScheduler(scheduler1);
-
-TrainFor(optimizer, model, data, 10);
-
-// Phase 2: Switch to cosine decay
-var scheduler2 = new CosineAnnealingScheduler(tMax: 1000f);
-optimizer.SetScheduler(scheduler2);
-
-TrainFor(optimizer, model, data, 10);
+public static class ConjugateGradient
+{
+    public static Tensor Solve(
+        Tensor b,
+        Func<Tensor, Tensor> matrixVectorProduct,
+        int maxIterations = 100,
+        double tolerance = 1e-10)
+    {
+        // Solve Ax = b using conjugate gradient
+        // Uses matrix-vector product (HVP) without materializing A
+    }
+}
 ```
 
-### Example 4: Checkpointing and Resuming
-
+#### Power Iteration for Eigenvalues
 ```csharp
-// Save checkpoint
-var optimizerState = optimizer.GetState();
-SaveCheckpoint("checkpoint.pt", model.GetState(), optimizerState);
-
-// Load checkpoint
-var optimizerState = LoadCheckpoint("checkpoint.pt");
-optimizer.LoadState(optimizerState);
-
-// Training continues with correct scheduler state
+public static class PowerIteration
+{
+    public static double EstimateMaxEigenvalue(
+        Func<Tensor, Tensor> matrixVectorProduct,
+        int dimension,
+        int numIterations = 20)
+    {
+        // Estimate maximum eigenvalue using power iteration
+    }
+}
 ```
+
+## Implementation Tasks
+
+### Phase 1: Optimizer Base Extensions
+1. Extend Optimizer base class with Hessian computation helpers
+2. Implement SecondOrderOptimizer abstract class
+3. Add HessianMode and configuration options
+4. Add base unit tests
+
+### Phase 2: Newton's Method
+1. Implement NewtonOptimizer class
+2. Implement conjugate gradient solver
+3. Add damping for numerical stability
+4. Add Newton optimizer unit tests
+
+### Phase 3: Quasi-Newton Methods
+1. Implement LBFGSOptimizer class
+3. Implement two-loop recursion algorithm
+4. Add history management
+5. Add L-BFGS unit tests
+
+### Phase 4: Natural Gradient
+1. Implement NaturalGradientOptimizer class
+2. Add Fisher information matrix approximation
+3. Add natural gradient unit tests
+
+### Phase 5: Enhanced First-Order Optimizers
+1. Implement HessianAwareAdam class
+2. Implement eigenvalue estimation
+3. Add adaptive learning rate logic
+4. Add enhanced optimizer unit tests
 
 ## Testing Requirements
 
-### Unit Tests for Optimizer Integration
+### Optimizer Correctness Tests
+- Test Newton's method converges on quadratic functions
+- Test L-BFGS converges on non-convex optimization problems
+- Test natural gradient improves convergence for specific problems
+- Test Hessian-aware Adam adapts learning rate correctly
 
-- Test optimizer without scheduler (should use base LR)
-- Test optimizer with scheduler:
-  - Verify learning rate changes according to scheduler
-  - Verify Step() calls both UpdateLearningRate and StepScheduler
+### Convergence Tests
+- Test Newton's method converges faster than SGD on convex problems
+- Test L-BFGS memory efficiency vs full BFGS
+- Test natural gradient on probabilistic models
+- Test enhanced Adam on problems with varying curvature
 
-- Test scheduler replacement:
-  - Set scheduler, train for some steps, replace scheduler
-  - Verify new scheduler is used
+### Stability Tests
+- Test Newton's method with singular Hessian (damping)
+- Test L-BFGS with ill-conditioned problems
+- Test natural gradient with approximated Fisher
+- Test Hessian-aware Adam numerical stability
 
-- Test state management:
-  - Save optimizer state with scheduler
-  - Load state and verify scheduler state is restored
-  - Verify learning rate continues correctly after load
+### Performance Tests
+- Benchmark Newton's method vs first-order optimizers
+- Benchmark L-BFGS vs BFGS memory usage
+- Benchmark natural gradient vs standard gradient descent
+- Benchmark Hessian-aware Adam vs standard Adam
 
-### Integration Tests
+## Dependencies
+- HVP implementation (spec_hvp_implementation.md)
+- Hessian implementation (spec_hessian_full.md)
+- Existing optimizer classes
+- Linear algebra utilities
 
-- Full training loop with scheduler:
-  - Train model for multiple epochs
-  - Verify learning rate changes correctly
-  - Verify model converges appropriately
+## Success Criteria
+- Newton's method converges in < 10 iterations on quadratic problems
+- L-BFGS uses < 10% memory of full BFGS for large problems
+- Natural gradient improves convergence on probabilistic models
+- Hessian-aware Adam adapts learning rate based on curvature
+- All optimizers are stable and numerically robust
 
-- Multiple optimizers with schedulers:
-  - Test with SGD, Adam, etc.
-  - Verify scheduler works consistently
-
-## Migration Guide
-
-### For Existing Optimizer Implementations
-
-If you have custom optimizers, update them to support schedulers:
-
-1. **Inherit from Optimizer**: Ensure your optimizer inherits from the base `Optimizer` class
-
-2. **Modify Step() method**:
-   ```csharp
-   public override void Step()
-   {
-       UpdateLearningRate();  // Add this at the start
-
-       // Existing gradient computation and update logic
-       // ...
-
-       StepScheduler();       // Add this at the end
-
-       // Existing step count increment
-       _stepCount++;
-   }
-   ```
-
-3. **No other changes needed**: The base class handles everything else
-
-### For Existing Training Loops
-
-No changes needed to training loops. Just set the scheduler on the optimizer:
-
-```csharp
-// Before: manual LR updates
-optimizer.LearningRate = ComputeLR(step);
-
-// After: use scheduler
-optimizer.SetScheduler(scheduler);
-// No changes to training loop needed
-```
-
-## Estimated Implementation Time
-40-50 minutes
+## Notes for Coder
+- Focus on numerical stability - second-order methods can be unstable
+- Conjugate gradient is critical - implement carefully with proper stopping criteria
+- L-BFGS is the most practical for large-scale problems - prioritize this
+- Natural gradient is experimentally useful - focus on approximations
+- Consider implementing trust region methods as alternative to line search
+- Add extensive logging for debugging convergence issues
+- Test with various loss landscapes (convex, non-convex, ill-conditioned)
+- Document when to use each optimizer and their trade-offs

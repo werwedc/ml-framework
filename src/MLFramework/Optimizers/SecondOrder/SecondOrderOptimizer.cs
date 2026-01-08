@@ -64,9 +64,9 @@ public abstract class SecondOrderOptimizer : Optimizer
     {
         // Use the Hessian API to compute HVP
         return Hessian.ComputeVectorHessianProduct(
+            f: t => loss.Data[0],  // Extract scalar loss value
             x: FlattenParameters(parameters),
-            v: vector,
-            f: t => loss.Data[0]  // Extract scalar loss value
+            v: vector
         );
     }
 
@@ -81,8 +81,8 @@ public abstract class SecondOrderOptimizer : Optimizer
     {
         // Use the Hessian API to compute full Hessian
         return Hessian.Compute(
-            x: FlattenParameters(parameters),
-            f: t => loss.Data[0]  // Extract scalar loss value
+            f: t => loss.Data[0],  // Extract scalar loss value
+            x: FlattenParameters(parameters)
         );
     }
 
@@ -96,8 +96,8 @@ public abstract class SecondOrderOptimizer : Optimizer
     protected Tensor ComputeHessianDiagonal(Tensor loss, Tensor[] parameters)
     {
         return Hessian.ComputeDiagonal(
-            x: FlattenParameters(parameters),
-            f: t => loss.Data[0]  // Extract scalar loss value
+            f: t => loss.Data[0],  // Extract scalar loss value
+            x: FlattenParameters(parameters)
         );
     }
 

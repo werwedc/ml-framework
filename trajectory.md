@@ -35,6 +35,8 @@ The engine of deep learning is Automatic Differentiation (AD). A modern framewor
 
     Higher-Order Derivatives: The system must support the computation of Jacobians and Hessians (derivatives of derivatives). This is critical for advanced optimization algorithms (like Newton's method), meta-learning (MAML), and scientific computing applications involving differential equations.
 
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/higher_order_derivatives.md]
+
 Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
 
 Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.

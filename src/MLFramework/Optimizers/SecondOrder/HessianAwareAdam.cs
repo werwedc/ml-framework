@@ -165,9 +165,9 @@ public class HessianAwareAdam : Adam
     private Tensor ComputeHVP(Tensor loss, Tensor[] parameters, Tensor vector)
     {
         return Hessian.ComputeVectorHessianProduct(
+            f: t => loss.Data[0],
             x: FlattenParameters(parameters),
-            v: vector,
-            f: t => loss.Data[0]
+            v: vector
         );
     }
 

@@ -20,7 +20,7 @@ public class NewtonOptimizer : SecondOrderOptimizer
     /// Gets or sets the learning rate for Newton's method.
     /// Typically a smaller value (e.g., 0.1 - 1.0) for stability.
     /// </summary>
-    public float LearningRate
+    public new float LearningRate
     {
         get => _learningRate;
         set => _learningRate = value;
