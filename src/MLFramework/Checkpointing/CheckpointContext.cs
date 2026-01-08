@@ -10,6 +10,7 @@ public class CheckpointContext : IDisposable
 {
     private readonly CheckpointManager _checkpointManager;
     private readonly RecomputationEngine _recomputeEngine;
+    private readonly MemoryTracker _memoryTracker;
     private bool _disposed;
 
     /// <summary>
@@ -21,8 +22,10 @@ public class CheckpointContext : IDisposable
         if (config == null)
             throw new ArgumentNullException(nameof(config));
 
+        Config = config;
         _checkpointManager = new CheckpointManager();
         _recomputeEngine = new RecomputationEngine();
+        _memoryTracker = new MemoryTracker();
         _disposed = false;
     }
 
@@ -35,6 +38,11 @@ public class CheckpointContext : IDisposable
     /// Gets the recompute engine
     /// </summary>
     public RecomputationEngine RecomputeEngine => _recomputeEngine;
+
+    /// <summary>
+    /// Gets the memory tracker
+    /// </summary>
+    public MemoryTracker MemoryTracker => _memoryTracker;
 
     /// <summary>
     /// Gets the checkpoint configuration
