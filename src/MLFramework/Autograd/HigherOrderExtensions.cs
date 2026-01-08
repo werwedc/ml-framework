@@ -3,6 +3,12 @@ using RitterFramework.Core.Tensor;
 
 namespace MLFramework.Autograd;
 
+// Type aliases to avoid naming conflicts
+using HessianClass = MLFramework.Autograd.Hessian;
+using HessianVectorProductClass = MLFramework.Autograd.HessianVectorProduct;
+using JacobianClass = MLFramework.Autograd.Jacobian;
+using JacobianVectorProductClass = MLFramework.Autograd.JacobianVectorProduct;
+
 /// <summary>
 /// Extension methods for Tensor to provide convenient access to higher-order derivative operations.
 /// These methods make it easier to compute Jacobians, Hessians, and gradient-of-gradients in a fluent style.
@@ -30,11 +36,11 @@ public static class HigherOrderExtensions
         if (f == null)
             throw new ArgumentNullException(nameof(f));
 
-        return Autograd.Jacobian.Compute(f, tensor);
+        return JacobianClass.Compute(f, tensor);
     }
 
     /// <summary>
-    /// Computes the Hessian matrix of a function at this tensor point.
+    /// Computes the Hessian matrix of a scalar-valued function f(x).
     /// The Hessian contains all second-order partial derivatives.
     /// </summary>
     /// <param name="tensor">The input tensor.</param>
@@ -44,17 +50,123 @@ public static class HigherOrderExtensions
     /// <example>
     /// var x = Tensor.FromArray(new double[] {1.0, 2.0}, requiresGrad: true);
     /// var f = t => t.Pow(4).Sum().ToScalar();
-    /// var hessian = x.Hessian(f);
+    /// var hessian = x.ComputeHessian(f);
     /// // Result: [[12*x^2, 0], [0, 12*y^2]]
     /// </example>
-    public static Tensor Hessian(this Tensor tensor, Func<Tensor, double> f)
+    public static Tensor ComputeHessian(this Tensor tensor, Func<Tensor, double> f)
     {
         if (tensor == null)
             throw new ArgumentNullException(nameof(tensor));
         if (f == null)
             throw new ArgumentNullException(nameof(f));
 
-        return Autograd.Hessian.Compute(f, tensor);
+        HessianResult result = HessianClass.Compute(f, tensor);
+        return result.Hessian;
+    }
+
+    /// <summary>
+    /// Computes the Hessian matrix with custom options.
+    /// </summary>
+    /// <param name="tensor">The input tensor.</param>
+    /// <param name="f">The scalar-valued function to differentiate.</param>
+    /// <param name="options">Options for Hessian computation.</param>
+    /// <returns>A HessianResult containing the Hessian and optionally eigenvalues.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when tensor, f, or options is null.</exception>
+    public static HessianResult Hessian(this Tensor tensor, Func<Tensor, double> f, HessianOptions options)
+    {
+        if (tensor == null)
+            throw new ArgumentNullException(nameof(tensor));
+        if (f == null)
+            throw new ArgumentNullException(nameof(f));
+        if (options == null)
+            throw new ArgumentNullException(nameof(options));
+
+        return HessianClass.Compute(f, tensor, options);
+    }
+
+    /// <summary>
+    /// Computes the Hessian matrix with eigenvalues.
+    /// </summary>
+    /// <param name="tensor">The input tensor.</param>
+    /// <param name="f">The scalar-valued function to differentiate.</param>
+    /// <param name="method">Method for eigenvalue computation.</param>
+    /// <returns>A tuple of (hessian, eigenvalues).</returns>
+    /// <exception cref="ArgumentNullException">Thrown when tensor or f is null.</exception>
+    public static (Tensor hessian, Tensor eigenvalues) HessianWithEigenvalues(
+        this Tensor tensor,
+        Func<Tensor, double> f,
+        EigenvalueMethod method = EigenvalueMethod.PowerIteration)
+    {
+        if (tensor == null)
+            throw new ArgumentNullException(nameof(tensor));
+        if (f == null)
+            throw new ArgumentNullException(nameof(f));
+
+        var options = new HessianOptions
+        {
+            ComputeEigenvalues = true,
+            EigenvalueMethod = method
+        };
+
+        var result = HessianClass.Compute(f, tensor, options);
+
+        return (result.Hessian, result.Eigenvalues!);
+    }
+
+    /// <summary>
+    /// Computes a sparse Hessian matrix.
+    /// </summary>
+    /// <param name="tensor">The input tensor.</param>
+    /// <param name="f">The scalar-valued function to differentiate.</param>
+    /// <param name="sparsityThreshold">Threshold below which values are treated as zero.</param>
+    /// <returns>A HessianResult with sparse Hessian information.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when tensor or f is null.</exception>
+    public static HessianResult SparseHessian(
+        this Tensor tensor,
+        Func<Tensor, double> f,
+        double sparsityThreshold = 0.01)
+    {
+        if (tensor == null)
+            throw new ArgumentNullException(nameof(tensor));
+        if (f == null)
+            throw new ArgumentNullException(nameof(f));
+
+        var options = new HessianOptions
+        {
+            Sparse = true,
+            SparsityThreshold = sparsityThreshold
+        };
+
+        return HessianClass.Compute(f, tensor, options);
+    }
+
+    /// <summary>
+    /// Computes a partial Hessian for a subset of parameters.
+    /// </summary>
+    /// <param name="tensor">The input tensor.</param>
+    /// <param name="f">The scalar-valued function to differentiate.</param>
+    /// <param name="parameterIndices">Indices of parameters to compute Hessian for.</param>
+    /// <returns>A Hessian matrix for the specified parameter subset.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when tensor, f, or parameterIndices is null.</exception>
+    public static Tensor PartialHessian(
+        this Tensor tensor,
+        Func<Tensor, double> f,
+        int[] parameterIndices)
+    {
+        if (tensor == null)
+            throw new ArgumentNullException(nameof(tensor));
+        if (f == null)
+            throw new ArgumentNullException(nameof(f));
+        if (parameterIndices == null)
+            throw new ArgumentNullException(nameof(parameterIndices));
+
+        var options = new HessianOptions
+        {
+            ParameterIndices = parameterIndices
+        };
+
+        var result = HessianClass.Compute(f, tensor, options);
+        return result.Hessian;
     }
 
     /// <summary>
@@ -99,24 +211,21 @@ public static class HigherOrderExtensions
     }
 
     /// <summary>
-    /// Computes the diagonal of the Hessian matrix (memory-efficient).
+    /// Computes the Jacobian (gradient) tensor.
     /// </summary>
     /// <param name="tensor">The input tensor.</param>
-    /// <param name="f">The scalar-valued function to differentiate.</param>
-    /// <returns>A 1D tensor containing the diagonal elements of the Hessian.</returns>
+    /// <param name="f">The function to differentiate.</param>
+    /// <returns>The Jacobian (gradient) tensor.</returns>
     /// <exception cref="ArgumentNullException">Thrown when tensor or f is null.</exception>
-    public static Tensor DiagonalHessian(this Tensor tensor, Func<Tensor, double> f)
-    {
-        if (tensor == null)
-            throw new ArgumentNullException(nameof(tensor));
-        if (f == null)
-            throw new ArgumentNullException(nameof(f));
-
-        return Autograd.Hessian.ComputeDiagonal(f, tensor);
-    }
+    /// <example>
+    /// var x = Tensor.FromArray(new double[] {1.0, 2.0, 3.0}, requiresGrad: true);
+    /// var f = t => t.Pow(2);
+    /// var jacobian = x.Jacobian(f);
+    /// // Result: [2.0, 4.0, 6.0]
+    /// </example>
 
     /// <summary>
-    /// Computes the Hessian-Vector Product without computing the full Hessian.
+    /// Computes the Hessian-Vector Product without computing the full Hessian matrix.
     /// Useful for optimization algorithms like Newton's method with HVP.
     /// </summary>
     /// <param name="tensor">The input tensor.</param>
@@ -133,7 +242,7 @@ public static class HigherOrderExtensions
         if (v == null)
             throw new ArgumentNullException(nameof(v));
 
-        return Autograd.Hessian.ComputeVectorHessianProduct(f, tensor, v);
+        return HessianVectorProductClass.Compute(f, tensor, v);
     }
 
     /// <summary>
@@ -153,7 +262,7 @@ public static class HigherOrderExtensions
         if (v == null)
             throw new ArgumentNullException(nameof(v));
 
-        return Autograd.Jacobian.ComputeVectorJacobianProduct(f, tensor, v);
+        return JacobianClass.ComputeVectorJacobianProduct(f, tensor, v);
     }
 
     /// <summary>
