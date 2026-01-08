@@ -63,5 +63,14 @@ namespace MLFramework.ModelVersioning
                 CheckTimestamp = DateTime.UtcNow
             };
         }
+
+        /// <summary>
+        /// Creates a string representation of the health check result.
+        /// </summary>
+        /// <returns>A formatted string representation.</returns>
+        public override string ToString()
+        {
+            return $"HealthCheckResult(IsHealthy: {IsHealthy}, Message: {Message ?? "N/A"}, Timestamp: {CheckTimestamp})";
+        }
     }
 }
