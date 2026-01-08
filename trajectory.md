@@ -19,13 +19,15 @@ The ideal framework uses Symbolic Trace and Capture technologies (such as TorchD
 
 2.2 Functional Transformations and Composability
 
-Influenced significantly by JAX, modern frameworks are increasingly adopting functional programming paradigms to handle complexity. The framework must treat computation functions as first-class, pure transformations, enabling a suite of automated manipulations.  
+Influenced significantly by JAX, modern frameworks are increasingly adopting functional programming paradigms to handle complexity. The framework must treat computation functions as first-class, pure transformations, enabling a suite of automated manipulations.
 
-    Vectorization (vmap): The framework should provide an automatic vectorization transform. This allows a user to write a function that operates on a single data point and automatically transform it to operate on a batch of data. This decouples the mathematical logic of the model from the batching dimension, simplifying code and reducing dimension-related errors.   
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/functional_transformations.md]
 
-Parallelization (pmap/shard_map): Similar to vectorization, the framework must support automatic parallelization, allowing a function designed for a single device to be replicated across a mesh of devices (SPMD - Single Program Multiple Data). This abstraction hides the complexity of device IDs and manual data scattering.  
+    Vectorization (vmap): The framework should provide an automatic vectorization transform. This allows a user to write a function that operates on a single data point and automatically transform it to operate on a batch of data. This decouples the mathematical logic of the model from the batching dimension, simplifying code and reducing dimension-related errors.
 
-Just-In-Time Compilation (jit): A comprehensive JIT compiler that traces the functional composition and lowers it to optimized machine code (XLA or Triton) is essential for bridging the performance gap between Python and C++.  
+    Parallelization (pmap/shard_map): Similar to vectorization, the framework must support automatic parallelization, allowing a function designed for a single device to be replicated across a mesh of devices (SPMD - Single Program Multiple Data). This abstraction hides the complexity of device IDs and manual data scattering.
+
+    Just-In-Time Compilation (jit): A comprehensive JIT compiler that traces the functional composition and lowers it to optimized machine code (XLA or Triton) is essential for bridging the performance gap between Python and C++.
 
 2.3 Advanced Automatic Differentiation (Autograd)
 
@@ -71,7 +73,9 @@ Kernel Fusion and Generation: The compiler's primary optimization duty is kernel
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/kernel_fusion_and_generation.md]  
 
-Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. The compiler must support dynamic shapes, generating kernels that can handle variable dimensions without triggering a full recompilation of the graph, which would destroy performance.  
+Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. The compiler must support dynamic shapes, generating kernels that can handle variable dimensions without triggering a full recompilation of the graph, which would destroy performance.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/dynamic_shapes.md]  
 
 CUDA Graph Integration: To reduce the CPU overhead of launching thousands of small kernels (kernel launch latency), the framework must integrate with hardware features like CUDA Graphs. This allows the framework to record a sequence of kernel launches and replay them as a single GPU command, significantly reducing CPU utilization.  
 
@@ -100,9 +104,13 @@ Pipeline Parallelism (PP): Splitting the model vertically (by layers) across dev
 
 4.2 Communication and Fault Tolerance
 
-    Communication Primitives: The framework must wrap high-performance libraries like NCCL (NVIDIA), RCCL (AMD), or MPI. It must expose collective operations (Broadcast, AllReduce, Barrier) as high-level APIs.   
+    Communication Primitives: The framework must wrap high-performance libraries like NCCL (NVIDIA), RCCL (AMD), or MPI. It must expose collective operations (Broadcast, AllReduce, Barrier) as high-level APIs.
 
-Elastic Training: In cloud environments, nodes may be preempted (spot instances). The framework must support elastic training, where the job can continue or resize dynamically if a node fails, without a complete restart.  
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/communication_primitives.md]
+
+    Elastic Training: In cloud environments, nodes may be preempted (spot instances). The framework must support elastic training, where the job can continue or resize dynamically if a node fails, without a complete restart.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/elastic_training.md]
 
 Distributed Checkpointing: Saving the state of a model sharded across 1000 GPUs is non-trivial. The framework must provide unified checkpointing APIs that can save a sharded state and reload it onto a different topology (e.g., saving from 128 GPUs and loading onto 64 GPUs).  
 

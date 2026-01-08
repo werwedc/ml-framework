@@ -1,56 +1,57 @@
 I'll help you process the pending idea in 0_ideas/. Let me start by reading the AGENTS.md file and then examining the idea file.
 [96m[1m| [0m[90m Read     [0mAGENTS.md
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
-Now let me read the idea file:
-[96m[1m| [0m[90m Read     [0m0_ideas\intermediate_representations_ir.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_ir_type_system.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_hlir_operations.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_hlir_graph_builder.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_ir_transformation_infra.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_hlir_basic_optimizations.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_mlir_operations.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_hlir_to_mlir_lowering.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_ir_printer_debugger.md
-Perfect! I've read the idea file for the Intermediate Representations (IR) system. This is a comprehensive multi-stage IR compiler infrastructure. Now I'll break this down into multiple small, atomic technical specs, each representing ~30-60 minutes of coding work.
+Now let me read the idea file to understand what needs to be broken down into specs:
+[96m[1m| [0m[90m Read     [0m0_ideas\communication_primitives.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_communication_interfaces.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_process_group.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_collective_basic.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_collective_advanced.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_point_to_point.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_async_operations.md
+Perfect! I found a comprehensive idea about implementing communication primitives for distributed training. Now I'll break this down into multiple atomic technical specs, each representing ~30-60 minutes of human coding work.
 
-Let me create the specs in `1_specs/`:
-[92m[1m| [0m[90m Write    [0m1_specs\spec_backend_abstraction.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_llir_foundation.md
-Now let me create the remaining specs to complete the IR system implementation:
-[92m[1m| [0m[90m Write    [0m1_specs\spec_mlir_to_llir_lowering.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_ir_unit_tests.md
-Perfect! I've successfully broken down the Intermediate Representations (IR) idea into 12 atomic technical specs, each representing approximately 30-60 minutes of coding work. Now let me delete the original idea file as instructed:
-[91m[1m| [0m[90m Bash     [0mDelete the original idea file
-Excellent! I've successfully processed the pending idea in `0_ideas/` and broken it down into **12 atomic technical specs** in `1_specs/`. Here's what I've delivered:
+Let me create 12 specs to cover all the components:
+[92m[1m| [0m[90m Write    [0m1_specs\spec_backend_nccl.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_backend_mpi.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_backend_rccl.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_performance.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_error_handling.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_communication_tests.md
+Perfect! I've successfully broken down the communication primitives idea into 12 atomic technical specs. Now let me delete the original idea file as instructed.
+[91m[1m| [0m[90m Bash     [0mDelete original idea file from 0_ideas/
+[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/*.md"}
+## Summary
 
-## Created Specs:
+I have successfully processed the pending idea `communication_primitives.md` from `0_ideas/` and broken it down into **12 atomic technical specs** in `1_specs/`. Here's what was created:
 
-1. **spec_ir_type_system.md** - Core type system (TensorType, IIRType, IRValue, IROperation base classes)
-2. **spec_hlir_operations.md** - High-Level IR operations (Add, MatMul, Conv2D, Pooling, Reductions, Control Flow)
-3. **spec_hlir_graph_builder.md** - Graph structure and builder API (IRBlock, HLIRFunction, HLIRModule, HLIRBuilder)
-4. **spec_ir_transformation_infra.md** - Transformation infrastructure (IRTransformation, LoweringPassBase, PassManager, OperationRewriter)
-5. **spec_hlir_basic_optimizations.md** - Basic HLIR optimization passes (ConstantFolding, DCE, CSE, Simplification)
-6. **spec_mlir_operations.md** - Mid-Level IR operations (Broadcast-aware ops, explicit memory, loops, normalized operations)
-7. **spec_hlir_to_mlir_lowering.md** - HLIR → MLIR lowering (decomposition, broadcast handling, normalization)
-8. **spec_ir_printer_debugger.md** - IR inspection utilities (TextIRPrinter, IRDebugger, ASCII visualizer)
-9. **spec_llir_foundation.md** - Low-Level IR foundation (memory ops, scalar/vector ops, SSA form, phi nodes)
-10. **spec_backend_abstraction.md** - Backend layer (IBackend, CPU/GPU backends, BackendRegistry, Compilation)
-11. **spec_mlir_to_llir_lowering.md** - MLIR → LLIR lowering (explicit memory, loop generation, address computation)
-12. **spec_ir_unit_tests.md** - Comprehensive test suite for all IR components
+### Created Specs (~30-60 min coding work each):
 
-## Summary:
+1. **spec_communication_interfaces.md** - Core interfaces (ICommunicationBackend, IAsyncCommunicationBackend, exceptions, tensor extensions)
 
-✅ **Original idea deleted** from `0_ideas/intermediate_representations_ir.md`
+2. **spec_process_group.md** - Process group management (ProcessGroup, ProcessGroupManager, helpers for common patterns)
 
-📋 **Each spec** is designed for ~30-60 minutes of focused coding work
+3. **spec_collective_basic.md** - Basic collective operations (Broadcast, Reduce, AllReduce - sync & async)
 
-🏗️ **Complete coverage** of the multi-stage IR system:
-- Type system & abstractions
-- 3 IR levels (HLIR → MLIR → LLIR)
-- Optimization passes
-- Lowering infrastructure
-- Backend abstraction
-- Debugging tools
-- Unit tests
+4. **spec_collective_advanced.md** - Advanced collective operations (AllGather, ReduceScatter, Barrier - sync & async)
 
-The specs follow the Factory Protocols and are ready for the Coder to implement. All code will go into `src/IR/` and tests into `tests/IR/`.
+5. **spec_point_to_point.md** - Point-to-point communication (Send, Receive, Probe, send-receive patterns)
+
+6. **spec_async_operations.md** - Async primitives (AsyncCommunicationHandle, operation queue, compute-communication overlap)
+
+7. **spec_backend_nccl.md** - NCCL backend for NVIDIA GPUs (P/Invoke wrappers, factory, configuration)
+
+8. **spec_backend_mpi.md** - MPI backend for CPU/GPU (P/Invoke wrappers, factory, CUDA-aware support)
+
+9. **spec_backend_rccl.md** - RCCL backend for AMD GPUs (P/Invoke wrappers, factory, configuration)
+
+10. **spec_performance.md** - Performance optimizations (pinned memory, GPU-direct, algorithm selection, profiler)
+
+11. **spec_error_handling.md** - Error handling & fault tolerance (timeout manager, error recovery, health monitoring)
+
+12. **spec_communication_tests.md** - Comprehensive unit tests (mock backend, interface tests, operation tests)
+
+### Next Steps:
+- ✅ Original idea file deleted from `0_ideas/`
+- ✅ All 12 specs ready for Coder implementation in `src/` and `tests/`
+- Each spec is self-contained and implementable in a single execution session

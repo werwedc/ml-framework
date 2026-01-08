@@ -2,6 +2,8 @@ using System;
 
 namespace MLFramework.IR.Transformations
 {
+    using MLFramework.IR.Graph;
+
     /// <summary>
     /// Base class for all IR transformations (optimizations, lowerings, analyses, etc.)
     /// </summary>

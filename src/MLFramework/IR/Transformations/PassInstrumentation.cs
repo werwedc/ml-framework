@@ -2,6 +2,8 @@ using System;
 
 namespace MLFramework.IR.Transformations
 {
+    using MLFramework.IR.Graph;
+
     /// <summary>
     /// Instrumentation for tracking IR transformation pass execution
     /// </summary>
@@ -10,17 +12,17 @@ namespace MLFramework.IR.Transformations
         /// <summary>
         /// Event fired before a pass runs
         /// </summary>
-        public event Action<IRTransformation, HLIRModule> BeforePass;
+        public event Action<IRTransformation, HLIRModule>? BeforePass;
 
         /// <summary>
         /// Event fired after a pass runs successfully
         /// </summary>
-        public event Action<IRTransformation, HLIRModule> AfterPass;
+        public event Action<IRTransformation, HLIRModule>? AfterPass;
 
         /// <summary>
         /// Event fired when a pass encounters an error
         /// </summary>
-        public event Action<IRTransformation, HLIRModule, Exception> OnPassError;
+        public event Action<IRTransformation, HLIRModule, Exception>? OnPassError;
 
         /// <summary>
         /// Notifies listeners that a pass is about to run

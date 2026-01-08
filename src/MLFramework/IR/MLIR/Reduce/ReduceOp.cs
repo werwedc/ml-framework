@@ -4,14 +4,6 @@ namespace MLFramework.IR.MLIR.Reduce
     using MLFramework.IR.Values;
 
     /// <summary>
-    /// Reduction kind for the Mid-Level IR (MLIR) reduce operation.
-    /// </summary>
-    public enum ReductionKind
-    {
-        Sum, Mean, Max, Min, Prod, Any, All
-    }
-
-    /// <summary>
     /// Reduction operation in the Mid-Level IR (MLIR).
     /// </summary>
     public class ReduceOp : IROperation
