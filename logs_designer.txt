@@ -1,20 +1,20 @@
-I'll help you generate a new feature idea. Let me first check if there's a trajectory.md file with existing feature ideas.
-
-[96m[1m| [0m[90m Read     [0mtrajectory.mdNow let me check what feature ideas already exist in the `0_ideas/` directory:
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-I can see the trajectory.md file has many features listed. Several are marked as selected (with ✓), but there's still a `0_ideas/` directory that needs to be populated. Let me create a new feature idea file for **Communication Primitives**, which is a critical feature for distributed training that hasn't been selected yet.
-[92m[1m| [0m[90m Write    [0m0_ideas\communication_primitives.md
-Now I need to update trajectory.md to mark this feature as selected:
+I'll help you create a new feature idea file. Let me first check if there's a trajectory.md file with feature suggestions and examine the 0_ideas/ directory structure.
 [96m[1m| [0m[90m Read     [0mtrajectory.md
-[92m[1m| [0m[90m Edit     [0mtrajectory.md
-Done! I've created a new feature idea file in `0_ideas/communication_primitives.md` and marked it as selected in trajectory.md.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
+I'll create a new feature idea file. Looking at trajectory.md, I can see there are many features available. I'll select "Distributed Checkpointing" from section 4.2, which is a critical feature for large-scale model training that hasn't been selected yet.
+[92m[1m| [0m[90m Write    [0m0_ideas\distributed_checkpointing.md
+Now let me mark this feature as selected in trajectory.md:
 
-The feature covers **Communication Primitives** for distributed training, which includes:
-- Core collective operations (Broadcast, AllReduce, Reduce, etc.)
-- Backend abstraction for NCCL, RCCL, and MPI
-- Asynchronous operations to overlap communication with computation
-- Point-to-point communication
-- Process group management
-- Performance optimizations and fault tolerance
+[92m[1m| [0m[90m Edit     [0mtrajectory.mdDone! I've created a new feature idea file for **Distributed Checkpointing** at `0_ideas/distributed_checkpointing.md`.
 
-This is a foundational feature that will enable the framework to support data parallelism, model parallelism, and other distributed training strategies.
+This feature addresses the critical need to save and restore the complete state of models that are sharded across multiple GPUs during distributed training. Key aspects include:
+
+- **Sharded State Management**: Automatically detect and collect sharded model parameters, gradients, and optimizer states
+- **Cross-Topology Resilience**: Save from N GPUs and load onto M GPUs with automatic re-sharding
+- **Distributed Write Coordination**: Rank 0 orchestration with atomic commit protocol
+- **Multiple Checkpoint Formats**: Single-file, multi-shard, consolidated, and streaming formats
+- **Fault Tolerance**: Validation checks, rollback capability, and retry logic
+
+The feature is essential for training massive models (trillions of parameters) using strategies like FSDP and Tensor Parallelism, enabling training resumption, model serving, and experiment branching.
+
+I've also marked this feature as selected in `trajectory.md` (line 116).

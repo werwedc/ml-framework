@@ -112,7 +112,9 @@ Pipeline Parallelism (PP): Splitting the model vertically (by layers) across dev
 
     [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/elastic_training.md]
 
-Distributed Checkpointing: Saving the state of a model sharded across 1000 GPUs is non-trivial. The framework must provide unified checkpointing APIs that can save a sharded state and reload it onto a different topology (e.g., saving from 128 GPUs and loading onto 64 GPUs).  
+Distributed Checkpointing: Saving the state of a model sharded across 1000 GPUs is non-trivial. The framework must provide unified checkpointing APIs that can save a sharded state and reload it onto a different topology (e.g., saving from 128 GPUs and loading onto 64 GPUs).
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/distributed_checkpointing.md]  
 
 5. Data Ingestion, Preprocessing, and Pipelines
 
