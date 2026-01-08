@@ -82,4 +82,44 @@ public interface IHistogramLogger
     /// <param name="step">Training step (auto-incremented if -1)</param>
     /// <returns>Task that completes when the histogram is logged</returns>
     Task LogHistogramAsync(string name, float[] values, HistogramBinConfig config, long step = -1);
+
+    /// <summary>
+    /// Logs a tensor distribution synchronously
+    /// </summary>
+    /// <param name="name">Name of the distribution</param>
+    /// <param name="values">Array of values</param>
+    /// <param name="step">Training step (auto-incremented if -1)</param>
+    void LogDistribution(string name, float[] values, long step = -1);
+
+    /// <summary>
+    /// Logs a tensor distribution asynchronously
+    /// </summary>
+    /// <param name="name">Name of the distribution</param>
+    /// <param name="values">Array of values</param>
+    /// <param name="step">Training step (auto-incremented if -1)</param>
+    /// <returns>Task that completes when the distribution is logged</returns>
+    Task LogDistributionAsync(string name, float[] values, long step = -1);
+
+    /// <summary>
+    /// Retrieves a histogram by name and step
+    /// </summary>
+    /// <param name="name">Name of the histogram</param>
+    /// <param name="step">Training step</param>
+    /// <returns>The histogram data, or null if not found</returns>
+    HistogramData? GetHistogram(string name, long step);
+
+    /// <summary>
+    /// Retrieves a distribution by name and step
+    /// </summary>
+    /// <param name="name">Name of the distribution</param>
+    /// <param name="step">Training step</param>
+    /// <returns>The distribution data, or null if not found</returns>
+    TensorDistribution? GetDistribution(string name, long step);
+
+    /// <summary>
+    /// Retrieves all histograms for a given name over time
+    /// </summary>
+    /// <param name="name">Name of the histogram</param>
+    /// <returns>Enumerable of histogram data ordered by step</returns>
+    IEnumerable<HistogramData> GetHistogramsOverTime(string name);
 }
