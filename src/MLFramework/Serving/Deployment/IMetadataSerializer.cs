@@ -1,4 +1,4 @@
-namespace MLFramework.ModelRegistry;
+namespace MLFramework.Serving.Deployment;
 
 /// <summary>
 /// Interface for serializing and deserializing model metadata to/from JSON.

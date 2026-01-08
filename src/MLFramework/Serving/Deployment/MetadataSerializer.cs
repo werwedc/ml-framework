@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace MLFramework.ModelRegistry;
+namespace MLFramework.Serving.Deployment;
 
 /// <summary>
 /// JSON-based implementation of IMetadataSerializer using System.Text.Json.

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace MLFramework.ModelRegistry
+namespace MLFramework.Serving.Deployment
 {
     /// <summary>
     /// Metadata associated with a registered model version.
@@ -37,5 +37,4 @@ namespace MLFramework.ModelRegistry
         [JsonPropertyName("artifactPath")]
         public string ArtifactPath { get; set; } = string.Empty;
     }
-}
 }

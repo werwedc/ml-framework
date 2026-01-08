@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace MLFramework.ModelRegistry
+namespace MLFramework.Serving.Deployment
 {
     /// <summary>
     /// Interface for a centralized registry of model versions with metadata support.

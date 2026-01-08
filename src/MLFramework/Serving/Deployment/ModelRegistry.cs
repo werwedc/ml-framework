@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MLFramework.ModelRegistry
+namespace MLFramework.Serving.Deployment
 {
     /// <summary>
     /// Thread-safe implementation of IModelRegistry using ConcurrentDictionary.
