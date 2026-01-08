@@ -93,6 +93,11 @@ public class MockDistributedCoordinator : IDistributedCoordinator
         WorldSize = worldSize;
         Rank = rank;
     }
+
+    public Task BarrierAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>

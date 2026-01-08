@@ -14,4 +14,9 @@ public interface IDistributedCoordinator
     /// Gets the rank of the current process in the distributed group
     /// </summary>
     int Rank { get; }
+
+    /// <summary>
+    /// Barrier: blocks until all processes have reached this point
+    /// </summary>
+    Task BarrierAsync(CancellationToken cancellationToken = default);
 }

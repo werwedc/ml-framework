@@ -6,6 +6,11 @@ namespace MachineLearning.Checkpointing;
 public class ShardData
 {
     /// <summary>
+    /// Rank of the shard
+    /// </summary>
+    public int Rank { get; set; }
+
+    /// <summary>
     /// Serialized tensor data
     /// </summary>
     public byte[] Data { get; set; } = Array.Empty<byte>();

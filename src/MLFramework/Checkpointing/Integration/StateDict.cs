@@ -41,4 +41,30 @@ public class StateDict : IDictionary<string, ITensor>, IEnumerable<KeyValuePair<
     {
         items = _data;
     }
+
+    /// <summary>
+    /// Get a tensor by key, throwing if not found
+    /// </summary>
+    public ITensor GetTensor(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Key cannot be empty", nameof(key));
+
+        if (!_data.TryGetValue(key, out var tensor))
+            throw new KeyNotFoundException($"Tensor '{key}' not found in state dictionary");
+
+        return tensor;
+    }
+
+    /// <summary>
+    /// Get a tensor by key, returning null if not found
+    /// </summary>
+    public ITensor? GetTensorOrNull(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Key cannot be empty", nameof(key));
+
+        _data.TryGetValue(key, out var tensor);
+        return tensor;
+    }
 }
