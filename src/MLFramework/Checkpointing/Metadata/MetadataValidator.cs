@@ -34,6 +34,43 @@ public class ValidationResult
     /// Add a warning to the validation result
     /// </summary>
     public void AddWarning(string warning) => Warnings.Add(warning);
+
+    /// <summary>
+    /// Add errors to the validation result
+    /// </summary>
+    public void AddErrors(List<string> errors)
+    {
+        Errors.AddRange(errors);
+    }
+
+    /// <summary>
+    /// Get a summary of the validation results
+    /// </summary>
+    public string GetSummary()
+    {
+        var summary = new System.Text.StringBuilder();
+        summary.AppendLine($"Validation: {(IsValid ? "PASSED" : "FAILED")}");
+
+        if (HasWarnings)
+        {
+            summary.AppendLine($"Warnings ({Warnings.Count}):");
+            foreach (var warning in Warnings)
+            {
+                summary.AppendLine($"  - {warning}");
+            }
+        }
+
+        if (Errors.Count > 0)
+        {
+            summary.AppendLine($"Errors ({Errors.Count}):");
+            foreach (var error in Errors)
+            {
+                summary.AppendLine($"  - {error}");
+            }
+        }
+
+        return summary.ToString();
+    }
 }
 
 /// <summary>

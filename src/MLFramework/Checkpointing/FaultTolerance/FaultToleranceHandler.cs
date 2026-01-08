@@ -3,7 +3,7 @@ namespace MachineLearning.Checkpointing;
 /// <summary>
 /// Handler for fault tolerance and retry logic
 /// </summary>
-public class FaultToleranceHandler
+public class FaultToleranceHandler : IFaultToleranceHandler
 {
     private readonly ICheckpointStorage? _storage;
     private readonly int _maxRetries;
@@ -109,5 +109,25 @@ public class FaultToleranceHandler
         return ex is IOException
             || ex is TimeoutException
             || ex is System.Net.Http.HttpRequestException;
+    }
+
+    /// <summary>
+    /// Rollback a failed checkpoint operation
+    /// </summary>
+    public async Task RollbackAsync(string checkpointPath, CancellationToken cancellationToken = default)
+    {
+        if (_storage != null && !string.IsNullOrWhiteSpace(checkpointPath))
+        {
+            try
+            {
+                // Delete checkpoint files
+                await _storage.DeleteAsync(checkpointPath, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - rollback is best-effort
+                System.Diagnostics.Debug.WriteLine($"Failed to rollback checkpoint {checkpointPath}: {ex.Message}");
+            }
+        }
     }
 }

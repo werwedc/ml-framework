@@ -44,6 +44,25 @@ public class CheckpointMetadata
     /// Custom metadata fields
     /// </summary>
     public Dictionary<string, string>? CustomFields { get; set; }
+
+    /// <summary>
+    /// Checkpoint format (e.g., "multishard", "single_file")
+    /// </summary>
+    public string? Format { get; set; }
+
+    /// <summary>
+    /// Sharding strategy metadata (alias for Sharding)
+    /// </summary>
+    public ShardingMetadata? ShardingStrategy
+    {
+        get => Sharding;
+        set => Sharding = value;
+    }
+
+    /// <summary>
+    /// Tensor information list (alias for iterating through Shards)
+    /// </summary>
+    public List<TensorMetadata>? TensorInfos { get; set; }
 }
 
 /// <summary>

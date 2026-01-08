@@ -92,7 +92,7 @@ public class IncrementalCheckpointManager
     /// <summary>
     /// Load a checkpoint (full or incremental)
     /// </summary>
-    public async Task<LoadResult> LoadAsync(
+    public async Task<CheckpointLoadResult> LoadAsync(
         IStateful model,
         IStateful optimizer,
         string checkpointId,
