@@ -89,7 +89,7 @@ public class LocalFileSystemStorage : ICheckpointStorage
     /// <summary>
     /// Get metadata for a file at the specified path
     /// </summary>
-    public Task<FileMetadata> GetMetadataAsync(string path, CancellationToken cancellationToken = default)
+    public Task<StorageMetadata> GetMetadataAsync(string path, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("Path cannot be empty", nameof(path));
@@ -100,7 +100,7 @@ public class LocalFileSystemStorage : ICheckpointStorage
             throw new FileNotFoundException($"File not found: {fullPath}");
 
         var fileInfo = new FileInfo(fullPath);
-        var metadata = new FileMetadata
+        var metadata = new StorageMetadata
         {
             Size = fileInfo.Length,
             LastModified = fileInfo.LastWriteTimeUtc

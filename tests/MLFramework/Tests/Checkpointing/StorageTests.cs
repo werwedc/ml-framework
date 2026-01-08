@@ -165,10 +165,71 @@ public class LocalFileSystemStorageTests
 
             // Assert
             Assert.Equal(data.Length, metadata.Size);
+            Assert.True(metadata.LastModified <= DateTime.UtcNow);
+            Assert.NotNull(metadata.AdditionalInfo);
         }
         finally
         {
             TearDown();
         }
+    }
+
+    [Fact]
+    public void StorageFactory_CreateLocalStorage_ReturnsValidInstance()
+    {
+        // Arrange
+        var options = new StorageOptions
+        {
+            Provider = "local",
+            ConnectionSettings = new Dictionary<string, string>
+            {
+                ["basePath"] = Path.GetTempPath()
+            }
+        };
+
+        // Act
+        var storage = StorageFactory.Create(options);
+
+        // Assert
+        Assert.NotNull(storage);
+        Assert.IsType<LocalFileSystemStorage>(storage);
+    }
+
+    [Fact]
+    public void StorageFactory_WithNullOptions_ThrowsArgumentNullException()
+    {
+        // Arrange
+        StorageOptions options = null!;
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => StorageFactory.Create(options));
+    }
+
+    [Fact]
+    public void StorageFactory_WithUnknownProvider_ThrowsArgumentException()
+    {
+        // Arrange
+        var options = new StorageOptions
+        {
+            Provider = "unknown",
+            ConnectionSettings = new Dictionary<string, string>()
+        };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => StorageFactory.Create(options));
+    }
+
+    [Fact]
+    public void StorageFactory_WithMissingBasePath_ThrowsArgumentException()
+    {
+        // Arrange
+        var options = new StorageOptions
+        {
+            Provider = "local",
+            ConnectionSettings = new Dictionary<string, string>()
+        };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => StorageFactory.Create(options));
     }
 }

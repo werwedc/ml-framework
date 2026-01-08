@@ -28,13 +28,13 @@ public interface ICheckpointStorage
     /// <summary>
     /// Get metadata for a file at the specified path
     /// </summary>
-    Task<FileMetadata> GetMetadataAsync(string path, CancellationToken cancellationToken = default);
+    Task<StorageMetadata> GetMetadataAsync(string path, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// File metadata
+/// Storage metadata for checkpoint files
 /// </summary>
-public class FileMetadata
+public class StorageMetadata
 {
     /// <summary>
     /// Size of the file in bytes
@@ -42,7 +42,12 @@ public class FileMetadata
     public long Size { get; set; }
 
     /// <summary>
-    /// Last modified timestamp
+    /// Last modified timestamp (UTC)
     /// </summary>
     public DateTime LastModified { get; set; }
+
+    /// <summary>
+    /// Additional storage provider-specific information
+    /// </summary>
+    public Dictionary<string, string> AdditionalInfo { get; set; } = new();
 }
