@@ -1,253 +1,256 @@
-# Spec: Pinned Memory Support
+# Spec: Pinned Memory Utilities
 
 ## Overview
-Implement pinned memory allocation for faster GPU data transfers via DMA.
+Implement pinned memory management for efficient CPU-to-GPU data transfers. Pinned memory prevents the garbage collector from moving data, enabling direct GPU access without intermediate copies.
 
 ## Requirements
 
-### Interfaces
+### 1. IPinnedMemory<T> Interface
+Defines the contract for pinned memory buffers.
 
-#### IPinnedMemoryAllocator
 ```csharp
-public interface IPinnedMemoryAllocator : IDisposable
+public interface IPinnedMemory<T> : IDisposable
+    where T : unmanaged
 {
-    IntPtr Allocate(int size);
-    void Free(IntPtr pointer);
-    bool IsPinnedMemorySupported { get; }
+    Span<T> Span { get; }
+    IntPtr Pointer { get; }
+    int Length { get; }
+    bool IsPinned { get; }
+    void Unpin();
 }
 ```
 
-### Implementation
-
-#### PinnedMemoryAllocator
-- Uses fixed buffers or Marshal.AllocHGlobal with GC.KeepAlive
-- Platform detection for CUDA availability
-- Fallback to regular allocation if pinned memory unavailable
-- Memory pooling for better performance
-
-**Key Fields:**
-```csharp
-public class PinnedMemoryAllocator : IPinnedMemoryAllocator
-{
-    private readonly bool _pinnedMemorySupported;
-    private readonly Dictionary<IntPtr, int> _allocatedBlocks;
-    private readonly object _lock;
-    private volatile bool _isDisposed;
-}
-```
+### 2. PinnedMemory<T> Class
+Basic pinned memory wrapper using GCHandle.
 
 **Constructor:**
 ```csharp
-public PinnedMemoryAllocator(bool forcePinned = false)
-{
-    _lock = new object();
-    _allocatedBlocks = new Dictionary<IntPtr, int>();
-    _isDisposed = false;
-
-    // Detect CUDA support (placeholder - integrate with CUDA library later)
-    _pinnedMemorySupported = forcePinned || DetectCudaSupport();
-}
+public PinnedMemory(T[] array)
 ```
 
-**CUDA Detection (Placeholder):**
-```csharp
-private bool DetectCudaSupport()
-{
-    // Placeholder - will integrate with CUDA library
-    // For now, assume CUDA is available
-    return true;
-}
-```
-
-**Allocate:**
-```csharp
-public IntPtr Allocate(int size)
-{
-    if (_isDisposed)
-        throw new ObjectDisposedException(nameof(PinnedMemoryAllocator));
-
-    if (size <= 0)
-        throw new ArgumentOutOfRangeException(nameof(size));
-
-    IntPtr pointer;
-
-    if (_pinnedMemorySupported)
-    {
-        // Allocate pinned memory using CUDA API (placeholder)
-        pointer = AllocatePinnedMemory(size);
-    }
-    else
-        {
-            // Fallback to regular allocation
-            pointer = Marshal.AllocHGlobal(size);
-        }
-
-    lock (_lock)
-    {
-        _allocatedBlocks[pointer] = size;
-    }
-
-    return pointer;
-}
-```
-
-**Allocate Pinned Memory (Placeholder):**
-```csharp
-private IntPtr AllocatePinnedMemory(int size)
-{
-    // Placeholder for CUDA cudaMallocHost / cudaHostAlloc
-    // For now, use AllocHGlobal as fallback
-    return Marshal.AllocHGlobal(size);
-}
-```
-
-**Free:**
-```csharp
-public void Free(IntPtr pointer)
-{
-    if (_isDisposed)
-        throw new ObjectDisposedException(nameof(PinnedMemoryAllocator));
-
-    if (pointer == IntPtr.Zero)
-        throw new ArgumentException("Pointer cannot be zero");
-
-    int size;
-
-    lock (_lock)
-    {
-        if (!_allocatedBlocks.TryGetValue(pointer, out size))
-            throw new ArgumentException("Pointer was not allocated by this allocator");
-
-        _allocatedBlocks.Remove(pointer);
-    }
-
-    if (_pinnedMemorySupported)
-    {
-        // Free pinned memory using CUDA API (placeholder)
-        FreePinnedMemory(pointer);
-    }
-    else
-        {
-            Marshal.FreeHGlobal(pointer);
-        }
-}
-```
-
-**Free Pinned Memory (Placeholder):**
-```csharp
-private void FreePinnedMemory(IntPtr pointer)
-{
-    // Placeholder for CUDA cudaFreeHost
-    // For now, use FreeHGlobal
-    Marshal.FreeHGlobal(pointer);
-}
-```
+**Parameters:**
+- `array`: The array to pin (must not be null)
 
 **Properties:**
 ```csharp
-public bool IsPinnedMemorySupported => _pinnedMemorySupported;
+public Span<T> Span { get; }     // Safe span access to array
+public IntPtr Pointer { get; }   // Pointer to pinned memory
+public int Length { get; }       // Array length
+public bool IsPinned { get; }    // True if currently pinned
 ```
+
+**Methods:**
+
+**Unpin:**
+```csharp
+public void Unpin()
+```
+
+**Behavior:**
+- Releases the GCHandle
+- Allows GC to move array
+- Can be called manually or via Dispose
+- Multiple calls are safe (no-op after first)
 
 **Dispose:**
 ```csharp
 public void Dispose()
-{
-    if (_isDisposed)
-        return;
-
-    _isDisposed = true;
-
-    // Free all allocated blocks
-    lock (_lock)
-    {
-        foreach (var kvp in _allocatedBlocks)
-        {
-            if (_pinnedMemorySupported)
-            {
-                FreePinnedMemory(kvp.Key);
-            }
-            else
-                {
-                    Marshal.FreeHGlobal(kvp.Key);
-                }
-        }
-
-        _allocatedBlocks.Clear();
-    }
-}
 ```
 
-### Helper Methods
+**Behavior:**
+- Calls Unpin if still pinned
+- Implements IDisposable pattern
+- Safe to call multiple times
 
-#### CopyToPinnedMemory
+### 3. PinnedBuffer<T> Class
+Pinned memory with automatic cleanup and pooling integration.
+
+**Static Factory Method:**
 ```csharp
-public static void CopyToPinnedMemory(IntPtr pinnedPtr, byte[] data, int offset = 0, int? length = null)
-{
-    if (pinnedPtr == IntPtr.Zero)
-        throw new ArgumentException("Pointer cannot be zero");
-
-    if (data == null)
-        throw new ArgumentNullException(nameof(data));
-
-    int copyLength = length ?? data.Length;
-
-    if (offset < 0 || offset >= data.Length)
-        throw new ArgumentOutOfRangeException(nameof(offset));
-
-    if (copyLength < 0 || offset + copyLength > data.Length)
-        throw new ArgumentOutOfRangeException(nameof(length));
-
-    Marshal.Copy(data, offset, pinnedPtr, copyLength);
-}
+public static PinnedBuffer<T> Allocate(int length)
 ```
 
-## Acceptance Criteria
-1. Allocator correctly detects CUDA support
-2. Allocate returns valid pointer for pinned memory
-3. Free correctly deallocates memory
-4. Allocator tracks all allocated blocks
-5. Dispose frees all allocated memory
-6. Fallback to regular allocation if pinned memory unavailable
-7. CopyToPinnedMemory correctly copies data
-8. Thread-safe for concurrent allocate/free operations
-9. Unit tests verify memory tracking and cleanup
-10. Integration tests with actual CUDA when available
+**Behavior:**
+- Allocates new array of specified length
+- Pins the array immediately
+- Returns pinned buffer
 
-## Files to Create
-- `src/Data/Memory/IPinnedMemoryAllocator.cs`
-- `src/Data/Memory/PinnedMemoryAllocator.cs`
-
-## Tests
-- `tests/Data/Memory/PinnedMemoryAllocatorTests.cs`
-
-## Usage Example
+**Properties:**
 ```csharp
-using (var allocator = new PinnedMemoryAllocator())
+public T[] Array { get; }      // Underlying array (read-only)
+public Span<T> Span { get; }   // Safe span access
+public IntPtr Pointer { get; } // Pointer to pinned memory
+public int Length { get; }     // Buffer length
+```
+
+**Methods:**
+
+**Copy From:**
+```csharp
+public void CopyFrom(T[] source, int sourceOffset = 0)
+public void CopyFrom(Span<T> source)
+```
+
+**Behavior:**
+- Copies data from source to pinned buffer
+- Validates lengths match
+- Throws `ArgumentOutOfRangeException` if invalid
+
+**Copy To:**
+```csharp
+public void CopyTo(T[] destination, int destinationOffset = 0)
+public void CopyTo(Span<T> destination)
+```
+
+**Behavior:**
+- Copies data from pinned buffer to destination
+- Validates lengths match
+- Throws `ArgumentOutOfRangeException` if invalid
+
+**Fill:**
+```csharp
+public void Fill(T value)
+```
+
+**Behavior:**
+- Sets all elements to specified value
+- Useful for zeroing buffers
+
+### 4. PinnedMemoryPool<T>
+Specialized pool for pinned memory buffers.
+
+**Constructor:**
+```csharp
+public PinnedMemoryPool<T>(int bufferSize, int initialSize = 0, int maxSize = 20)
+```
+
+**Parameters:**
+- `bufferSize`: Size of each buffer in the pool
+- `initialSize`: Number of buffers to pre-allocate
+- `maxSize`: Maximum number of buffers to keep
+
+**Methods:**
+
+**Rent Pinned Buffer:**
+```csharp
+public PinnedBuffer<T> Rent()
+```
+
+**Behavior:**
+- Returns available pinned buffer from pool
+- Creates new pinned buffer if pool is empty
+- All buffers are already pinned and ready for GPU transfer
+
+**Return Pinned Buffer:**
+```csharp
+public void Return(PinnedBuffer<T> buffer)
+```
+
+**Behavior:**
+- Validates buffer size matches pool configuration
+- Clears buffer contents (optional, configurable)
+- Returns buffer to pool for reuse
+
+**Resize Pool:**
+```csharp
+public void Resize(int newBufferSize)
+```
+
+**Behavior:**
+- Clears existing pool
+- Allocates buffers of new size
+- Useful for changing batch sizes
+
+### 5. PinnedMemoryHelper<T>
+Static utility methods for pinned memory operations.
+
+**Pin Array:**
+```csharp
+public static IPinnedMemory<T> Pin(T[] array)
+```
+
+**Behavior:**
+- Creates PinnedMemory wrapper around array
+- Throws `ArgumentNullException` if array is null
+
+**Pin and Copy:**
+```csharp
+public static PinnedBuffer<T> PinAndCopy(T[] source)
+```
+
+**Behavior:**
+- Allocates pinned buffer
+- Copies source data to buffer
+- Returns pinned buffer ready for GPU transfer
+
+**Unmanaged Allocator (Advanced):**
+```csharp
+public static PinnedBuffer<T> AllocateUnmanaged(int length)
+```
+
+**Behavior:**
+- Allocates memory using `Marshal.AllocHGlobal`
+- Memory is not managed by GC
+- Must be freed via Dispose
+- Useful for very large buffers
+
+### 6. Memory Pinning Strategies
+
+**Strategy Enum:**
+```csharp
+public enum PinningStrategy
 {
-    if (allocator.IsPinnedMemorySupported)
-    {
-        int size = 1024 * 1024; // 1 MB
-        IntPtr pinnedPtr = allocator.Allocate(size);
-
-        // Copy data to pinned memory
-        byte[] data = new byte[size];
-        PinnedMemoryAllocator.CopyToPinnedMemory(pinnedPtr, data);
-
-        // Use pinned memory for GPU transfer (placeholder)
-        GpuTransfer(pinnedPtr, size);
-
-        allocator.Free(pinnedPtr);
-    }
+    None,              // Don't pin (fallback to regular copy)
+    GCHandle,          // Use GCHandle (default, works for managed arrays)
+    Unmanaged,         // Use unmanaged allocation (best for large buffers)
+    PinnedObjectPool   // Use pooled pinned memory (best for reuse)
 }
 ```
+
+**Strategy Selector:**
+```csharp
+public static class PinningStrategySelector
+{
+    public static PinningStrategy SelectStrategy(int bufferSize, int expectedLifetime)
+}
+```
+
+**Behavior:**
+- Returns `None` for very small buffers (< 1KB)
+- Returns `GCHandle` for medium buffers (< 1MB)
+- Returns `Unmanaged` for large buffers (>= 1MB)
+- Returns `PinnedObjectPool` if high reuse expected
+
+## File Structure
+```
+src/
+  Data/
+    IPinnedMemory.cs         (Interface)
+    PinnedMemory.cs          (Basic pinned wrapper)
+    PinnedBuffer.cs          (Pinned buffer with utilities)
+    PinnedMemoryPool.cs      (Pool for pinned buffers)
+    PinnedMemoryHelper.cs    (Static utilities)
+    PinningStrategy.cs       (Strategy enum and selector)
+```
+
+## Success Criteria
+- [ ] Arrays can be pinned and unpinned correctly
+- [ ] Pointer provides valid address to pinned memory
+- [ ] Span provides safe access to array data
+- [ ] Unpin allows GC to move array again
+- [ ] Dispose properly cleans up resources
+- [ ] CopyFrom/CopyTo correctly transfer data
+- [ ] PinnedMemoryPool efficiently reuses buffers
+- [ ] Helper methods are convenient and safe
+- [ ] Strategy selector chooses optimal pinning method
+- [ ] Unit tests verify memory is actually pinned
+- [ ] Unit tests check for memory leaks
 
 ## Notes
-- Pinned memory allows asynchronous DMA transfers over PCIe
-- Critical for overlapping data transfer with GPU computation
-- Placeholder implementation uses AllocHGlobal for now
-- Will integrate with actual CUDA library (cudaMallocHost/cudaFreeHost)
-- Memory tracking prevents double-free and leaks
-- Consider adding memory pooling for small allocations
-- Monitor pinned memory usage to avoid system memory pressure
-- On systems without CUDA, falls back to regular allocation
-- Future: add support for unified memory (cudaMallocManaged)
+- Use `GCHandleType.Pinned` for GCHandle-based pinning
+- Use `Marshal.AllocHGlobal` and `Marshal.FreeHGlobal` for unmanaged memory
+- Implement IDisposable pattern with finalizer for safety
+- PinnedMemoryPool should use ArrayPool under the hood
+- Consider integration with MemoryMarshal for performance
+- Test with actual GPU transfer if possible (requires HAL integration)
+- This spec is independent but will be used by dataloader core

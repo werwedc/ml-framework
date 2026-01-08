@@ -823,7 +823,7 @@ namespace MLFramework.IR.Lowering
         /// </summary>
         private IRValue Constant(IRContext context, int[] values)
         {
-            var elementType = new ScalarType(DataType.Int32);
+            var elementType = new Types.ScalarType(DataType.Int32);
             var attr = new ArrayAttribute(elementType, values.Select(v => new IntAttribute(v)).ToArray());
             var resultType = new TensorType(DataType.Int32, new[] { values.Length });
             var result = context.CreateValue(resultType);

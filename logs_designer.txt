@@ -1,20 +1,25 @@
-I'll help you generate a new feature idea. Let me first check if there's a trajectory.md file with existing feature ideas.
-
-[96m[1m| [0m[90m Read     [0mtrajectory.mdNow let me check what feature ideas already exist in the `0_ideas/` directory:
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-I can see the trajectory.md file has many features listed. Several are marked as selected (with ✓), but there's still a `0_ideas/` directory that needs to be populated. Let me create a new feature idea file for **Communication Primitives**, which is a critical feature for distributed training that hasn't been selected yet.
-[92m[1m| [0m[90m Write    [0m0_ideas\communication_primitives.md
-Now I need to update trajectory.md to mark this feature as selected:
+I'll help you create a new feature idea for the ML framework. Let me first check the trajectory.md file and the current project structure.
 [96m[1m| [0m[90m Read     [0mtrajectory.md
+[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
+[94m[1m| [0m[90m Glob     [0m{"pattern":"src/**/*.cs"}
+I can see the trajectory.md file has many features, and the 0_ideas/ directory is currently empty. Let me check what exists in the project and pick an unselected feature to create as an idea file.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
+I can see the 0_ideas/ directory is empty and trajectory.md has many features. Looking through the document, I found an unselected feature for robust error reporting and debugging aids. Let me create a new feature idea file for this.
+[92m[1m| [0m[90m Write    [0m0_ideas\shape_mismatch_error_reporting.md
+Perfect! I've created a comprehensive feature idea file for "Shape Mismatch Error Reporting" in `0_ideas/shape_mismatch_error_reporting.md`. Now let me mark this feature as selected in the trajectory.md file:
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-Done! I've created a new feature idea file in `0_ideas/communication_primitives.md` and marked it as selected in trajectory.md.
+✅ **Task Complete!**
 
-The feature covers **Communication Primitives** for distributed training, which includes:
-- Core collective operations (Broadcast, AllReduce, Reduce, etc.)
-- Backend abstraction for NCCL, RCCL, and MPI
-- Asynchronous operations to overlap communication with computation
-- Point-to-point communication
-- Process group management
-- Performance optimizations and fault tolerance
+I've created a new feature idea file in `0_ideas/shape_mismatch_error_reporting.md` focusing on enhanced error reporting for tensor shape mismatches in the ML framework.
 
-This is a foundational feature that will enable the framework to support data parallelism, model parallelism, and other distributed training strategies.
+**Feature Overview:**
+The idea proposes a comprehensive shape mismatch diagnostic system that provides:
+- Detailed shape information with exact dimension sizes
+- Contextual, human-readable error messages
+- Layer-specific diagnostics showing where the error occurred
+- Common pattern detection with suggested fixes
+- Optional shape visualization
+
+This addresses a critical pain point in deep learning development where opaque shape mismatch errors cause significant debugging delays. The enhanced error system will dramatically improve developer experience and reduce time spent debugging shape-related issues.
+
+The feature has been marked as selected in `trajectory.md` and is ready for the Architect to review and create specifications.

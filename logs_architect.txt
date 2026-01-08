@@ -1,57 +1,16 @@
-I'll help you process the pending idea in 0_ideas/. Let me start by reading the AGENTS.md file and then examining the idea file.
+I'll help you process the pending idea in `0_ideas/`. Let me start by reading the AGENTS.md file and then check what's in the ideas folder.
 [96m[1m| [0m[90m Read     [0mAGENTS.md
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
-Now let me read the idea file to understand what needs to be broken down into specs:
-[96m[1m| [0m[90m Read     [0m0_ideas\communication_primitives.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_communication_interfaces.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_process_group.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_collective_basic.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_collective_advanced.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_point_to_point.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_async_operations.md
-Perfect! I found a comprehensive idea about implementing communication primitives for distributed training. Now I'll break this down into multiple atomic technical specs, each representing ~30-60 minutes of human coding work.
+[96m[1m| [0m[90m Read     [0m0_ideas\shape_mismatch_error_reporting.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_shape_mismatch_exception.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_tensor_shape_tracking.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_operation_metadata_registry.md
+Now I'll break down this comprehensive idea into multiple atomic technical specs. Let me create specs that are each implementable in ~30-60 minutes of coding work.
+[92m[1m| [0m[90m Write    [0m1_specs\spec_operation_specific_diagnostics.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_shape_validation.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_fix_suggestion_generator.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_diagnostics_configuration.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_formatted_error_reports.md
 
-Let me create 12 specs to cover all the components:
-[92m[1m| [0m[90m Write    [0m1_specs\spec_backend_nccl.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_backend_mpi.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_backend_rccl.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_performance.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_error_handling.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_communication_tests.md
-Perfect! I've successfully broken down the communication primitives idea into 12 atomic technical specs. Now let me delete the original idea file as instructed.
-[91m[1m| [0m[90m Bash     [0mDelete original idea file from 0_ideas/
-[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/*.md"}
-## Summary
-
-I have successfully processed the pending idea `communication_primitives.md` from `0_ideas/` and broken it down into **12 atomic technical specs** in `1_specs/`. Here's what was created:
-
-### Created Specs (~30-60 min coding work each):
-
-1. **spec_communication_interfaces.md** - Core interfaces (ICommunicationBackend, IAsyncCommunicationBackend, exceptions, tensor extensions)
-
-2. **spec_process_group.md** - Process group management (ProcessGroup, ProcessGroupManager, helpers for common patterns)
-
-3. **spec_collective_basic.md** - Basic collective operations (Broadcast, Reduce, AllReduce - sync & async)
-
-4. **spec_collective_advanced.md** - Advanced collective operations (AllGather, ReduceScatter, Barrier - sync & async)
-
-5. **spec_point_to_point.md** - Point-to-point communication (Send, Receive, Probe, send-receive patterns)
-
-6. **spec_async_operations.md** - Async primitives (AsyncCommunicationHandle, operation queue, compute-communication overlap)
-
-7. **spec_backend_nccl.md** - NCCL backend for NVIDIA GPUs (P/Invoke wrappers, factory, configuration)
-
-8. **spec_backend_mpi.md** - MPI backend for CPU/GPU (P/Invoke wrappers, factory, CUDA-aware support)
-
-9. **spec_backend_rccl.md** - RCCL backend for AMD GPUs (P/Invoke wrappers, factory, configuration)
-
-10. **spec_performance.md** - Performance optimizations (pinned memory, GPU-direct, algorithm selection, profiler)
-
-11. **spec_error_handling.md** - Error handling & fault tolerance (timeout manager, error recovery, health monitoring)
-
-12. **spec_communication_tests.md** - Comprehensive unit tests (mock backend, interface tests, operation tests)
-
-### Next Steps:
-- ✅ Original idea file deleted from `0_ideas/`
-- ✅ All 12 specs ready for Coder implementation in `src/` and `tests/`
-- Each spec is self-contained and implementable in a single execution session
+[91m[1mError: [0mAI_JSONParseError: JSON parsing failed: Text: {"id":"202601090446201878ca6c030d49f8","created":1767905180,"object":"chat.completion.chunk","model":"glm-4.7","choices":[{"index":0,"delta":{"tool_calls":[{"id":"call_356699f50fa2488eb0da9119","index":1,"type":"function","function":{"name":"write","arguments":"{\"content\":\"# Spec: Shape Inference Engine (Advanced)\\n\\n## Overview\\nImplement an optional shape inference engine that can predict tensor shapes without executing operations, useful for debugging and model validation.\\n\\n## Requirements\\n\\n### Interface: IShapeInference\\n- Location: `src/Core/IShapeInference.cs`\\n\\n```csharp\\npublic interface IShapeInference\\n{\\n    bool CanInfer(OperationType operationType);\\n    long[] InferShape(OperationType operationType, params long[][] inputShapes);\\n}\\n```\\n\\n### Class: ShapeInferenceEngine\\n- Location: `src/Core/ShapeInferenceEngine.cs`\\n\\n```csharp\\npublic class ShapeInferenceEngine\\n{\\n    public static ShapeInferenceEngine Instance { get; }\\n\\n    // Register inference rule for operation type\\n    public void Register(OperationType type, IShapeInference inference)\\n\\n    // Infer output shape\\n    public long[] InferShape(OperationType operationType, params long[][] inputShapes)\\n\\n    // Validate entire model (forward pass shape inference)\\n    public ModelShapeValidation ValidateModel(Model model)\\n\\n    // Get shape trace through model\\n    public List<ShapeTrace> TraceModelShapes(Model model)\\n}\\n\\npublic class ModelShapeValidation\\n{\\n    public bool IsValid { get; set; }\\n    public List<ShapeError> Errors { get; set; }\\n    public Dictionary<string, long[]> LayerOutputShapes { get; set; }\\n}\\n\\npublic class ShapeTrace\\n{\\n    public string LayerName { get; set; }\\n    public OperationType Operation { get; set; }\\n    public long[] InputShape { get; set; }\\n    public long[] OutputShape { get; set; }\\n}\\n```\\n\\n### Shape Inference Rules\\n\\n**MatrixMultiply:**\\n```csharp\\n// Input: [M, K] × [K, N]\\n// Output: [M, N]\\npublic long[] InferShape(long[][] inputs)\\n{\\n    var shape1 = inputs[0];\\n    var shape2 = inputs[1];\\n    return new long[] { shape1[0], shape2[1] };\\n}\\n```\\n\\n**Conv2D:**\\n```csharp\\n// Input: [N, C, H, W]\\n// Kernel: [F, C, kH, kW]\\n// Stride: S, Padding: P\\n// Output: [N, F, floor((H - kH + 2P) / S + 1), floor((W - kW + 2P) / S + 1)]\\npublic long[] InferShape(Conv2DParams parameters, long[][] inputs)\\n{\\n    var inputShape = inputs[0];\\n    var kernelShape = inputs[1];\\n    int outputHeight = (inputShape[2]data: {"id":"202601090647483cd5f969f9cf42a8","created":1767912468,"object":"chat.completion.chunk","model":"glm-4.7","choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"Great"}}]}.
+Error message: JSON Parse error: Expected '}'

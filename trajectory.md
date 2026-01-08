@@ -35,11 +35,15 @@ The engine of deep learning is Automatic Differentiation (AD). A modern framewor
 
     Higher-Order Derivatives: The system must support the computation of Jacobians and Hessians (derivatives of derivatives). This is critical for advanced optimization algorithms (like Newton's method), meta-learning (MAML), and scientific computing applications involving differential equations.
 
-Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/higher_order_derivatives.md]
 
-Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.
+    Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
 
-[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/autograd_engine.md]
+    Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/activation_checkpointing.md]
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/autograd_engine.md]
 
 Feature	Imperative (Eager)	Declarative (Graph)	Ideal Hybrid Implementation
 Execution	Immediate, line-by-line	Deferred, optimized execution plan	Eager by default, JIT-compiled for hot paths
@@ -77,7 +81,9 @@ Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. T
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/dynamic_shapes.md]  
 
-CUDA Graph Integration: To reduce the CPU overhead of launching thousands of small kernels (kernel launch latency), the framework must integrate with hardware features like CUDA Graphs. This allows the framework to record a sequence of kernel launches and replay them as a single GPU command, significantly reducing CPU utilization.  
+CUDA Graph Integration: To reduce the CPU overhead of launching thousands of small kernels (kernel launch latency), the framework must integrate with hardware features like CUDA Graphs. This allows the framework to record a sequence of kernel launches and replay them as a single GPU command, significantly reducing CPU utilization.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/cuda_graph_integration.md]
 
 4. Distributed Training and Scalability Capabilities
 
@@ -112,7 +118,9 @@ Pipeline Parallelism (PP): Splitting the model vertically (by layers) across dev
 
     [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/elastic_training.md]
 
-Distributed Checkpointing: Saving the state of a model sharded across 1000 GPUs is non-trivial. The framework must provide unified checkpointing APIs that can save a sharded state and reload it onto a different topology (e.g., saving from 128 GPUs and loading onto 64 GPUs).  
+Distributed Checkpointing: Saving the state of a model sharded across 1000 GPUs is non-trivial. The framework must provide unified checkpointing APIs that can save a sharded state and reload it onto a different topology (e.g., saving from 128 GPUs and loading onto 64 GPUs).
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/distributed_checkpointing.md]  
 
 5. Data Ingestion, Preprocessing, and Pipelines
 
@@ -121,9 +129,11 @@ A machine learning model is only as fast as its data pipeline. If the GPU spends
 
     Multiprocessing and GIL Avoidance: Python's Global Interpreter Lock (GIL) limits concurrency. The data loader must use multiprocessing to spawn worker processes that load and process data in parallel, bypassing the GIL. These workers must communicate with the main training process via shared memory to avoid serialization overhead.   
 
-Prefetching: The framework must implement a prefetch queue. While the GPU computes batch N, the CPU workers should be preparing batch N+1, N+2, etc. This pipelining hides the latency of disk I/O and preprocessing.  
+    Prefetching: The framework must implement a prefetch queue. While the GPU computes batch N, the CPU workers should be preparing batch N+1, N+2, etc. This pipelining hides the latency of disk I/O and preprocessing.  
 
-Memory Pinning: To maximize data transfer speeds over the PCIe bus, the framework must support "pinned" (page-locked) memory. Tensors in pinned memory can be transferred to the GPU using asynchronous Direct Memory Access (DMA), allowing data transfer to overlap with GPU computation.  
+    Memory Pinning: To maximize data transfer speeds over the PCIe bus, the framework must support "pinned" (page-locked) memory. Tensors in pinned memory can be transferred to the GPU using asynchronous Direct Memory Access (DMA), allowing data transfer to overlap with GPU computation.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/multiprocess_data_loading.md]
 
 5.2 Flexible Data Abstractions
 
@@ -173,8 +183,10 @@ The lifecycle of a machine learning model extends far beyond training. A compreh
 
 Serving models in production has different constraints than training; latency is paramount, and requests arrive asynchronously.
 
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/dynamic_batching_serving.md]
     Dynamic Batching: A critical feature for serving frameworks (like TorchServe or TensorFlow Serving). Instead of processing requests one by one (which underutilizes the GPU), the server queues incoming requests for a short window (e.g., 5ms) and constructs a batch. The framework executes this batch in parallel and then scatters the results back to the individual clients.   
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/model_versioning_hotswapping.md]
 Model Versioning and Hot-Swapping: The serving system must support A/B testing and seamless rollouts. It should allow multiple versions of a model to be loaded simultaneously, with traffic routed between them, and enable updating models without dropping active connections.  
 
 7.2 Optimization for Large Language Models (LLMs)
@@ -203,11 +215,15 @@ The adoption of a framework is heavily influenced by its API design. It must bal
 
 Functional API: For advanced manipulation, a functional API allows models to be treated as stateless functions. This is essential for applying transformations like vmap or grad over the entire model structure.  
 
-Consistency and Guardrails: The API must provide consistent naming conventions and robust error reporting. Shape Mismatch errors are the most common bug in deep learning. The framework should provide descriptive error messages that identify the specific layers and dimension values involved, rather than opaque backend errors.  
+    Consistency and Guardrails: The API must provide consistent naming conventions and robust error reporting. Shape Mismatch errors are the most common bug in deep learning. The framework should provide descriptive error messages that identify the specific layers and dimension values involved, rather than opaque backend errors.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/shape_mismatch_error_reporting.md]
 
 8.2 Debugging and Visualization Tools
 
-    Visualizers: Integrated tools (like TensorBoard or Visdom) are mandatory. They must support visualizing the computational graph, plotting training metrics (loss/accuracy curves) in real-time, displaying histograms of weight distributions (to catch vanishing gradients), and projecting high-dimensional embeddings.   
+    Visualizers: Integrated tools (like TensorBoard or Visdom) are mandatory. They must support visualizing the computational graph, plotting training metrics (loss/accuracy curves) in real-time, displaying histograms of weight distributions (to catch vanishing gradients), and projecting high-dimensional embeddings.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/visualizer_profiler_integration.md]
 
 Profiler Integration: To debug performance, the framework must integrate with hardware profilers (e.g., Nsight Systems). It should emit "ranges" or "traces" that allow developers to see exactly how long each operation takes on the GPU and identify synchronization bottlenecks.  
 

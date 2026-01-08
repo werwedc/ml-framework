@@ -128,6 +128,86 @@ public static class CudaApi
     public static extern CudaError CudaEventQuery(IntPtr @event);
 
     #endregion
+
+    #region Graph Capture
+
+    /// <summary>
+    /// Begin capturing kernel launches from a stream
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaStreamBeginCapture(
+        IntPtr stream,
+        CudaCaptureMode mode);
+
+    /// <summary>
+    /// End capture and instantiate the graph
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaStreamEndCapture(
+        IntPtr stream,
+        out IntPtr graph);
+
+    /// <summary>
+    /// Instantiate a graph for execution
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaGraphInstantiate(
+        out IntPtr graphExec,
+        IntPtr graph,
+        IntPtr nodeParams,
+        long errorLogSize);
+
+    /// <summary>
+    /// Launch a graph instance
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaGraphLaunch(
+        IntPtr graphExec,
+        IntPtr stream);
+
+    /// <summary>
+    /// Destroy a graph
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaGraphDestroy(IntPtr graph);
+
+    /// <summary>
+    /// Destroy a graph instance
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaGraphExecDestroy(IntPtr graphExec);
+
+    /// <summary>
+    /// Get nodes from a graph
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaGraphGetNodes(
+        IntPtr graph,
+        out IntPtr nodes,
+        out ulong numNodes);
+
+    #endregion
+}
+
+/// <summary>
+/// CUDA stream capture mode
+/// </summary>
+public enum CudaCaptureMode
+{
+    /// <summary>
+    /// Capture operations only from this stream (not its children)
+    /// </summary>
+    CaptureModeThreadLocal = 0,
+
+    /// <summary>
+    /// Capture operations from this stream and all other streams
+    /// </summary>
+    CaptureModeGlobal = 1,
+
+    /// <summary>
+    /// Capture operations from this stream and its children
+    /// </summary>
+    CaptureModeRelaxed = 2
 }
 
 /// <summary>

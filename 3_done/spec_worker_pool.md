@@ -1,228 +1,210 @@
-# Spec: WorkerPool Architecture
+# Spec: Worker Pool
 
 ## Overview
-Implement a worker pool that manages multiple worker processes for parallel data loading.
+Implement a managed pool of worker tasks that load and preprocess data in parallel. Workers communicate with the main process via a shared queue.
 
 ## Requirements
 
-### Interfaces
+### 1. DataWorker<T> Delegate
+Delegate that defines the work each worker performs.
 
-#### IWorkerPool
 ```csharp
-public interface IWorkerPool : IDisposable
+public delegate T DataWorker<T>(int workerId, CancellationToken cancellationToken);
+```
+
+**Parameters:**
+- `workerId`: Unique identifier for this worker (0 to NumWorkers-1)
+- `cancellationToken`: Token for checking cancellation during work
+
+**Returns:**
+- The processed data item to enqueue
+
+### 2. WorkerPool<T> Class
+Manages a pool of worker tasks that produce data.
+
+**Constructor:**
+```csharp
+public WorkerPool<T>(
+    DataWorker<T> workerFunc,
+    SharedQueue<T> outputQueue,
+    int numWorkers,
+    CancellationToken? cancellationToken = null)
+```
+
+**Parameters:**
+- `workerFunc`: Function that defines what each worker does
+- `outputQueue`: Queue where workers deposit completed items
+- `numWorkers`: Number of parallel workers
+- `cancellationToken`: Optional cancellation token for graceful shutdown
+
+**Properties:**
+```csharp
+public bool IsRunning { get; }
+public int NumWorkers { get; }
+public int ActiveWorkers { get; }
+```
+
+### 3. Lifecycle Methods
+
+**Start Workers:**
+```csharp
+public void Start()
+```
+
+**Behavior:**
+- Launches `numWorkers` tasks using `Task.Run`
+- Each task continuously calls `workerFunc` and enqueues results
+- Validates that pool is not already running
+- Throws `InvalidOperationException` if already started
+
+**Stop Workers:**
+```csharp
+public async Task StopAsync(TimeSpan timeout)
+```
+
+**Behavior:**
+- Signals all workers to stop via cancellation token
+- Waits for all tasks to complete or timeout
+- Marks output queue as complete after workers stop
+- Throws `TimeoutException` if workers don't stop within timeout
+- Can be called multiple times safely
+
+**Wait for Completion:**
+```csharp
+public async Task WaitAsync()
+```
+
+**Behavior:**
+- Awaits all worker tasks
+- Throws aggregate exception if any worker failed
+
+### 4. Worker Task Logic
+Each worker task follows this pattern:
+
+```csharp
+while (!cancellationToken.IsCancellationRequested)
 {
-    void Start();
-    void Stop();
-    bool IsRunning { get; }
-    int NumWorkers { get; }
-    void SubmitTask<T>(Func<T> task);
-    T GetResult<T>();
-    bool TryGetResult<T>(out T result);
+    try
+    {
+        // 1. Perform work
+        T result = workerFunc(workerId, cancellationToken);
+
+        // 2. Enqueue result
+        outputQueue.Enqueue(result);
+    }
+    catch (OperationCanceledException)
+    {
+        // Expected during shutdown
+        break;
+    }
+    catch (Exception ex)
+    {
+        // Log error and restart or fail
+        // Handle based on error handling strategy
+        break;
+    }
 }
 ```
 
-### Implementation
+### 5. Work Distribution Strategies
 
-#### WorkerPool
-- Manages pool of worker processes using C# Task-based parallelism
-- Each worker processes data independently
-- Communication via blocking collection queues
-- Graceful shutdown support
+**Static Partitioning:**
+- Each worker processes a fixed subset of data
+- Worker `i` processes indices: `i, i+numWorkers, i+2*numWorkers, ...`
+- Good for balanced workloads
 
-**Key Fields:**
+**Dynamic Work Stealing:**
+- Workers pull from a shared work queue
+- More complex but handles variable workloads better
+- (Implement in separate spec if needed)
+
+**Current Spec Focus:**
+- Implement static partitioning only
+- Work indices are passed to worker via context
+
+### 6. Worker Context
+Encapsulates worker-specific state.
+
 ```csharp
-public class WorkerPool : IWorkerPool
+public class WorkerContext
 {
-    private readonly int _numWorkers;
-    private readonly CancellationTokenSource _cancellationToken;
-    private readonly Task[] _workers;
-    private readonly BlockingCollection<object> _taskQueue;
-    private readonly BlockingCollection<object> _resultQueue;
-    private volatile bool _isRunning;
+    public int WorkerId { get; }
+    public int NumWorkers { get; }
+    public int StartIndex { get; }
+    public int EndIndex { get; }
+    public CancellationToken CancellationToken { get; }
 }
 ```
 
 **Constructor:**
 ```csharp
-public WorkerPool(int numWorkers = 4)
-{
-    if (numWorkers <= 0)
-        throw new ArgumentOutOfRangeException(nameof(numWorkers));
-
-    _numWorkers = numWorkers;
-    _cancellationToken = new CancellationTokenSource();
-    _taskQueue = new BlockingCollection<object>();
-    _resultQueue = new BlockingCollection<object>();
-    _workers = new Task[numWorkers];
-    _isRunning = false;
-}
+public WorkerContext(int workerId, int numWorkers, int totalItems, CancellationToken cancellationToken)
 ```
 
-**Start Method:**
+**Calculated Properties:**
+- `StartIndex`: `workerId * (totalItems / numWorkers)`
+- `EndIndex`: `(workerId + 1) * (totalItems / numWorkers)`
+- For uneven divisions, last worker gets remainder
+
+### 7. Worker Pool Factory (Optional)
+Convenient creation of worker pools for common scenarios.
+
 ```csharp
-public void Start()
+public static class WorkerPoolFactory
 {
-    if (_isRunning)
-        return;
-
-    _isRunning = true;
-
-    for (int i = 0; i < _numWorkers; i++)
-    {
-        _workers[i] = Task.Run(() => WorkerLoop(_cancellationToken.Token));
-    }
+    public static WorkerPool<T> CreateForDataset<T>(
+        IDataset<T> dataset,
+        SharedQueue<T> outputQueue,
+        DataLoaderConfig config,
+        CancellationToken? cancellationToken = null)
 }
 ```
 
-**Worker Loop:**
+**Behavior:**
+- Creates worker function that calls `dataset.GetItem`
+- Distributes indices across workers using static partitioning
+- Returns configured worker pool
+
+### 8. Event Hooks (Optional)
+
+**Worker Started:**
 ```csharp
-private void WorkerLoop(CancellationToken token)
-{
-    while (!token.IsCancellationRequested)
-    {
-        try
-        {
-            // Get task (with timeout to allow cancellation)
-            var taskObj = _taskQueue.Take(token);
-
-            if (taskObj is Func<object> task)
-            {
-                var result = task();
-                _resultQueue.Add(result, token);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            break;
-        }
-        catch (Exception ex)
-        {
-            // Log error and continue
-            Console.WriteLine($"Worker error: {ex.Message}");
-        }
-    }
-}
+public event Action<int> WorkerStarted;
 ```
 
-**Submit Task:**
+**Worker Completed:**
 ```csharp
-public void SubmitTask<T>(Func<T> task)
-{
-    if (!_isRunning)
-        throw new InvalidOperationException("Worker pool is not running");
-
-    if (task == null)
-        throw new ArgumentNullException(nameof(task));
-
-    _taskQueue.Add(task);
-}
+public event Action<int, bool> WorkerCompleted;
 ```
 
-**Get Result:**
-```csharp
-public T GetResult<T>()
-{
-    if (!_isRunning)
-        throw new InvalidOperationException("Worker pool is not running");
+**Parameters:**
+- First param: worker ID
+- Second param: true if completed successfully, false if failed
 
-    var result = _resultQueue.Take();
-    return (T)result;
-}
-
-public bool TryGetResult<T>(out T result)
-{
-    if (!_isRunning)
-    {
-        result = default;
-        return false;
-    }
-
-    if (_resultQueue.TryTake(out var resultObj))
-    {
-        result = (T)resultObj;
-        return true;
-    }
-
-    result = default;
-    return false;
-}
+## File Structure
+```
+src/
+  Data/
+    DataWorker.cs         (Delegate definition)
+    WorkerContext.cs      (Worker context class)
+    WorkerPool.cs         (Main worker pool)
+    WorkerPoolFactory.cs  (Optional factory)
 ```
 
-**Stop/Dispose:**
-```csharp
-public void Stop()
-{
-    if (!_isRunning)
-        return;
-
-    _cancellationToken.Cancel();
-
-    Task.WaitAll(_workers, TimeSpan.FromSeconds(30));
-
-    _isRunning = false;
-}
-
-public void Dispose()
-{
-    Stop();
-    _cancellationToken?.Dispose();
-    _taskQueue?.Dispose();
-    _resultQueue?.Dispose();
-}
-```
-
-### Error Handling
-- `InvalidOperationException` if pool not running
-- `ArgumentNullException` for null tasks
-- Graceful handling of worker exceptions
-- Timeout in Stop method (30 seconds)
-
-## Acceptance Criteria
-1. WorkerPool starts specified number of worker tasks
-2. SubmitTask adds tasks to queue
-3. GetResult retrieves completed results in order
-4. TryGetResult returns false if no result available
-5. Stop gracefully cancels all workers
-6. Dispose cleans up all resources
-7. Multiple tasks execute in parallel
-8. Worker exceptions don't crash the pool
-9. Unit tests verify correct number of workers spawned
-10. Integration tests verify parallel execution
-
-## Files to Create
-- `src/Data/Worker/IWorkerPool.cs`
-- `src/Data/Worker/WorkerPool.cs`
-
-## Tests
-- `tests/Data/Worker/WorkerPoolTests.cs`
-
-## Usage Example
-```csharp
-using (var pool = new WorkerPool(numWorkers: 4))
-{
-    pool.Start();
-
-    // Submit tasks
-    for (int i = 0; i < 10; i++)
-    {
-        int index = i;
-        pool.SubmitTask(() => ComputeSomething(index));
-    }
-
-    // Get results
-    for (int i = 0; i < 10; i++)
-    {
-        var result = pool.GetResult<int>();
-        Console.WriteLine($"Result: {result}");
-    }
-}
-```
+## Success Criteria
+- [ ] Worker pool spawns correct number of tasks
+- [ ] Workers continuously produce data until stopped
+- [ ] Workers respect cancellation token
+- [ ] StopAsync gracefully shuts down all workers
+- [ ] WorkerContext correctly partitions work
+- [ ] Multiple workers can enqueue to same queue safely
+- [ ] IsRunning and ActiveWorkers properties are accurate
+- [ ] Unit tests cover concurrency scenarios
+- [ ] Worker events fire correctly (if implemented)
 
 ## Notes
-- This uses C# Tasks (not true multiprocessing like Python)
-- For true multiprocessing in C#, consider System.Diagnostics.Process
-- Current implementation suitable for CPU-bound data loading
-- BlockingCollection provides thread-safe queues
-- Future specs may add shared memory for zero-copy transfers
-- Consider adding priority queues or batch submission
-- Monitor queue sizes for backpressure detection
+- Use `Task.Run` not `Task.Factory.StartNew` for better exception handling
+- Consider `TaskCreationOptions.LongRunning` for CPU-bound workers
+- Workers should handle exceptions gracefully (not crash pool)
+- This spec depends on `SharedQueue<T>` from spec_shared_queue.md
+- This spec depends on `IDataset<T>` from spec_dataset_interface.md

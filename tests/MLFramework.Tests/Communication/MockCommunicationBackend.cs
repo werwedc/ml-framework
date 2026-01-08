@@ -131,4 +131,18 @@ public class MockAsyncCommunicationBackend : MockCommunicationBackend, IAsyncCom
         });
         return new Operations.PendingOperationHandle(task);
     }
+
+    // AllGatherAsync and ReduceScatterAsync are not part of IAsyncCommunicationBackend interface
+    // but can be added for testing purposes if needed
+    public ICommunicationHandle AllGatherAsync(Tensor tensor)
+    {
+        var task = Task.Run(() => AllGather(tensor));
+        return new Operations.PendingOperationHandle(task);
+    }
+
+    public ICommunicationHandle ReduceScatterAsync(Tensor tensor, ReduceOp operation)
+    {
+        var task = Task.Run(() => ReduceScatter(tensor, operation));
+        return new Operations.PendingOperationHandle(task);
+    }
 }

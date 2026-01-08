@@ -20,10 +20,11 @@ public class FaultTolerantCommunication : ICommunicationBackend, IAsyncCommunica
     public int Rank => _innerBackend.Rank;
     public int WorldSize => _innerBackend.WorldSize;
     public string BackendName => $"FT_{_innerBackend.BackendName}";
+    public DeviceType Device => _innerBackend.Device;
 
     public FaultTolerantCommunication(
         ICommunicationBackend backend,
-        CommunicationConfig config)
+        Distributed.Communication.CommunicationConfig config)
     {
         _innerBackend = backend ?? throw new ArgumentNullException(nameof(backend));
         _config = config ?? throw new ArgumentNullException(nameof(config));
