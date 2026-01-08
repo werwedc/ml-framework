@@ -100,3 +100,36 @@ public sealed class CudaEventHandle : SafeHandleZeroOrMinusOneIsInvalid
         }
     }
 }
+
+/// <summary>
+/// Safe handle for CUDA graphs
+/// </summary>
+public sealed class CudaGraphHandle : SafeHandleZeroOrMinusOneIsInvalid
+{
+    private CudaGraphHandle()
+        : base(true)
+    {
+    }
+
+    public CudaGraphHandle(IntPtr graph)
+        : base(true)
+    {
+        SetHandle(graph);
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        if (IsInvalid)
+            return false;
+
+        try
+        {
+            CudaApi.CudaGraphDestroy(handle);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
