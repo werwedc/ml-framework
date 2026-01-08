@@ -1,28 +1,47 @@
 namespace MLFramework.Checkpointing;
 
 /// <summary>
-/// Placeholder for Tensor class
+/// Tensor class representing multi-dimensional data
 /// </summary>
-public class Tensor
+public class Tensor : IDisposable
 {
     /// <summary>
     /// Gets the size of the tensor in bytes
     /// </summary>
-    public long SizeInBytes { get; set; }
+    public long SizeInBytes { get; }
 
     /// <summary>
-    /// Creates a new tensor
+    /// Gets the total number of elements in the tensor
     /// </summary>
-    public Tensor()
+    public long ElementCount { get; }
+
+    /// <summary>
+    /// Gets the size of each element's data type in bytes
+    /// </summary>
+    public int DataTypeSize { get; }
+
+    private bool _disposed;
+
+    /// <summary>
+    /// Creates a new tensor with specified properties
+    /// </summary>
+    public Tensor(long elementCount, int dataTypeSize = 4)
     {
-        SizeInBytes = 0;
+        ElementCount = elementCount;
+        DataTypeSize = dataTypeSize;
+        SizeInBytes = elementCount * dataTypeSize;
+        _disposed = false;
     }
 
     /// <summary>
-    /// Creates a new tensor with specified size
+    /// Disposes the tensor and releases resources
     /// </summary>
-    public Tensor(long sizeInBytes)
+    public void Dispose()
     {
-        SizeInBytes = sizeInBytes;
+        if (!_disposed)
+        {
+            // Release resources here in a real implementation
+            _disposed = true;
+        }
     }
 }
