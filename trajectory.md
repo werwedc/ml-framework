@@ -77,7 +77,9 @@ Dynamic Shapes: In many applications (e.g., NLP), input sequence lengths vary. T
 
 [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/dynamic_shapes.md]  
 
-CUDA Graph Integration: To reduce the CPU overhead of launching thousands of small kernels (kernel launch latency), the framework must integrate with hardware features like CUDA Graphs. This allows the framework to record a sequence of kernel launches and replay them as a single GPU command, significantly reducing CPU utilization.  
+CUDA Graph Integration: To reduce the CPU overhead of launching thousands of small kernels (kernel launch latency), the framework must integrate with hardware features like CUDA Graphs. This allows the framework to record a sequence of kernel launches and replay them as a single GPU command, significantly reducing CPU utilization.
+
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/cuda_graph_integration.md]
 
 4. Distributed Training and Scalability Capabilities
 
