@@ -79,7 +79,7 @@ namespace MLFramework.Data
             }
             catch (OperationCanceledException)
             {
-                UpdateStatisticsOnProducerWait(stopstopwatch);
+                UpdateStatisticsOnProducerWait(stopwatch);
                 throw;
             }
             catch (InvalidOperationException)
@@ -109,13 +109,13 @@ namespace MLFramework.Data
                 }
                 else
                 {
-                    UpdateStatisticsOnProducerWait(stopstopwatch);
+                    UpdateStatisticsOnProducerWait(stopwatch);
                 }
                 return success;
             }
             catch (OperationCanceledException)
             {
-                UpdateStatisticsOnProducerWait(stopstopwatch);
+                UpdateStatisticsOnProducerWait(stopwatch);
                 throw;
             }
             catch (InvalidOperationException)
@@ -141,7 +141,7 @@ namespace MLFramework.Data
             }
             catch (OperationCanceledException)
             {
-                UpdateStatisticsOnConsumerWait(stopstopwatch);
+                UpdateStatisticsOnConsumerWait(stopwatch);
                 throw;
             }
         }
@@ -166,13 +166,13 @@ namespace MLFramework.Data
                 }
                 else
                 {
-                    UpdateStatisticsOnConsumerWait(stopstopwatch);
+                    UpdateStatisticsOnConsumerWait(stopwatch);
                 }
                 return success;
             }
             catch (OperationCanceledException)
             {
-                UpdateStatisticsOnConsumerWait(stopstopwatch);
+                UpdateStatisticsOnConsumerWait(stopwatch);
                 throw;
             }
         }
@@ -260,7 +260,7 @@ namespace MLFramework.Data
             }
             catch (OperationCanceledException)
             {
-                UpdateStatisticsOnProducerWait(stopstopwatch);
+                UpdateStatisticsOnProducerWait(stopwatch);
                 throw;
             }
             catch (InvalidOperationException)
@@ -302,7 +302,7 @@ namespace MLFramework.Data
             }
             catch (OperationCanceledException)
             {
-                UpdateStatisticsOnConsumerWait(stopstopwatch);
+                UpdateStatisticsOnConsumerWait(stopwatch);
                 return result.ToArray();
             }
         }
