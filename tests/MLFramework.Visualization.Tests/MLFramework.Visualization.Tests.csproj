@@ -20,6 +20,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\MLFramework.Visualization\MLFramework.Visualization.csproj" />
+        <ProjectReference Include="..\..\src\MLFramework\MLFramework.csproj" />
     </ItemGroup>
 
 </Project>

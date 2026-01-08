@@ -136,7 +136,7 @@ public class AsyncEventCollector : EventCollector
         {
             try
             {
-                await _storageBackend.StoreBatchAsync(events, _cancellationTokenSource.Token);
+                await _storageBackend.StoreEventsAsync(events);
             }
             catch (Exception ex)
             {
