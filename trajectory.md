@@ -175,6 +175,7 @@ The lifecycle of a machine learning model extends far beyond training. A compreh
 
 Serving models in production has different constraints than training; latency is paramount, and requests arrive asynchronously.
 
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/dynamic_batching_serving.md]
     Dynamic Batching: A critical feature for serving frameworks (like TorchServe or TensorFlow Serving). Instead of processing requests one by one (which underutilizes the GPU), the server queues incoming requests for a short window (e.g., 5ms) and constructs a batch. The framework executes this batch in parallel and then scatters the results back to the individual clients.   
 
 Model Versioning and Hot-Swapping: The serving system must support A/B testing and seamless rollouts. It should allow multiple versions of a model to be loaded simultaneously, with traffic routed between them, and enable updating models without dropping active connections.  
