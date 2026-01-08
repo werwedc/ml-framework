@@ -23,6 +23,11 @@ public interface ICommunicationBackend : IDisposable
     string BackendName { get; }
 
     /// <summary>
+    /// Gets the device type for this backend
+    /// </summary>
+    DeviceType Device { get; }
+
+    /// <summary>
     /// Broadcast tensor data from root rank to all ranks
     /// </summary>
     void Broadcast(Tensor tensor, int rootRank);
