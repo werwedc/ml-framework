@@ -2,35 +2,35 @@ namespace MachineLearning.Checkpointing;
 
 using MachineLearning.Distributed.Checkpointing;
 
-/// <summary>
-/// Base class for distributed checkpoint operations
-/// </summary>
-public class DistributedCheckpoint
-{
-    private readonly IDistributedCoordinator _coordinator;
-    private readonly ICheckpointStorage _storage;
-
     /// <summary>
-    /// Create a new DistributedCheckpoint with storage
+    /// Base class for distributed checkpoint operations
     /// </summary>
-    public DistributedCheckpoint(
-        IDistributedCoordinator coordinator,
-        ICheckpointStorage storage)
+    public class DistributedCheckpoint
     {
-        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-        _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-    }
+        private readonly IDistributedCoordinator _coordinator;
+        private readonly ICheckpointStorage _storage;
 
-    /// <summary>
-    /// Create a new DistributedCheckpoint with ElasticCheckpointManager (legacy constructor)
-    /// </summary>
-    public DistributedCheckpoint(
-        IDistributedCoordinator coordinator,
-        ElasticCheckpointManager checkpointManager)
-    {
-        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-        _storage = new LocalFileSystemStorage(checkpointManager.CheckpointDir);
-    }
+        /// <summary>
+        /// Create a new DistributedCheckpoint with storage
+        /// </summary>
+        public DistributedCheckpoint(
+            IDistributedCoordinator coordinator,
+            ICheckpointStorage storage)
+        {
+            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+        }
+
+        /// <summary>
+        /// Create a new DistributedCheckpoint with ElasticCheckpointManager (legacy constructor)
+        /// </summary>
+        public DistributedCheckpoint(
+            IDistributedCoordinator coordinator,
+            ElasticCheckpointManager checkpointManager)
+        {
+            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            _storage = new LocalFileSystemStorage(checkpointManager.CheckpointDir);
+        }
 
     /// <summary>
     /// Gets the distributed coordinator
