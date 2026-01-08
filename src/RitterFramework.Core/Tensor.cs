@@ -12,12 +12,68 @@ public class Tensor
     public Action<Tensor>? BackwardFn { get; set; }
     public DataType Dtype { get; set; }
 
+    // Track the operation that created this tensor (optional)
+    public string? SourceOperation { get; set; }
+
+    // Track the layer/module that created this tensor (optional)
+    public string? SourceLayer { get; set; }
+
     public int[] Shape => _shape;
     public int Size => _data.Length;
     public int Dimensions => _shape.Length;
 
     // Internal access to data for gradient operations
     public float[] Data => _data;
+
+    /// <summary>
+    /// Gets the shape as a formatted string.
+    /// </summary>
+    /// <returns>Shape formatted as [dim1, dim2, ...]</returns>
+    public string GetShapeString()
+    {
+        return $"[{string.Join(", ", _shape)}]";
+    }
+
+    /// <summary>
+    /// Gets the number of dimensions (rank) of the tensor.
+    /// </summary>
+    /// <returns>The rank of the tensor.</returns>
+    public int GetRank()
+    {
+        return _shape.Length;
+    }
+
+    /// <summary>
+    /// Gets the size of a specific dimension.
+    /// </summary>
+    /// <param name="index">The dimension index.</param>
+    /// <returns>The size of the dimension.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when index is out of range.</exception>
+    public int GetDimension(int index)
+    {
+        if (index < 0 || index >= _shape.Length)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(index),
+                $"Dimension index {index} is out of range. Tensor has {GetRank()} dimensions.");
+        }
+        return _shape[index];
+    }
+
+    /// <summary>
+    /// Checks if this tensor has the same shape as another tensor.
+    /// </summary>
+    /// <param name="other">The other tensor to compare with.</param>
+    /// <returns>True if shapes match, false otherwise.</returns>
+    public bool HasSameShape(Tensor other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        return _shape.SequenceEqual(other._shape);
+    }
 
     public Tensor(float[] data, int[] shape, bool requiresGrad = false, DataType dtype = DataType.Float32)
     {

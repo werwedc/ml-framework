@@ -1,4 +1,4 @@
-﻿using Xunit;
+using Xunit;
 using RitterFramework.Core.Tensor;
 
 namespace RitterFramework.Tests;
@@ -444,6 +444,230 @@ public class TensorTests
         Assert.Equal(3, tensor1.Size);
         Assert.Equal(6, tensor2.Size);
         Assert.Equal(8, tensor3.Size);
+    }
+
+    #endregion
+
+    #region Shape Tracking Tests
+
+    [Fact]
+    public void GetShapeString_1DTensor_ReturnsFormattedString()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3 }, new int[] { 3 });
+
+        // Act
+        var shapeString = tensor.GetShapeString();
+
+        // Assert
+        Assert.Equal("[3]", shapeString);
+    }
+
+    [Fact]
+    public void GetShapeString_2DTensor_ReturnsFormattedString()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+
+        // Act
+        var shapeString = tensor.GetShapeString();
+
+        // Assert
+        Assert.Equal("[2, 3]", shapeString);
+    }
+
+    [Fact]
+    public void GetShapeString_3DTensor_ReturnsFormattedString()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3, 4, 5, 6, 7, 8 }, new int[] { 2, 2, 2 });
+
+        // Act
+        var shapeString = tensor.GetShapeString();
+
+        // Assert
+        Assert.Equal("[2, 2, 2]", shapeString);
+    }
+
+    [Fact]
+    public void GetRank_1DTensor_ReturnsOne()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3 }, new int[] { 3 });
+
+        // Act
+        var rank = tensor.GetRank();
+
+        // Assert
+        Assert.Equal(1, rank);
+    }
+
+    [Fact]
+    public void GetRank_2DTensor_ReturnsTwo()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+
+        // Act
+        var rank = tensor.GetRank();
+
+        // Assert
+        Assert.Equal(2, rank);
+    }
+
+    [Fact]
+    public void GetRank_4DTensor_ReturnsFour()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }, new int[] { 2, 2, 2, 2 });
+
+        // Act
+        var rank = tensor.GetRank();
+
+        // Assert
+        Assert.Equal(4, rank);
+    }
+
+    [Fact]
+    public void GetDimension_ValidIndex_ReturnsCorrectSize()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+
+        // Act & Assert
+        Assert.Equal(2, tensor.GetDimension(0));
+        Assert.Equal(3, tensor.GetDimension(1));
+    }
+
+    [Fact]
+    public void GetDimension_IndexOutOfRange_ThrowsException()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => tensor.GetDimension(2));
+        Assert.Throws<ArgumentOutOfRangeException>(() => tensor.GetDimension(-1));
+    }
+
+    [Fact]
+    public void GetDimension_MultipleDimensions_ReturnsCorrectSizes()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[96], new int[] { 2, 3, 4, 4 });
+
+        // Act & Assert
+        Assert.Equal(2, tensor.GetDimension(0));
+        Assert.Equal(3, tensor.GetDimension(1));
+        Assert.Equal(4, tensor.GetDimension(2));
+        Assert.Equal(4, tensor.GetDimension(3));
+    }
+
+    [Fact]
+    public void HasSameShape_SameShapes_ReturnsTrue()
+    {
+        // Arrange
+        var tensor1 = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+        var tensor2 = new Tensor(new float[] { 7, 8, 9, 10, 11, 12 }, new int[] { 2, 3 });
+
+        // Act
+        var result = tensor1.HasSameShape(tensor2);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void HasSameShape_DifferentShapes_ReturnsFalse()
+    {
+        // Arrange
+        var tensor1 = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+        var tensor2 = new Tensor(new float[] { 1, 2, 3, 4 }, new int[] { 2, 2 });
+
+        // Act
+        var result = tensor1.HasSameShape(tensor2);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void HasSameShape_DifferentDimensions_ReturnsFalse()
+    {
+        // Arrange
+        var tensor1 = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+        var tensor2 = new Tensor(new float[] { 1, 2, 3, 4, 5, 6, 7, 8 }, new int[] { 2, 2, 2 });
+
+        // Act
+        var result = tensor1.HasSameShape(tensor2);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void HasSameShape_NullTensor_ReturnsFalse()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3 }, new int[] { 3 });
+
+        // Act
+        var result = tensor.HasSameShape(null!);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void SourceOperation_CanBeSet()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3 }, new int[] { 3 });
+
+        // Act
+        tensor.SourceOperation = "Add";
+
+        // Assert
+        Assert.Equal("Add", tensor.SourceOperation);
+    }
+
+    [Fact]
+    public void SourceLayer_CanBeSet()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3 }, new int[] { 3 });
+
+        // Act
+        tensor.SourceLayer = "Linear1";
+
+        // Assert
+        Assert.Equal("Linear1", tensor.SourceLayer);
+    }
+
+    [Fact]
+    public void SourceOperationAndLayer_CanBeSetTogether()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3, 4, 5, 6 }, new int[] { 2, 3 });
+
+        // Act
+        tensor.SourceOperation = "Conv2D";
+        tensor.SourceLayer = "Conv1";
+
+        // Assert
+        Assert.Equal("Conv2D", tensor.SourceOperation);
+        Assert.Equal("Conv1", tensor.SourceLayer);
+    }
+
+    [Fact]
+    public void SourceOperationAndLayer_DefaultToNull()
+    {
+        // Arrange
+        var tensor = new Tensor(new float[] { 1, 2, 3 }, new int[] { 3 });
+
+        // Assert
+        Assert.Null(tensor.SourceOperation);
+        Assert.Null(tensor.SourceLayer);
     }
 
     #endregion
