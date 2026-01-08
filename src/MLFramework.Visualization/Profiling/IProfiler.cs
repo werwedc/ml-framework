@@ -16,6 +16,16 @@ public interface IProfilingScope : IDisposable
     Dictionary<string, string> Metadata { get; }
 
     /// <summary>
+    /// Gets the start timestamp in nanoseconds
+    /// </summary>
+    long StartTimestampNanoseconds { get; }
+
+    /// <summary>
+    /// Gets the duration in nanoseconds (only available after disposal)
+    /// </summary>
+    long DurationNanoseconds { get; }
+
+    /// <summary>
     /// Ends the profiling scope and records the duration
     /// </summary>
     void End();
@@ -55,7 +65,37 @@ public interface IProfiler
     void RecordInstant(string name, Dictionary<string, string> metadata);
 
     /// <summary>
+    /// Gets the profiling result for a specific operation
+    /// </summary>
+    /// <param name="name">Name of the operation</param>
+    /// <returns>Profiling result or null if not found</returns>
+    ProfilingResult? GetResult(string name);
+
+    /// <summary>
+    /// Gets all profiling results
+    /// </summary>
+    /// <returns>Dictionary of operation names to profiling results</returns>
+    Dictionary<string, ProfilingResult> GetAllResults();
+
+    /// <summary>
+    /// Sets a parent-child relationship between profiling scopes
+    /// </summary>
+    /// <param name="childName">Name of the child operation</param>
+    /// <param name="parentName">Name of the parent operation</param>
+    void SetParentScope(string childName, string parentName);
+
+    /// <summary>
+    /// Enables profiling
+    /// </summary>
+    void Enable();
+
+    /// <summary>
+    /// Disables profiling
+    /// </summary>
+    void Disable();
+
+    /// <summary>
     /// Gets whether profiling is enabled
     /// </summary>
-    bool IsEnabled { get; set; }
+    bool IsEnabled { get; }
 }
