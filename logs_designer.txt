@@ -1,26 +1,25 @@
-I'll help you generate a new feature idea. Let me first check the trajectory.md file to see if there are any features to pick from, and then explore the existing ideas folder.
+I'll help you create a new feature idea for the ML framework. Let me first check the trajectory.md file and the current project structure.
 [96m[1m| [0m[90m Read     [0mtrajectory.md
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-I'll generate a new feature idea based on the trajectory.md file. I can see that **Checkpointing (Activation Recomputation)** is mentioned on line 42 but is NOT marked as selected. This is a critical feature for training large models. Let me create the feature idea file for this.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"src/**/*.cs"}
+I can see the trajectory.md file has many features, and the 0_ideas/ directory is currently empty. Let me check what exists in the project and pick an unselected feature to create as an idea file.
+[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
+I can see the 0_ideas/ directory is empty and trajectory.md has many features. Looking through the document, I found an unselected feature for robust error reporting and debugging aids. Let me create a new feature idea file for this.
+[92m[1m| [0m[90m Write    [0m0_ideas\shape_mismatch_error_reporting.md
+Perfect! I've created a comprehensive feature idea file for "Shape Mismatch Error Reporting" in `0_ideas/shape_mismatch_error_reporting.md`. Now let me mark this feature as selected in the trajectory.md file:
+[92m[1m| [0m[90m Edit     [0mtrajectory.md
+✅ **Task Complete!**
 
-[92m[1m| [0m[90m Write    [0m0_ideas\activation_checkpointing.md[92m[1m| [0m[90m Edit     [0mtrajectory.md
-Perfect! I've successfully created a new feature idea file:
+I've created a new feature idea file in `0_ideas/shape_mismatch_error_reporting.md` focusing on enhanced error reporting for tensor shape mismatches in the ML framework.
 
-**Created:** `0_ideas/activation_checkpointing.md`
+**Feature Overview:**
+The idea proposes a comprehensive shape mismatch diagnostic system that provides:
+- Detailed shape information with exact dimension sizes
+- Contextual, human-readable error messages
+- Layer-specific diagnostics showing where the error occurred
+- Common pattern detection with suggested fixes
+- Optional shape visualization
 
-This feature addresses **Activation Checkpointing (Gradient Checkpointing)**, which was identified in `trajectory.md` but was not yet marked as selected. The feature is critical for:
+This addresses a critical pain point in deep learning development where opaque shape mismatch errors cause significant debugging delays. The enhanced error system will dramatically improve developer experience and reduce time spent debugging shape-related issues.
 
-- Training large models that exceed GPU memory constraints
-- Reducing memory usage by 50-90% through strategic activation recomputation
-- Enabling larger batch sizes and deeper networks on available hardware
-- Supporting training of state-of-the-art large language models
-
-I've also updated `trajectory.md` to mark this feature as "FEATURE SELECTED" with the appropriate note.
-
-The file includes comprehensive specifications covering:
-- Core mechanism and checkpointing strategies
-- API design with C# examples
-- Technical specifications (memory savings, computation overhead)
-- Use cases (LLMs, edge devices, research)
-- Advanced features (selective checkpointing, gradient accumulation)
-- Testing strategy and success metrics
+The feature has been marked as selected in `trajectory.md` and is ready for the Architect to review and create specifications.

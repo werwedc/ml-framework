@@ -215,7 +215,9 @@ The adoption of a framework is heavily influenced by its API design. It must bal
 
 Functional API: For advanced manipulation, a functional API allows models to be treated as stateless functions. This is essential for applying transformations like vmap or grad over the entire model structure.  
 
-Consistency and Guardrails: The API must provide consistent naming conventions and robust error reporting. Shape Mismatch errors are the most common bug in deep learning. The framework should provide descriptive error messages that identify the specific layers and dimension values involved, rather than opaque backend errors.  
+    Consistency and Guardrails: The API must provide consistent naming conventions and robust error reporting. Shape Mismatch errors are the most common bug in deep learning. The framework should provide descriptive error messages that identify the specific layers and dimension values involved, rather than opaque backend errors.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/shape_mismatch_error_reporting.md]
 
 8.2 Debugging and Visualization Tools
 
