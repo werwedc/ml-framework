@@ -37,11 +37,13 @@ The engine of deep learning is Automatic Differentiation (AD). A modern framewor
 
     [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/higher_order_derivatives.md]
 
-Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
+    Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
 
-Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.
+    Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.
 
-[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/autograd_engine.md]
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/activation_checkpointing.md]
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/autograd_engine.md]
 
 Feature	Imperative (Eager)	Declarative (Graph)	Ideal Hybrid Implementation
 Execution	Immediate, line-by-line	Deferred, optimized execution plan	Eager by default, JIT-compiled for hot paths
