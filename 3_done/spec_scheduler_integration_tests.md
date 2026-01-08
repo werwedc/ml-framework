@@ -1,683 +1,665 @@
-# Spec: Scheduler Integration Tests
+# Spec: Scheduler Integration Tests and Benchmarking
 
 ## Overview
-End-to-end integration tests for the continuous batching scheduler. These tests verify the complete system behavior, from request submission through generation and completion, including real model execution (or high-fidelity mocks).
+Create integration tests and benchmarks for the learning rate scheduler system. Integration tests verify schedulers work correctly in real training scenarios, while benchmarks measure performance overhead.
 
-## Test Structure
+## Dependencies
+- All scheduler specs and implementations (must be completed first)
+- Basic model and optimizer implementations
+- Target namespace: `MLFramework.Tests.Integration`
 
-### Test File to Create
-`tests/MLFramework.Tests/Inference/ContinuousBatching/Integration/ContinuousBatchingIntegrationTests.cs`
+## Files to Create
+- `tests/Integration/SchedulerIntegrationTests.cs`
+- `tests/Integration/SchedulerBenchmark.cs`
 
----
+## Technical Specifications
 
-## Test Setup
+### 1. Integration Tests
 
-### Test Fixture
+**Purpose**: Verify schedulers work correctly in full training scenarios with optimizers, models, and data.
+
+**Tests**:
+
 ```csharp
-[SetUp]
-public async Task Setup()
+using Xunit;
+using MLFramework.Schedulers;
+using MLFramework.Optimizers;
+using MLFramework.Models;
+using MLFramework.Data;
+
+namespace MLFramework.Tests.Integration;
+
+public class SchedulerIntegrationTests
 {
-    // Create all components
-    _tokenizer = CreateMockTokenizer();
-    _modelExecutor = CreateModelExecutor();
-    _kvCacheManager = CreateKVCacheManager();
-
-    // Create scheduler components
-    _requestQueue = new RequestQueue(100);
-    _capacityManager = new CapacityManager(CapacityConstraints.Default);
-    _completionDetector = new CompletionDetector(
-        CompletionConfiguration.Default,
-        _tokenizer
-    );
-    _batchManager = new BatchManager(
-        _requestQueue,
-        _kvCacheManager,
-        new BatchConstraints(
-            MaxBatchSize: 8,
-            MaxMemoryBytes: 1L * 1024 * 1024 * 1024, // 1GB
-            MinBatchSize: 2,
-            MaxSequenceLength: 1024
-        )
-    );
-
-    _metricsCollector = new SchedulerMetricsCollector(MetricsConfiguration.Default);
-
-    // Create scheduler
-    _scheduler = new ContinuousBatchScheduler(
-        _requestQueue,
-        _batchManager,
-        _completionDetector,
-        _capacityManager,
-        _modelExecutor,
-        _metricsCollector,
-        SchedulerConfiguration.Default
-    );
-
-    // Create client
-    _client = new ContinuousBatchSchedulerClient(
-        _scheduler,
-        SchedulerApiClientConfiguration.Default,
-        NullLogger.Instance
-    );
-}
-
-[TearDown]
-public async Task TearDown()
-{
-    if (_scheduler.IsRunning)
+    // Helper: Simple linear model for testing
+    private class SimpleModel : Model
     {
-        await _scheduler.StopAsync();
-    }
-
-    _modelExecutor?.Dispose();
-    _kvCacheManager?.Dispose();
-}
-```
-
----
-
-## Test: Full Request Lifecycle
-
-### Test 1: Single Request Completion
-```csharp
-[Test]
-public async Task SingleRequest_GeneratesTextAndCompletes()
-{
-    // Arrange
-    string prompt = "The capital of France is";
-    int maxTokens = 10;
-
-    // Act
-    var task = _client.GenerateTextAsync(prompt, maxTokens);
-    _scheduler.Start();
-    string result = await task;
-    await _scheduler.StopAsync();
-
-    // Assert
-    Assert.That(result, Is.Not.Null);
-    Assert.That(result, Is.Not.Empty);
-    Assert.That(result, Does.Contain("Paris"));
-}
-```
-
-### Test 2: Multiple Sequential Requests
-```csharp
-[Test]
-public async Task MultipleSequentialRequests_AllComplete()
-{
-    // Arrange
-    var prompts = new List<string>
-    {
-        "The sky is",
-        "The sun is",
-        "The moon is"
-    };
-    var results = new List<string>();
-
-    // Act
-    _scheduler.Start();
-
-    foreach (var prompt in prompts)
-    {
-        var result = await _client.GenerateTextAsync(prompt);
-        results.Add(result);
-    }
-
-    await _scheduler.StopAsync();
-
-    // Assert
-    Assert.That(results.Count, Is.EqualTo(3));
-    foreach (var result in results)
-    {
-        Assert.That(result, Is.Not.Null);
-    }
-}
-```
-
-### Test 3: Multiple Concurrent Requests
-```csharp
-[Test]
-public async Task MultipleConcurrentRequests_AllComplete()
-{
-    // Arrange
-    int requestCount = 20;
-    var prompts = Enumerable.Range(0, requestCount)
-        .Select(i => $"Generate text {i}")
-        .ToList();
-    var tasks = prompts.Select(p => _client.GenerateTextAsync(p)).ToList();
-
-    // Act
-    _scheduler.Start();
-    var results = await Task.WhenAll(tasks);
-    await _scheduler.StopAsync();
-
-    // Assert
-    Assert.That(results.Length, Is.EqualTo(requestCount));
-    foreach (var result in results)
-    {
-        Assert.That(result, Is.Not.Null);
-    }
-}
-```
-
----
-
-## Test: Batch Dynamics
-
-### Test 4: Dynamic Batch Composition
-```csharp
-[Test]
-public async Task DynamicBatch_AddsAndRemovesRequestsCorrectly()
-{
-    // Arrange
-    var shortRequestTask = _client.GenerateTextAsync("Short", maxTokens: 5);
-    var longRequestTask = _client.GenerateTextAsync("Long", maxTokens: 50);
-
-    // Act
-    _scheduler.Start();
-    await Task.WhenAll(shortRequestTask, longRequestTask);
-    await _scheduler.StopAsync();
-
-    // Assert
-    // Verify short request completed before long one
-    // Verify both completed successfully
-    Assert.Pass();
-}
-```
-
-### Test 5: Batch Size Limits
-```csharp
-public async Task BatchSize_RespectsMaxBatchSize()
-{
-    // Arrange
-    int maxBatchSize = 4;
-    var requests = Enumerable.Range(0, 10)
-        .Select(i => _client.GenerateTextAsync($"Request {i}"))
-        .ToList();
-
-    // Act
-    _scheduler.Start();
-    await Task.WhenAll(requests);
-    await _scheduler.StopAsync();
-
-    // Assert
-    // Check metrics to verify batch sizes never exceeded limit
-    var stats = _metricsCollector.GetBatchStatistics();
-    Assert.That(stats.MaxBatchSize, Is.LessThanOrEqualTo(maxBatchSize));
-}
-```
-
----
-
-## Test: Completion Detection
-
-### Test 6: EOS Token Completion
-```csharp
-[Test]
-public async Task Request_CompletesOnEosToken()
-{
-    // Arrange
-    string prompt = "Complete this sentence with";
-    int maxTokens = 100; // Set high, expect early completion
-
-    // Act
-    var task = _client.GenerateTextAsync(prompt, maxTokens);
-    _scheduler.Start();
-    string result = await task;
-    await _scheduler.StopAsync();
-
-    // Assert
-    Assert.That(result, Is.Not.Null);
-    // Verify completion reason (would need to track)
-}
-```
-
-### Test 7: Max Tokens Completion
-```csharp
-[Test]
-public async Task Request_CompletesOnMaxTokens()
-{
-    // Arrange
-    string prompt = "Generate text";
-    int maxTokens = 10;
-
-    // Act
-    var task = _client.GenerateTextAsync(prompt, maxTokens);
-    _scheduler.Start();
-    string result = await task;
-    await _scheduler.StopAsync();
-
-    // Assert
-    Assert.That(result, Is.Not.Null);
-    // Verify exactly maxTokens were generated
-}
-```
-
-### Test 8: Cancellation
-```csharp
-[Test]
-public void Request_Cancellation_CompletesWithoutResult()
-{
-    // Arrange
-    var cts = new CancellationTokenSource();
-    var task = _client.GenerateTextAsync("Test", cancellationToken: cts.Token);
-    _scheduler.Start();
-
-    // Act
-    cts.Cancel();
-    Assert.ThrowsAsync<TaskCanceledException>(async () => await task);
-
-    await _scheduler.StopAsync();
-}
-```
-
----
-
-## Test: Capacity Management
-
-### Test 9: Memory Limits
-```csharp
-[Test]
-public async Task MemoryLimit_PreventsOversubscription()
-{
-    // Arrange
-    long memoryLimit = 100L * 1024 * 1024; // 100MB
-    var requests = Enumerable.Range(0, 20)
-        .Select(i => _client.GenerateTextAsync($"Request {i}"))
-        .ToList();
-
-    // Act
-    _scheduler.Start();
-    await Task.WhenAll(requests);
-    await _scheduler.StopAsync();
-
-    // Assert
-    var utilization = _capacityManager.GetUtilization();
-    Assert.That(utilization.MemoryUtilization, Is.LessThanOrEqualTo(100));
-}
-```
-
-### Test 10: Capacity Release
-```csharp
-[Test]
-public async Task CompletedRequest_ReleasesCapacity()
-{
-    // Arrange
-    var request1Task = _client.GenerateTextAsync("Short", maxTokens: 5);
-    var request2Task = _client.GenerateTextAsync("Medium", maxTokens: 20);
-
-    // Act
-    _scheduler.Start();
-    await request1Task; // Wait for first to complete
-    var utilizationAfter1 = _capacityManager.GetUtilization();
-    await request2Task;
-    await _scheduler.StopAsync();
-
-    // Assert
-    // Verify capacity decreased after request1 completed
-    Assert.Pass();
-}
-```
-
----
-
-## Test: Performance and Metrics
-
-### Test 11: Throughput Measurement
-```csharp
-[Test]
-public async Task Throughput_MeasuresCorrectly()
-{
-    // Arrange
-    int requestCount = 100;
-    var requests = Enumerable.Range(0, requestCount)
-        .Select(i => _client.GenerateTextAsync($"Request {i}"))
-        .ToList();
-
-    // Act
-    var stopwatch = Stopwatch.StartNew();
-    _scheduler.Start();
-    await Task.WhenAll(requests);
-    await _scheduler.StopAsync();
-    stopwatch.Stop();
-
-    // Assert
-    var stats = _metricsCollector.GetRequestStatistics();
-    double actualThroughput = stats.RequestsPerSecond;
-    double expectedThroughput = requestCount / stopwatch.Elapsed.TotalSeconds;
-
-    Assert.That(actualThroughput, Is.GreaterThan(0));
-    Assert.That(actualThroughput, Is.EqualTo(expectedThroughput).Within(20));
-}
-```
-
-### Test 12: Latency Distribution
-```csharp
-[Test]
-public async Task Latency_HasReasonableDistribution()
-{
-    // Arrange
-    int requestCount = 50;
-    var requests = Enumerable.Range(0, requestCount)
-        .Select(i => _client.GenerateTextAsync($"Request {i}"))
-        .ToList();
-
-    // Act
-    _scheduler.Start();
-    await Task.WhenAll(requests);
-    await _scheduler.StopAsync();
-
-    // Assert
-    var stats = _metricsCollector.GetRequestStatistics();
-    Assert.That(stats.P50Latency, Is.GreaterThan(0));
-    Assert.That(stats.P95Latency, Is.GreaterThan(stats.P50Latency));
-    Assert.That(stats.P99Latency, Is.GreaterThan(stats.P95Latency));
-}
-```
-
-### Test 13: Batch Utilization
-```csharp
-[Test]
-public async Task BatchUtilization_IsEfficient()
-{
-    // Arrange
-    int requestCount = 100;
-    var requests = Enumerable.Range(0, requestCount)
-        .Select(i => _client.GenerateTextAsync($"Request {i}"))
-        .ToList();
-
-    // Act
-    _scheduler.Start();
-    await Task.WhenAll(requests);
-    await _scheduler.StopAsync();
-
-    // Assert
-    var stats = _metricsCollector.GetBatchStatistics();
-    double utilization = stats.AverageUtilization;
-
-    // Target: > 70% average utilization
-    Assert.That(utilization, Is.GreaterThan(70));
-}
-```
-
----
-
-## Test: Error Handling
-
-### Test 14: Model Error Recovery
-```csharp
-[Test]
-public async Task ModelError_SchedulerContinues()
-{
-    // Arrange
-    var failingExecutor = new FailingModelExecutor(
-        failCount: 2,
-        _modelExecutor
-    );
-
-    // Replace executor in scheduler (would need setter or reconstruction)
-    // For now, assume we can inject a failing executor
-
-    var tasks = Enumerable.Range(0, 10)
-        .Select(i => _client.GenerateTextAsync($"Request {i}"))
-        .ToList();
-
-    // Act
-    _scheduler.Start();
-    var results = await Task.WhenAll(tasks);
-    await _scheduler.StopAsync();
-
-    // Assert
-    // Verify scheduler recovered and continued processing
-    var errorStats = _metricsCollector.GetErrorStatistics();
-    Assert.That(errorStats.TotalErrors, Is.GreaterThan(0));
-}
-```
-
-### Test 15: Prefill Failure
-```csharp
-[Test]
-public async Task PrefillFailure_RequestFailsGracefully()
-{
-    // Arrange
-    var failingPrefillHandler = new FailingPrefillHandler();
-
-    // Inject failing handler
-
-    // Act & Assert
-    Assert.ThrowsAsync<InvalidOperationException>(async () =>
-    {
-        await _client.GenerateTextAsync("Test");
-    });
-}
-```
-
----
-
-## Test: Stress Tests
-
-### Test 16: High Concurrency
-```csharp
-[Test]
-[Timeout(60000)] // 60 second timeout
-public async Task HighConcurrency_HandlesLoad()
-{
-    // Arrange
-    int requestCount = 1000;
-    var requests = Enumerable.Range(0, requestCount)
-        .Select(i => _client.GenerateTextAsync($"Request {i}", maxTokens: 5))
-        .ToList();
-
-    // Act
-    _scheduler.Start();
-    var stopwatch = Stopwatch.StartNew();
-    var results = await Task.WhenAll(tasks);
-    await _scheduler.StopAsync();
-    stopwatch.Stop();
-
-    // Assert
-    Assert.That(results.Length, Is.EqualTo(requestCount));
-    Assert.That(stopwatch.Elapsed.TotalSeconds, Is.LessThan(60));
-}
-```
-
-### Test 17: Memory Stress
-```csharp
-[Test]
-public async Task MemoryStress_HandlesLargeRequests()
-{
-    // Arrange
-    var longPrompts = Enumerable.Range(0, 10)
-        .Select(i => new string('A', 10000))
-        .ToList();
-    var tasks = longPrompts.Select(p => _client.GenerateTextAsync(p, maxTokens: 10))
-                           .ToList();
-
-    // Act
-    _scheduler.Start();
-    var results = await Task.WhenAll(tasks);
-    await _scheduler.StopAsync();
-
-    // Assert
-    Assert.That(results.Count, Is.EqualTo(10));
-    // Verify no memory leaks
-}
-```
-
----
-
-## Test: Priority Scheduling
-
-### Test 18: Priority Ordering
-```csharp
-[Test]
-public async Task Priority_HighPriorityRequestsProcessFirst()
-{
-    // Arrange
-    var lowPriorityTask = _client.GenerateTextAsync("Low", priority: Priority.Low);
-    await Task.Delay(10); // Ensure queue order
-
-    var highPriorityTask = _client.GenerateTextAsync("High", priority: Priority.High);
-
-    // Act
-    _scheduler.Start();
-    var lowResult = await lowPriorityTask;
-    var highResult = await highPriorityTask;
-    await _scheduler.StopAsync();
-
-    // Assert
-    // High priority should complete first (or near first)
-    Assert.Pass();
-}
-```
-
----
-
-## Test: Prefill and Caching
-
-### Test 19: Prefill Caching
-```csharp
-[Test]
-public async Task PrefillCache_ImprovesPerformance()
-{
-    // Arrange
-    string sharedPrompt = "Shared prompt for caching";
-
-    // Act
-    _scheduler.Start();
-
-    var time1 = await TimeGenerationAsync(sharedPrompt);
-    var time2 = await TimeGenerationAsync(sharedPrompt);
-
-    await _scheduler.StopAsync();
-
-    // Assert
-    // Second generation should be faster due to cache
-    Assert.That(time2, Is.LessThan(time1));
-}
-
-private async Task<TimeSpan> TimeGenerationAsync(string prompt)
-{
-    var stopwatch = Stopwatch.StartNew();
-    await _client.GenerateTextAsync(prompt);
-    stopwatch.Stop();
-    return stopwatch.Elapsed;
-}
-```
-
----
-
-## Mock Implementations
-
-### Mock Model Executor
-```csharp
-private class MockModelExecutor : IModelExecutor, IDisposable
-{
-    private readonly Random _random = new(42);
-    private bool _disposed;
-
-    public async Task<BatchOutput> ExecuteBatchAsync(
-        Batch batch,
-        CancellationToken cancellationToken = default)
-    {
-        await Task.Delay(10, cancellationToken); // Simulate compute time
-
-        var generatedTokens = new Dictionary<RequestId, int>();
-        var logits = new Dictionary<RequestId, float[]>();
-        var isEosReached = new bool[batch.Size];
-
-        int idx = 0;
-        foreach (var request in batch.Requests)
+        public SimpleModel()
         {
-            // Generate token (mock)
-            int tokenId = _random.Next(0, 1000);
+            // Initialize a simple linear layer
+            // Assume Parameter class exists
+            var weight = new Parameter(new float[10, 5]);
+            var bias = new Parameter(new float[5]);
+            RegisterParameters(weight, bias);
+        }
+    }
 
-            // Occasionally generate EOS
-            if (_random.Next(0, 10) == 0)
+    #region Optimizer Integration Tests
+
+    [Fact]
+    public void Optimizer_WithScheduler_UpdatesLearningRateCorrectly()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var scheduler = new StepDecayScheduler(stepSize: 3, gamma: 0.1f);
+
+        optimizer.SetScheduler(scheduler);
+
+        // Step 0: LR = 0.1
+        optimizer.Step();
+        Assert.Equal(0.1f, optimizer.LearningRate);
+
+        // Step 1: LR = 0.1
+        optimizer.Step();
+        Assert.Equal(0.1f, optimizer.LearningRate);
+
+        // Step 3: LR = 0.1 * 0.1 = 0.01
+        optimizer.Step();
+        Assert.Equal(0.01f, optimizer.LearningRate);
+    }
+
+    [Fact]
+    public void Optimizer_WithoutScheduler_UsesBaseLearningRate()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+
+        // No scheduler set
+        optimizer.Step();
+        optimizer.Step();
+        optimizer.Step();
+
+        Assert.Equal(0.1f, optimizer.LearningRate);
+    }
+
+    [Fact]
+    public void Optimizer_SchedulerReplacement_UpdatesCorrectly()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+
+        var scheduler1 = new ConstantLR(0.05f);
+        optimizer.SetScheduler(scheduler1);
+
+        optimizer.Step();
+        Assert.Equal(0.05f, optimizer.LearningRate);
+
+        // Replace scheduler
+        var scheduler2 = new ConstantLR(0.001f);
+        optimizer.SetScheduler(scheduler2);
+
+        optimizer.Step();
+        Assert.Equal(0.001f, optimizer.LearningRate);
+    }
+
+    [Fact]
+    public void Optimizer_SchedulerState_SaveAndLoad_RestoresCorrectly()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var scheduler = new CosineAnnealingScheduler(tMax: 100f, etaMin: 0f);
+
+        optimizer.SetScheduler(scheduler);
+
+        // Train for some steps
+        for (int i = 0; i < 50; i++)
+        {
+            optimizer.Step();
+        }
+
+        // Save state
+        var optimizerState = optimizer.GetState();
+
+        // Create new optimizer with new scheduler
+        var newOptimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var newScheduler = new CosineAnnealingScheduler(tMax: 100f, etaMin: 0f);
+        newOptimizer.SetScheduler(newScheduler);
+
+        // Load state
+        newOptimizer.LoadState(optimizerState);
+
+        // Verify scheduler state is restored
+        Assert.Equal(50, newScheduler.StepCount);
+    }
+
+    #endregion
+
+    #region Full Training Loop Tests
+
+    [Fact]
+    public void FullTrainingLoop_WithCosineScheduler_CompletesSuccessfully()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var scheduler = new CosineAnnealingScheduler(tMax: 100f, etaMin: 0f);
+
+        optimizer.SetScheduler(scheduler);
+
+        // Simulate training for 1 epoch with 10 batches
+        for (int batch = 0; batch < 10; batch++)
+        {
+            // Simulate forward/backward
+            // (In real test, would compute actual gradients)
+
+            optimizer.Step();
+            optimizer.ZeroGrad();
+        }
+
+        // Verify scheduler stepped 10 times
+        Assert.Equal(10, scheduler.StepCount);
+
+        // Verify LR changed according to cosine schedule
+        float lr = scheduler.GetLearningRate(10, 0.1f);
+        Assert.NotEqual(0.1f, lr);  // Should have decayed
+    }
+
+    [Fact]
+    public void FullTrainingLoop_WithWarmupScheduler_CompletesSuccessfully()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+
+        var baseScheduler = new CosineAnnealingScheduler(tMax: 9000f, etaMin: 0f);
+        var scheduler = new LinearWarmupScheduler(baseScheduler, 1000);
+
+        optimizer.SetScheduler(scheduler);
+
+        // Train through warmup
+        for (int step = 0; step < 1500; step++)
+        {
+            optimizer.Step();
+            optimizer.ZeroGrad();
+        }
+
+        // Verify LR schedule is correct
+        // After 1000 steps, should have started cosine decay
+        float lr = scheduler.GetLearningRate(1500, 0.1f);
+        Assert.True(lr > 0);  // Should still be positive
+        Assert.True(lr < 0.1f);  // Should have changed from initial
+    }
+
+    [Fact]
+    public void FullTrainingLoop_WithChainedScheduler_CompletesSuccessfully()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+
+        var s1 = new CosineAnnealingScheduler(tMax: 100f);
+        var s2 = new LinearWarmupScheduler(new ConstantLR(1.0f), 10);
+        var scheduler = new ChainedScheduler(s1, s2);
+
+        optimizer.SetScheduler(scheduler);
+
+        // Train
+        for (int step = 0; step < 50; step++)
+        {
+            optimizer.Step();
+            optimizer.ZeroGrad();
+        }
+
+        // Verify both schedulers stepped
+        Assert.Equal(50, s1.StepCount);
+        Assert.Equal(50, s2.StepCount);
+    }
+
+    #endregion
+
+    #region Callback Integration Tests
+
+    [Fact]
+    public void Callback_WithStepScheduler_StepsOnBatchEnd()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var scheduler = new StepDecayScheduler(stepSize: 3, gamma: 0.1f);
+        var callback = new LRSchedulerCallback(scheduler);
+
+        // Simulate batch callbacks
+        for (int batch = 0; batch < 10; batch++)
+        {
+            // Simulate forward/backward/step
+            optimizer.Step();
+
+            // Call callback
+            var metrics = new Dictionary<string, float> { { "loss", 0.5f } };
+            callback.OnBatchEnd(batch, metrics);
+        }
+
+        // Verify scheduler stepped 10 times
+        Assert.Equal(10, scheduler.StepCount);
+    }
+
+    [Fact]
+    public void Callback_WithEpochScheduler_StepsOnEpochEnd()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var scheduler = new MultiStepDecayScheduler(
+            milestones: new[] { 2, 4, 6 },
+            gamma: 0.1f
+        );
+        var callback = new LRSchedulerCallback(scheduler);
+
+        // Simulate epoch callbacks
+        for (int epoch = 0; epoch < 10; epoch++)
+        {
+            // Simulate epoch training
+            for (int batch = 0; batch < 5; batch++)
             {
-                tokenId = EOS_TOKEN_ID;
-                isEosReached[idx] = true;
+                optimizer.Step();
             }
 
-            generatedTokens[request.Id] = tokenId;
-            logits[request.Id] = new float[1000]; // Mock logits
-            idx++;
+            // Call epoch callback
+            var metrics = new Dictionary<string, float> { { "val_loss", 0.3f } };
+            callback.OnEpochEnd(epoch, metrics);
         }
 
-        return new BatchOutput(generatedTokens, logits, isEosReached);
+        // Verify epoch count matches
+        Assert.Equal(10, scheduler.EpochCount);
     }
 
-    public void Dispose()
+    [Fact]
+    public void Callback_WithMetricBasedScheduler_UpdatesMetric()
     {
-        _disposed = true;
-    }
-}
-```
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
 
-### Failing Model Executor
-```csharp
-private class FailingModelExecutor : IModelExecutor, IDisposable
-{
-    private readonly int _failCount;
-    private readonly IModelExecutor _innerExecutor;
-    private int _failCounter;
-    private bool _disposed;
+        var scheduler = new ReduceLROnPlateauScheduler(
+            mode: "min",
+            factor: 0.5f,
+            patience: 2
+        );
+        var callback = new LRSchedulerCallback(
+            scheduler,
+            stepOnEpoch: false,
+            metricName: "val_loss"
+        );
 
-    public FailingModelExecutor(int failCount, IModelExecutor innerExecutor)
-    {
-        _failCount = failCount;
-        _innerExecutor = innerExecutor;
-        _failCounter = 0;
-    }
+        // Simulate training with improving then stagnating loss
+        float[] losses = { 1.0f, 0.8f, 0.6f, 0.6f, 0.6f, 0.6f };
 
-    public async Task<BatchOutput> ExecuteBatchAsync(
-        Batch batch,
-        CancellationToken cancellationToken = default)
-    {
-        if (_failCounter < _failCount)
+        for (int i = 0; i < losses.Length; i++)
         {
-            _failCounter++;
-            throw new InvalidOperationException("Simulated model error");
+            optimizer.Step();
+
+            var metrics = new Dictionary<string, float> { { "val_loss", losses[i] } };
+            callback.OnEpochEnd(i, metrics);
         }
 
-        return await _innerExecutor.ExecuteBatchAsync(batch, cancellationToken);
+        // After 3 stagnant updates, LR should be reduced
+        float lr = scheduler.GetLearningRate(0, 0.1f);
+        Assert.Equal(0.05f, lr);  // 0.1 * 0.5
     }
 
-    public void Dispose()
+    #endregion
+
+    #region Composition Integration Tests
+
+    [Fact]
+    public void SequentialScheduler_InTraining_SwitchesCorrectly()
     {
-        _disposed = true;
-        _innerExecutor?.Dispose();
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+
+        var s1 = new ConstantLR(0.001f);
+        var s2 = new CosineAnnealingScheduler(tMax: 100f);
+        var scheduler = new SequentialScheduler(
+            (s1, 100),
+            (s2, 200)
+        );
+
+        optimizer.SetScheduler(scheduler);
+
+        // Train through first scheduler
+        for (int step = 0; step < 150; step++)
+        {
+            optimizer.Step();
+        }
+
+        // At step 150, should be using second scheduler
+        float lr = scheduler.GetLearningRate(150, 0.1f);
+        float expectedLR = s2.GetLearningRate(50, 0.1f);  // 150 - 100 = 50
+        Assert.Equal(expectedLR, lr);
+    }
+
+    #endregion
+
+    #region State Management Integration Tests
+
+    [Fact]
+    public void Checkpoint_SaveAndLoad_RestoresFullTrainingState()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var scheduler = new CosineAnnealingWarmRestartsScheduler(t0: 10f, tMult: 2f);
+
+        optimizer.SetScheduler(scheduler);
+
+        // Train for some steps
+        for (int step = 0; step < 25; step++)
+        {
+            optimizer.Step();
+            optimizer.ZeroGrad();
+        }
+
+        // Save checkpoint
+        var modelState = model.GetState();
+        var optimizerState = optimizer.GetState();
+
+        // Create new model, optimizer, scheduler
+        var newModel = new SimpleModel();
+        var newOptimizer = new SGD(newModel.Parameters(), learningRate: 0.1f);
+        var newScheduler = new CosineAnnealingWarmRestartsScheduler(t0: 10f, tMult: 2f);
+        newOptimizer.SetScheduler(newScheduler);
+
+        // Load checkpoint
+        newModel.LoadState(modelState);
+        newOptimizer.LoadState(optimizerState);
+
+        // Continue training
+        for (int step = 0; step < 10; step++)
+        {
+            newOptimizer.Step();
+            newOptimizer.ZeroGrad();
+        }
+
+        // Verify scheduler state continued correctly
+        Assert.Equal(35, newScheduler.StepCount);
+    }
+
+    #endregion
+
+    #region Edge Case Integration Tests
+
+    [Fact]
+    public void TrainingWithMultipleOptimizers_WithSchedulers_WorksCorrectly()
+    {
+        var model1 = new SimpleModel();
+        var model2 = new SimpleModel();
+
+        var optimizer1 = new SGD(model1.Parameters(), learningRate: 0.1f);
+        var optimizer2 = new Adam(model2.Parameters(), learningRate: 0.01f);
+
+        var scheduler1 = new CosineAnnealingScheduler(tMax: 100f);
+        var scheduler2 = new StepDecayScheduler(stepSize: 30, gamma: 0.1f);
+
+        optimizer1.SetScheduler(scheduler1);
+        optimizer2.SetScheduler(scheduler2);
+
+        // Train with both optimizers
+        for (int step = 0; step < 50; step++)
+        {
+            optimizer1.Step();
+            optimizer2.Step();
+        }
+
+        // Verify both schedulers stepped correctly
+        Assert.Equal(50, scheduler1.StepCount);
+        Assert.Equal(50, scheduler2.StepCount);
+
+        // Verify different LRs
+        float lr1 = scheduler1.GetLearningRate(50, 0.1f);
+        float lr2 = scheduler2.GetLearningRate(50, 0.01f);
+
+        Assert.NotEqual(lr1, lr2);
+    }
+
+    [Fact]
+    public void TrainingWithVeryLongSchedule_NoMemoryLeak()
+    {
+        var model = new SimpleModel();
+        var optimizer = new SGD(model.Parameters(), learningRate: 0.1f);
+        var scheduler = new CosineAnnealingScheduler(tMax: 1_000_000f);
+
+        optimizer.SetScheduler(scheduler);
+
+        // Train for many steps
+        for (int step = 0; step < 10_000; step++)
+        {
+            optimizer.Step();
+            optimizer.ZeroGrad();
+        }
+
+        // Verify scheduler still works
+        float lr = scheduler.GetLearningRate(10_000, 0.1f);
+        Assert.True(lr > 0 && lr <= 0.1f);
+    }
+
+    #endregion
+}
+```
+
+### 2. Performance Benchmarks
+
+**Purpose**: Measure overhead of scheduler integration and identify performance bottlenecks.
+
+**Benchmarks**:
+
+```csharp
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
+using MLFramework.Schedulers;
+using MLFramework.Optimizers;
+using MLFramework.Models;
+
+namespace MLFramework.Tests.Integration;
+
+[MemoryDiagnoser]
+public class SchedulerBenchmark
+{
+    private SimpleModel _model;
+    private SGD _optimizer;
+    private ILearningRateScheduler[] _schedulers;
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        _model = new SimpleModel();
+        _optimizer = new SGD(_model.Parameters(), learningRate: 0.1f);
+
+        _schedulers = new ILearningRateScheduler[]
+        {
+            new StepDecayScheduler(stepSize: 100, gamma: 0.1f),
+            new CosineAnnealingScheduler(tMax: 1000f),
+            new OneCycleScheduler(0.1f, 1000f),
+            new CyclicLRScheduler(1e-4f, 1e-2f, 200f),
+            new LinearWarmupScheduler(new CosineAnnealingScheduler(9000f), 1000),
+            new ChainedScheduler(
+                new CosineAnnealingScheduler(1000f),
+                new LinearWarmupScheduler(new ConstantLR(1.0f), 100)
+            )
+        };
+    }
+
+    [Benchmark(Baseline = true)]
+    public void OptimizerWithoutScheduler()
+    {
+        _optimizer.Step();
+        _optimizer.ZeroGrad();
+    }
+
+    [Benchmark]
+    public void OptimizerWithStepDecayScheduler()
+    {
+        _optimizer.SetScheduler(_schedulers[0]);
+        _optimizer.Step();
+        _optimizer.ZeroGrad();
+    }
+
+    [Benchmark]
+    public void OptimizerWithCosineScheduler()
+    {
+        _optimizer.SetScheduler(_schedulers[1]);
+        _optimizer.Step();
+        _optimizer.ZeroGrad();
+    }
+
+    [Benchmark]
+    public void OptimizerWithOneCycleScheduler()
+    {
+        _optimizer.SetScheduler(_schedulers[2]);
+        _optimizer.Step();
+        _optimizer.ZeroGrad();
+    }
+
+    [Benchmark]
+    public void OptimizerWithCyclicLRScheduler()
+    {
+        _optimizer.SetScheduler(_schedulers[3]);
+        _optimizer.Step();
+        _optimizer.ZeroGrad();
+    }
+
+    [Benchmark]
+    public void OptimizerWithWarmupScheduler()
+    {
+        _optimizer.SetScheduler(_schedulers[4]);
+        _optimizer.Step();
+        _optimizer.ZeroGrad();
+    }
+
+    [Benchmark]
+    public void OptimizerWithChainedScheduler()
+    {
+        _optimizer.SetScheduler(_schedulers[5]);
+        _optimizer.Step();
+        _optimizer.ZeroGrad();
+    }
+
+    [Benchmark]
+    public void GetLearningRate_StepDecay()
+    {
+        var scheduler = _schedulers[0];
+        for (int i = 0; i < 1000; i++)
+        {
+            scheduler.GetLearningRate(i, 0.1f);
+        }
+    }
+
+    [Benchmark]
+    public void GetLearningRate_CosineAnnealing()
+    {
+        var scheduler = _schedulers[1];
+        for (int i = 0; i < 1000; i++)
+        {
+            scheduler.GetLearningRate(i, 0.1f);
+        }
+    }
+
+    [Benchmark]
+    public void GetLearningRate_OneCycle()
+    {
+        var scheduler = _schedulers[2];
+        for (int i = 0; i < 1000; i++)
+        {
+            scheduler.GetLearningRate(i, 0.1f);
+        }
+    }
+
+    [Benchmark]
+    public void SaveAndLoadState_CosineScheduler()
+    {
+        var scheduler = _schedulers[1];
+        for (int i = 0; i < 100; i++)
+        {
+            scheduler.Step();
+        }
+
+        var state = scheduler.GetState();
+        var newScheduler = new CosineAnnealingScheduler(1000f);
+        newScheduler.LoadState(state);
+    }
+
+    [Benchmark]
+    public void SaveAndLoadState_ComplexScheduler()
+    {
+        var scheduler = _schedulers[5];  // ChainedScheduler
+        for (int i = 0; i < 100; i++)
+        {
+            scheduler.Step();
+        }
+
+        var state = scheduler.GetState();
+        var innerScheduler = new CosineAnnealingScheduler(1000f);
+        var warmup = new LinearWarmupScheduler(new ConstantLR(1.0f), 100);
+        var newScheduler = new ChainedScheduler(innerScheduler, warmup);
+        newScheduler.LoadState(state);
+    }
+}
+
+// Benchmark runner (optional)
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var summary = BenchmarkRunner.Run<SchedulerBenchmark>();
     }
 }
 ```
 
----
+## Testing Requirements
 
-## Success Criteria
+### Integration Test Coverage
 
-### Functional
-- [ ] All requests complete successfully
-- [ ] Completion detection works correctly
-- [ ] Batch composition is dynamic
-- [ ] Capacity limits are respected
-- [ ] Priority ordering works
-- [ ] Cancellation works
+1. **Optimizer Integration**:
+   - Scheduler set/get operations
+   - Learning rate updates during training
+   - Scheduler replacement
+   - State save/load with scheduler
 
-### Performance
-- [ ] Throughput targets met
-- [ ] Latency distributions reasonable
-- [ ] Batch utilization > 70%
-- [ ] Handles 1000+ concurrent requests
-- [ ] Prefill caching improves performance
+2. **Full Training Loop**:
+   - Train with various schedulers
+   - Verify LR schedules over time
+   - Test with warmup + decay combinations
+   - Test with chained schedulers
 
-### Reliability
-- [ ] Error recovery works
-- [ ] No memory leaks
-- [ ] No deadlocks
-- [ ] Clean shutdown
+3. **Callback Integration**:
+   - Step-based scheduler stepping on batch end
+   - Epoch-based scheduler stepping on epoch end
+   - Metric-based scheduler updating metrics
 
-### Test Quality
-- [ ] Tests are independent
-- [ ] Tests run in reasonable time
-- [ ] Clear failure messages
-- [ ] Comprehensive coverage
+4. **Composition Integration**:
+   - Sequential scheduler switching
+   - Chained scheduler behavior
+   - Complex compositions
+
+5. **State Management**:
+   - Checkpoint save/load
+   - Resume training from checkpoint
+   - Verify scheduler continuity
+
+### Benchmark Requirements
+
+1. **Baseline**:
+   - Measure optimizer step without scheduler
+   - Measure GetLearningRate calls
+
+2. **Overhead Measurement**:
+   - Compare each scheduler vs baseline
+   - Report time overhead in percentage
+   - Measure memory allocations
+
+3. **Performance Goals**:
+   - Scheduler overhead < 5% of optimizer step time
+   - No memory allocations in hot path
+   - GetLearningRate call < 1 microsecond
+
+### Test Data
+
+- Use simple synthetic models
+- Small parameter counts for fast tests
+- Use random data for training simulations
+- Avoid dependencies on actual datasets
+
+## Estimated Implementation Time
+75-90 minutes
