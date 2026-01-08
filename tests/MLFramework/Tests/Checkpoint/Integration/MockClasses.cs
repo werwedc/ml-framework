@@ -98,6 +98,24 @@ public class MockDistributedCoordinator : IDistributedCoordinator
     {
         return Task.CompletedTask;
     }
+
+    public Task<T> BroadcastAsync<T>(T data, CancellationToken cancellationToken = default) where T : class
+    {
+        // For testing, just return the data as-is
+        return Task.FromResult(data);
+    }
+
+    public Task<T> AllReduceAsync<T>(T data, Func<T, T, T> reducer, CancellationToken cancellationToken = default) where T : class
+    {
+        // For testing, just return the data as-is (single-rank simulation)
+        return Task.FromResult(data);
+    }
+
+    public Task<IList<T>?> GatherAsync<T>(T data, CancellationToken cancellationToken = default) where T : class
+    {
+        // For testing, return a list with just the current rank's data
+        return Task.FromResult<IList<T>?>(new List<T> { data });
+    }
 }
 
 /// <summary>
