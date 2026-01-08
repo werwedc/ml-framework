@@ -6,25 +6,34 @@ namespace MachineLearning.Checkpointing;
 public class ValidationResult
 {
     /// <summary>
-    /// Whether the validation passed
-    /// </summary>
-    public bool IsValid { get; set; }
-
-    /// <summary>
     /// List of validation errors
     /// </summary>
-    public List<string> Errors { get; set; } = new List<string>();
+    public List<string> Errors { get; } = new List<string>();
 
     /// <summary>
-    /// Create a successful validation result
+    /// List of validation warnings
     /// </summary>
-    public static ValidationResult Success() => new ValidationResult { IsValid = true };
+    public List<string> Warnings { get; } = new List<string>();
 
     /// <summary>
-    /// Create a failed validation result with errors
+    /// Whether the validation passed
     /// </summary>
-    public static ValidationResult Failure(params string[] errors) =>
-        new ValidationResult { IsValid = false, Errors = errors.ToList() };
+    public bool IsValid => Errors.Count == 0;
+
+    /// <summary>
+    /// Whether there are any warnings
+    /// </summary>
+    public bool HasWarnings => Warnings.Count > 0;
+
+    /// <summary>
+    /// Add an error to the validation result
+    /// </summary>
+    public void AddError(string error) => Errors.Add(error);
+
+    /// <summary>
+    /// Add a warning to the validation result
+    /// </summary>
+    public void AddWarning(string warning) => Warnings.Add(warning);
 }
 
 /// <summary>
@@ -37,66 +46,71 @@ public static class MetadataValidator
     /// </summary>
     public static ValidationResult Validate(CheckpointMetadata metadata)
     {
-        if (metadata == null)
-            return ValidationResult.Failure("Metadata cannot be null");
+        var result = new ValidationResult();
 
-        var errors = new List<string>();
+        if (metadata == null)
+        {
+            result.AddError("Metadata cannot be null");
+            return result;
+        }
 
         // Validate version
         if (string.IsNullOrWhiteSpace(metadata.Version))
-            errors.Add("Version is required");
-
-        // Validate timestamp
-        if (metadata.Timestamp == default)
-            errors.Add("Timestamp is required");
-
-        // Validate world size
-        if (metadata.WorldSize <= 0)
-            errors.Add("World size must be positive");
-
-        // Validate DDP rank
-        if (metadata.DdpRank < 0 || metadata.DdpRank >= metadata.WorldSize)
-            errors.Add($"DDP rank must be between 0 and {metadata.WorldSize - 1}");
-
-        // Validate sharding
-        if (metadata.Sharding != null)
         {
-            if (string.IsNullOrWhiteSpace(metadata.Sharding.Strategy))
-                errors.Add("Sharding strategy is required");
+            result.AddError("Version is required");
+        }
 
-            if (metadata.Sharding.ShardCount <= 0)
-                errors.Add("Shard count must be positive");
-
-            if (string.IsNullOrWhiteSpace(metadata.Sharding.Precision))
-                errors.Add("Precision is required");
+        // Validate sharding info
+        if (metadata.Sharding == null)
+        {
+            result.AddError("Sharding metadata is required");
         }
 
         // Validate shards
-        if (metadata.Shards != null && metadata.Shards.Count > 0)
+        if (metadata.Shards == null || metadata.Shards.Count == 0)
         {
-            var shardRanks = new HashSet<int>();
-            foreach (var shard in metadata.Shards)
+            result.AddError("At least one shard is required");
+        }
+        else if (metadata.Sharding != null && metadata.Shards.Count != metadata.Sharding.ShardCount)
+        {
+            result.AddError($"Shard count mismatch: expected {metadata.Sharding.ShardCount}, found {metadata.Shards.Count}");
+        }
+        else
+        {
+            // Check for duplicate ranks
+            var ranks = metadata.Shards.Select(s => s.Rank).ToList();
+            var duplicateRanks = ranks.GroupBy(r => r).Where(g => g.Count() > 1).Select(g => g.Key);
+            foreach (var rank in duplicateRanks)
             {
-                if (shard.Rank < 0 || shard.Rank >= metadata.WorldSize)
-                    errors.Add($"Shard rank {shard.Rank} is out of range [0, {metadata.WorldSize - 1}]");
-
-                if (shardRanks.Contains(shard.Rank))
-                    errors.Add($"Duplicate shard rank {shard.Rank}");
-
-                shardRanks.Add(shard.Rank);
-
-                if (string.IsNullOrWhiteSpace(shard.FilePath))
-                    errors.Add($"Shard {shard.Rank} must have a file path");
-
-                if (shard.FileSize < 0)
-                    errors.Add($"Shard {shard.Rank} has invalid file size");
+                result.AddError($"Duplicate rank found: {rank}");
             }
-
-            // Validate shard count matches
-            if (metadata.Sharding != null && metadata.Shards.Count != metadata.Sharding.ShardCount)
-                errors.Add($"Shard count mismatch: metadata specifies {metadata.Sharding.ShardCount} but {metadata.Shards.Count} shards found");
         }
 
-        return errors.Count == 0 ? ValidationResult.Success() : ValidationResult.Failure(errors.ToArray());
+        // Checksum integrity check (optional - can be deferred)
+        if (metadata.Shards != null)
+        {
+            foreach (var shard in metadata.Shards)
+            {
+                if (string.IsNullOrEmpty(shard.Checksum))
+                {
+                    result.AddWarning($"Shard {shard.Rank} missing checksum");
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Validate checkpoint metadata and throw if invalid
+    /// </summary>
+    public static void ValidateOrThrow(CheckpointMetadata metadata)
+    {
+        var result = Validate(metadata);
+        if (!result.IsValid)
+        {
+            throw new InvalidOperationException(
+                $"Checkpoint metadata validation failed:\n{string.Join("\n", result.Errors)}");
+        }
     }
 }

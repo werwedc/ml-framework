@@ -8,20 +8,20 @@ public class CheckpointMetadata
     /// <summary>
     /// Checkpoint version
     /// </summary>
-    public string? Version { get; set; }
+    public string Version { get; set; } = "1.0.0";
 
     /// <summary>
     /// Timestamp when the checkpoint was created
     /// </summary>
-    public DateTime Timestamp { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// Total number of processes in the distributed group
+    /// Number of GPUs that saved the checkpoint
     /// </summary>
     public int WorldSize { get; set; }
 
     /// <summary>
-    /// Rank of the process that created this checkpoint
+    /// Rank that created this metadata
     /// </summary>
     public int DdpRank { get; set; }
 
@@ -34,6 +34,47 @@ public class CheckpointMetadata
     /// List of shard metadata
     /// </summary>
     public List<ShardMetadata>? Shards { get; set; }
+
+    /// <summary>
+    /// Training metadata
+    /// </summary>
+    public TrainingMetadata? Training { get; set; }
+
+    /// <summary>
+    /// Custom metadata fields
+    /// </summary>
+    public Dictionary<string, string>? CustomFields { get; set; }
+}
+
+/// <summary>
+/// Training state metadata
+/// </summary>
+public class TrainingMetadata
+{
+    /// <summary>
+    /// Current epoch
+    /// </summary>
+    public int Epoch { get; set; }
+
+    /// <summary>
+    /// Current training step
+    /// </summary>
+    public long Step { get; set; }
+
+    /// <summary>
+    /// Learning rate
+    /// </summary>
+    public float LearningRate { get; set; }
+
+    /// <summary>
+    /// Optimizer type
+    /// </summary>
+    public string? OptimizerType { get; set; }
+
+    /// <summary>
+    /// Optimizer state
+    /// </summary>
+    public Dictionary<string, object>? OptimizerState { get; set; }
 }
 
 /// <summary>
