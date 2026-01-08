@@ -6,12 +6,27 @@ namespace MLFramework.Serving.Deployment;
 public interface IModelHotswapper
 {
     /// <summary>
-    /// Hotswap from one model version to another
+    /// Swap from one version to another without dropping requests
     /// </summary>
-    Task HotswapAsync(string modelName, string fromVersion, string toVersion);
+    Task<SwapOperation> SwapVersionAsync(string modelName, string fromVersion, string toVersion);
 
     /// <summary>
-    /// Check if a hotswap is currently in progress
+    /// Get the status of a swap operation
     /// </summary>
-    bool IsHotswapInProgress(string modelName);
+    SwapOperation GetSwapStatus(string operationId);
+
+    /// <summary>
+    /// Wait for the current version to drain (complete in-flight requests)
+    /// </summary>
+    void WaitForDrainage(string modelName, string version, TimeSpan timeout);
+
+    /// <summary>
+    /// Check if a version is currently active
+    /// </summary>
+    bool IsVersionActive(string modelName, string version);
+
+    /// <summary>
+    /// Rollback to the previous version
+    /// </summary>
+    Task RollbackAsync(string operationId);
 }

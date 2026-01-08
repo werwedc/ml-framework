@@ -145,23 +145,12 @@ public class RollbackManager : IRollbackManager
 
         try
         {
-            // Check if a hotswap is already in progress
-            if (_modelHotswapper.IsHotswapInProgress(currentDeployment.ModelName))
-            {
-                return new RollbackResult(
-                    false,
-                    previousDeployment.DeploymentId,
-                    deploymentId,
-                    DateTime.UtcNow,
-                    $"Hotswap already in progress for model {currentDeployment.ModelName}");
-            }
-
             _logger?.LogInformation(
                 "Starting rollback for deployment {DeploymentId} to previous deployment {PreviousDeploymentId}: {Reason}",
                 deploymentId, previousDeployment.DeploymentId, reason);
 
             // 1. Load previous version (using hotswap logic)
-            await _modelHotswapper.HotswapAsync(
+            var swapOperation = await _modelHotswapper.SwapVersionAsync(
                 currentDeployment.ModelName,
                 currentDeployment.ToVersion,
                 previousDeployment.ToVersion);
