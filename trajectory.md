@@ -214,7 +214,9 @@ Consistency and Guardrails: The API must provide consistent naming conventions a
 
 8.2 Debugging and Visualization Tools
 
-    Visualizers: Integrated tools (like TensorBoard or Visdom) are mandatory. They must support visualizing the computational graph, plotting training metrics (loss/accuracy curves) in real-time, displaying histograms of weight distributions (to catch vanishing gradients), and projecting high-dimensional embeddings.   
+    Visualizers: Integrated tools (like TensorBoard or Visdom) are mandatory. They must support visualizing the computational graph, plotting training metrics (loss/accuracy curves) in real-time, displaying histograms of weight distributions (to catch vanishing gradients), and projecting high-dimensional embeddings.
+
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/visualizer_profiler_integration.md]
 
 Profiler Integration: To debug performance, the framework must integrate with hardware profilers (e.g., Nsight Systems). It should emit "ranges" or "traces" that allow developers to see exactly how long each operation takes on the GPU and identify synchronization bottlenecks.  
 
