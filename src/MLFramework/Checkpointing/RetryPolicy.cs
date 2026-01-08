@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace MachineLearning.Checkpointing;
 
 /// <summary>
@@ -11,19 +13,24 @@ public class RetryPolicy
     public int MaxRetries { get; set; } = 3;
 
     /// <summary>
-    /// Delay between retry attempts
+    /// Initial delay between retry attempts
     /// </summary>
-    public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(1);
+    public TimeSpan InitialDelay { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// Whether to use exponential backoff
+    /// Maximum delay between retry attempts
     /// </summary>
-    public bool UseExponentialBackoff { get; set; } = false;
+    public TimeSpan MaxDelay { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Maximum backoff delay (when using exponential backoff)
+    /// Backoff multiplier for exponential backoff
     /// </summary>
-    public TimeSpan MaxBackoffDelay { get; set; } = TimeSpan.FromSeconds(30);
+    public double BackoffFactor { get; set; } = 2.0;
+
+    /// <summary>
+    /// List of exception types that should trigger a retry
+    /// </summary>
+    public List<Type> RetryableExceptions { get; set; } = new();
 
     /// <summary>
     /// Create a new retry policy
@@ -33,9 +40,19 @@ public class RetryPolicy
     /// <summary>
     /// Create a new retry policy with specified parameters
     /// </summary>
-    public RetryPolicy(int maxRetries, TimeSpan retryDelay)
+    public RetryPolicy(int maxRetries, TimeSpan initialDelay, TimeSpan maxDelay, double backoffFactor)
     {
         MaxRetries = maxRetries;
-        RetryDelay = retryDelay;
+        InitialDelay = initialDelay;
+        MaxDelay = maxDelay;
+        BackoffFactor = backoffFactor;
+    }
+
+    /// <summary>
+    /// Check if an exception is retryable based on the policy
+    /// </summary>
+    public bool IsRetryable(Exception ex)
+    {
+        return RetryableExceptions.Any(type => type.IsInstanceOfType(ex));
     }
 }

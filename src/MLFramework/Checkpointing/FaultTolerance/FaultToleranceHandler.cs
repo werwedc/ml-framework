@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace MachineLearning.Checkpointing;
 
 /// <summary>
@@ -5,26 +7,26 @@ namespace MachineLearning.Checkpointing;
 /// </summary>
 public class FaultToleranceHandler : IFaultToleranceHandler
 {
-    private readonly ICheckpointStorage? _storage;
-    private readonly int _maxRetries;
-    private readonly TimeSpan _retryDelay;
+    private readonly ICheckpointStorage _storage;
+    private readonly RetryPolicy _retryPolicy;
+    private readonly ILogger<FaultToleranceHandler>? _logger;
 
     /// <summary>
     /// Create a new FaultToleranceHandler with storage
     /// </summary>
-    public FaultToleranceHandler(ICheckpointStorage storage)
-        : this(storage, maxRetries: 3, retryDelay: TimeSpan.FromSeconds(1))
+    public FaultToleranceHandler(ICheckpointStorage storage, RetryPolicy? retryPolicy = null, ILogger<FaultToleranceHandler>? logger = null)
     {
-    }
+        _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+        _retryPolicy = retryPolicy ?? new RetryPolicy();
+        _logger = logger;
 
-    /// <summary>
-    /// Create a new FaultToleranceHandler with custom settings
-    /// </summary>
-    public FaultToleranceHandler(ICheckpointStorage? storage, int maxRetries, TimeSpan retryDelay)
-    {
-        _storage = storage;
-        _maxRetries = maxRetries;
-        _retryDelay = retryDelay;
+        // Default retryable exceptions
+        if (_retryPolicy.RetryableExceptions.Count == 0)
+        {
+            _retryPolicy.RetryableExceptions.Add(typeof(IOException));
+            _retryPolicy.RetryableExceptions.Add(typeof(TimeoutException));
+            _retryPolicy.RetryableExceptions.Add(typeof(TaskCanceledException));
+        }
     }
 
     /// <summary>
@@ -35,22 +37,29 @@ public class FaultToleranceHandler : IFaultToleranceHandler
         if (operation == null)
             throw new ArgumentNullException(nameof(operation));
 
-        Exception? lastException = null;
+        int attempt = 0;
+        TimeSpan delay = _retryPolicy.InitialDelay;
 
-        for (int attempt = 0; attempt <= _maxRetries; attempt++)
+        while (true)
         {
+            attempt++;
             try
             {
                 return await operation();
             }
-            catch (Exception ex) when (IsRetryableException(ex) && attempt < _maxRetries)
+            catch (Exception ex) when (attempt < _retryPolicy.MaxRetries && _retryPolicy.IsRetryable(ex))
             {
-                lastException = ex;
-                await Task.Delay(_retryDelay, cancellationToken);
+                _logger?.LogWarning(
+                    ex,
+                    "Operation failed (attempt {Attempt}/{MaxRetries}), retrying in {Delay}s...",
+                    attempt,
+                    _retryPolicy.MaxRetries,
+                    delay.TotalSeconds);
+
+                await Task.Delay(delay, cancellationToken);
+                delay = CalculateBackoff(delay);
             }
         }
-
-        throw lastException ?? new InvalidOperationException("Operation failed");
     }
 
     /// <summary>
@@ -61,23 +70,30 @@ public class FaultToleranceHandler : IFaultToleranceHandler
         if (operation == null)
             throw new ArgumentNullException(nameof(operation));
 
-        Exception? lastException = null;
+        int attempt = 0;
+        TimeSpan delay = _retryPolicy.InitialDelay;
 
-        for (int attempt = 0; attempt <= _maxRetries; attempt++)
+        while (true)
         {
+            attempt++;
             try
             {
                 await operation();
                 return;
             }
-            catch (Exception ex) when (IsRetryableException(ex) && attempt < _maxRetries)
+            catch (Exception ex) when (attempt < _retryPolicy.MaxRetries && _retryPolicy.IsRetryable(ex))
             {
-                lastException = ex;
-                await Task.Delay(_retryDelay, cancellationToken);
+                _logger?.LogWarning(
+                    ex,
+                    "Operation failed (attempt {Attempt}/{MaxRetries}), retrying in {Delay}s...",
+                    attempt,
+                    _retryPolicy.MaxRetries,
+                    delay.TotalSeconds);
+
+                await Task.Delay(delay, cancellationToken);
+                delay = CalculateBackoff(delay);
             }
         }
-
-        throw lastException ?? new InvalidOperationException("Operation failed");
     }
 
     /// <summary>
@@ -97,18 +113,8 @@ public class FaultToleranceHandler : IFaultToleranceHandler
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new TimeoutException($"Operation timed out after {timeout.TotalSeconds} seconds", ex);
+            throw new TimeoutException($"Operation timed out after {timeout}", ex);
         }
-    }
-
-    /// <summary>
-    /// Determine if an exception is retryable
-    /// </summary>
-    private bool IsRetryableException(Exception ex)
-    {
-        return ex is IOException
-            || ex is TimeoutException
-            || ex is System.Net.Http.HttpRequestException;
     }
 
     /// <summary>
@@ -116,18 +122,97 @@ public class FaultToleranceHandler : IFaultToleranceHandler
     /// </summary>
     public async Task RollbackAsync(string checkpointPath, CancellationToken cancellationToken = default)
     {
-        if (_storage != null && !string.IsNullOrWhiteSpace(checkpointPath))
+        _logger?.LogInformation("Rolling back checkpoint: {CheckpointPath}", checkpointPath);
+
+        // Check if it's a multi-shard checkpoint
+        if (checkpointPath.EndsWith(".metadata.json"))
         {
-            try
+            await RollbackMultiShardAsync(checkpointPath, cancellationToken);
+        }
+        else
+        {
+            await RollbackSingleFileAsync(checkpointPath, cancellationToken);
+        }
+
+        _logger?.LogInformation("Rollback completed: {CheckpointPath}", checkpointPath);
+    }
+
+    private async Task RollbackMultiShardAsync(string checkpointPath, CancellationToken cancellationToken)
+    {
+        var prefix = checkpointPath.Replace(".metadata.json", "");
+
+        // Delete metadata file
+        try
+        {
+            await _storage.DeleteAsync(checkpointPath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to delete metadata file during rollback: {Path}", checkpointPath);
+        }
+
+        // Delete all shard files
+        try
+        {
+            var shardFiles = await FindShardFilesAsync(prefix, cancellationToken);
+
+            foreach (var shardFile in shardFiles)
             {
-                // Delete checkpoint files
-                await _storage.DeleteAsync(checkpointPath, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                // Log but don't throw - rollback is best-effort
-                System.Diagnostics.Debug.WriteLine($"Failed to rollback checkpoint {checkpointPath}: {ex.Message}");
+                try
+                {
+                    await _storage.DeleteAsync(shardFile, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to delete shard file during rollback: {Path}", shardFile);
+                }
             }
         }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error during shard file cleanup: {Message}", ex.Message);
+        }
+    }
+
+    private async Task RollbackSingleFileAsync(string checkpointPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _storage.DeleteAsync(checkpointPath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to delete checkpoint file during rollback: {Path}", checkpointPath);
+        }
+    }
+
+    private async Task<List<string>> FindShardFilesAsync(string prefix, CancellationToken cancellationToken)
+    {
+        var shards = new List<string>();
+
+        // Try ranks 0 to 100 (reasonable upper limit)
+        for (int rank = 0; rank < 100; rank++)
+        {
+            var shardPath = $"{prefix}_shard_{rank}.shard";
+            if (await _storage.ExistsAsync(shardPath, cancellationToken))
+            {
+                shards.Add(shardPath);
+            }
+            else if (rank > 10 && shards.Count == 0)
+            {
+                // If we haven't found any shards after rank 10, stop searching
+                break;
+            }
+        }
+
+        return shards;
+    }
+
+    private TimeSpan CalculateBackoff(TimeSpan currentDelay)
+    {
+        var newDelay = TimeSpan.FromSeconds(
+            currentDelay.TotalSeconds * _retryPolicy.BackoffFactor);
+        return TimeSpan.FromSeconds(
+            Math.Min(newDelay.TotalSeconds, _retryPolicy.MaxDelay.TotalSeconds));
     }
 }

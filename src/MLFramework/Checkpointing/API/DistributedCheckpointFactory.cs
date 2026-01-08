@@ -20,11 +20,10 @@ public static class DistributedCheckpointFactory
         // Create storage
         var storage = StorageFactory.Create(options.Storage);
 
-        // Create fault handler
+        // Create fault handler with RetryPolicy
         var faultHandler = new FaultToleranceHandler(
             storage,
-            options.RetryPolicy.MaxRetries,
-            options.RetryPolicy.RetryDelay);
+            options.RetryPolicy);
 
         // Create validator
         var validator = new CheckpointValidator(
