@@ -22,60 +22,67 @@ public class CheckpointCoordinator
     }
 
     /// <summary>
-    /// Coordinate a save operation across all ranks
+    /// Coordinate save operation across all ranks
     /// </summary>
-    public async Task<CheckpointMetadata> CoordinateSaveAsync(
+    public async Task<CheckpointMetadata?> CoordinateSaveAsync(
         string checkpointPrefix,
-        Func<Task<ShardData>> saveShardAsync,
+        Func<Task<ShardData>> localSaveFunc,
         CancellationToken cancellationToken = default)
     {
-        // Phase 1: Each rank saves its shard
-        var shardData = await saveShardAsync();
-
-        // Save shard data to storage
-        var shardPath = $"{checkpointPrefix}/shard_{_currentRank}.bin";
-        await _storage.WriteAsync(shardPath, shardData.Data, cancellationToken);
-
-        // Phase 2: Barrier to ensure all ranks have saved their shards
+        // Phase 1: Prepare - all ranks indicate readiness
         await _coordinator.BarrierAsync(cancellationToken);
 
-        // Phase 3: Rank 0 creates the metadata file
-        CheckpointMetadata? metadata = null;
-        if (_currentRank == 0)
+        // Phase 2: Write local shard
+        var localShard = await localSaveFunc();
+        var shardPath = $"{checkpointPrefix}_shard_{_coordinator.Rank}.bin";
+        await _storage.WriteAsync(shardPath, localShard.Data, cancellationToken);
+
+        // Phase 3: Collect shard metadata from all ranks
+        var shardMetadata = new ShardMetadata
         {
-            metadata = await CreateMetadataAsync(
-                checkpointPrefix,
-                shardData.TensorInfo,
+            Rank = _coordinator.Rank,
+            FilePath = shardPath,
+            FileSize = localShard.Data.Length,
+            Tensors = localShard.TensorInfo,
+            Checksum = ComputeChecksum(localShard.Data)
+        };
+
+        // Gather all shard metadata to rank 0
+        var allShards = await _coordinator.GatherAsync(shardMetadata, cancellationToken);
+
+        // Phase 4: Rank 0 writes metadata file
+        if (_coordinator.Rank == 0)
+        {
+            var metadata = CreateCheckpointMetadata(allShards!);
+            var metadataPath = $"{checkpointPrefix}.metadata.json";
+            await _storage.WriteAsync(
+                metadataPath,
+                System.Text.Encoding.UTF8.GetBytes(MetadataSerializer.Serialize(metadata)),
                 cancellationToken);
         }
 
-        // Phase 4: Barrier to ensure metadata is created
+        // Phase 5: Final barrier - ensure all ranks complete
         await _coordinator.BarrierAsync(cancellationToken);
 
-        // Phase 5: Non-rank 0 processes load the metadata
-        if (_currentRank != 0)
-        {
-            var metadataPath = $"{checkpointPrefix}/metadata.json";
-            var metadataBytes = await _storage.ReadAsync(metadataPath, cancellationToken);
-            var metadataJson = System.Text.Encoding.UTF8.GetString(metadataBytes);
-            metadata = MetadataSerializer.Deserialize(metadataJson);
-        }
-        else
-        {
-            // metadata is already created in phase 3
-            metadata = metadata ?? throw new InvalidOperationException("Metadata should not be null");
-        }
-
-        return metadata ?? throw new InvalidOperationException("Metadata should not be null");
+        return _coordinator.Rank == 0
+            ? await LoadMetadataAsync(checkpointPrefix, cancellationToken)
+            : null;
     }
 
     /// <summary>
-    /// Create checkpoint metadata
+    /// Compute checksum for data integrity validation
     /// </summary>
-    private async Task<CheckpointMetadata> CreateMetadataAsync(
-        string checkpointPrefix,
-        List<TensorMetadata> tensorInfo,
-        CancellationToken cancellationToken)
+    private string ComputeChecksum(byte[] data)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var hashBytes = sha256.ComputeHash(data);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Create checkpoint metadata from gathered shard information
+    /// </summary>
+    private CheckpointMetadata CreateCheckpointMetadata(IList<ShardMetadata> allShards)
     {
         var metadata = new CheckpointMetadata
         {
@@ -90,15 +97,21 @@ public class CheckpointCoordinator
                 ShardCount = _coordinator.WorldSize,
                 Precision = "fp32"
             },
-            TensorInfos = new List<TensorMetadata>()
+            Shards = allShards.ToList(),
+            TensorInfos = allShards.SelectMany(s => s.Tensors ?? new List<TensorMetadata>()).ToList()
         };
 
-        // Save metadata file
-        var metadataJson = MetadataSerializer.Serialize(metadata);
-        var metadataBytes = System.Text.Encoding.UTF8.GetBytes(metadataJson);
-        var metadataPath = $"{checkpointPrefix}/metadata.json";
-        await _storage.WriteAsync(metadataPath, metadataBytes, cancellationToken);
-
         return metadata;
+    }
+
+    /// <summary>
+    /// Load metadata from storage
+    /// </summary>
+    private async Task<CheckpointMetadata> LoadMetadataAsync(string checkpointPrefix, CancellationToken cancellationToken)
+    {
+        var metadataPath = $"{checkpointPrefix}.metadata.json";
+        var metadataBytes = await _storage.ReadAsync(metadataPath, cancellationToken);
+        var metadataJson = System.Text.Encoding.UTF8.GetString(metadataBytes);
+        return MetadataSerializer.Deserialize(metadataJson);
     }
 }

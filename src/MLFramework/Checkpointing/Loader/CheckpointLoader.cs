@@ -73,59 +73,100 @@ public class CheckpointLoader
     }
 
     /// <summary>
-    /// Coordinate a load operation across all ranks
+    /// Coordinate load operation across all ranks
     /// </summary>
     public async Task<CheckpointLoadResult> CoordinateLoadAsync(
         string checkpointPrefix,
         int targetWorldSize,
         CancellationToken cancellationToken = default)
     {
-        // Phase 1: Load metadata
-        var metadataPath = $"{checkpointPrefix}/metadata.json";
-        var metadataBytes = await _storage.ReadAsync(metadataPath, cancellationToken);
-        var metadataJson = System.Text.Encoding.UTF8.GetString(metadataBytes);
-        var metadata = MetadataSerializer.Deserialize(metadataJson);
-
-        // Phase 2: Determine if resharding is needed
-        var sourceWorldSize = metadata.WorldSize;
-        bool needsResharding = sourceWorldSize != targetWorldSize;
-
-        // Phase 3: Load appropriate shard(s)
-        var shards = new List<ShardData>();
-
-        if (needsResharding)
+        // Phase 1: Load metadata (rank 0 only, then broadcast)
+        CheckpointMetadata? metadata = null;
+        if (_coordinator.Rank == 0)
         {
-            // Load all shards for resharding
-            for (int i = 0; i < sourceWorldSize; i++)
-            {
-                var shardPath = $"{checkpointPrefix}/shard_{i}.bin";
-                var shardBytes = await _storage.ReadAsync(shardPath, cancellationToken);
-                shards.Add(new ShardData
-                {
-                    Rank = i,
-                    Data = shardBytes,
-                    TensorInfo = metadata.TensorInfos
-                });
-            }
+            metadata = await LoadMetadataAsync(checkpointPrefix, cancellationToken);
+            MetadataValidator.ValidateOrThrow(metadata);
         }
-        else
+
+        metadata = await _coordinator.BroadcastAsync(metadata!, cancellationToken);
+
+        // Phase 2: Validate cross-topology compatibility
+        await ValidateCrossTopologyAsync(metadata, targetWorldSize, cancellationToken);
+
+        // Phase 3: Determine which shard to load for each rank
+        var shardAssignments = ComputeShardAssignments(metadata, targetWorldSize);
+        var myAssignment = shardAssignments[_coordinator.Rank];
+
+        // Phase 4: Load assigned shards
+        var loadedShards = new List<ShardData>();
+        foreach (var shardRank in myAssignment)
         {
-            // Load only the current rank's shard
-            var shardPath = $"{checkpointPrefix}/shard_{_currentRank}.bin";
-            var shardBytes = await _storage.ReadAsync(shardPath, cancellationToken);
-            shards.Add(new ShardData
-            {
-                Rank = _currentRank,
-                Data = shardBytes,
-                TensorInfo = metadata.TensorInfos
-            });
+            var shardPath = $"{checkpointPrefix}_shard_{shardRank}.bin";
+            var data = await _storage.ReadAsync(shardPath, cancellationToken);
+            loadedShards.Add(new ShardData { Data = data });
         }
 
         return new CheckpointLoadResult
         {
             Metadata = metadata,
-            Shards = shards,
+            Shards = loadedShards,
             Success = true
         };
+    }
+
+    /// <summary>
+    /// Compute shard assignments for cross-topology loading
+    /// </summary>
+    private List<int>[] ComputeShardAssignments(CheckpointMetadata metadata, int targetWorldSize)
+    {
+        // Simple round-robin assignment
+        var sourceShardCount = metadata.Sharding?.ShardCount ?? metadata.WorldSize;
+        var assignments = new List<int>[targetWorldSize];
+
+        for (int i = 0; i < sourceShardCount; i++)
+        {
+            var targetRank = i % targetWorldSize;
+            assignments[targetRank] ??= new List<int>();
+            assignments[targetRank].Add(i);
+        }
+
+        return assignments!;
+    }
+
+    /// <summary>
+    /// Validate cross-topology compatibility
+    /// </summary>
+    private async Task ValidateCrossTopologyAsync(CheckpointMetadata metadata, int targetWorldSize, CancellationToken cancellationToken)
+    {
+        var sourceWorldSize = metadata.WorldSize;
+
+        // Validate that the checkpoint can be loaded with the target world size
+        if (targetWorldSize <= 0)
+        {
+            throw new InvalidOperationException($"Target world size must be positive, got {targetWorldSize}");
+        }
+
+        if (sourceWorldSize <= 0)
+        {
+            throw new InvalidOperationException($"Source world size must be positive, got {sourceWorldSize}");
+        }
+
+        // Warn about resharding if world sizes don't match
+        if (sourceWorldSize != targetWorldSize)
+        {
+            // Log warning (in a real implementation, use proper logging)
+            // Console.WriteLine($"Warning: Resharding from {sourceWorldSize} to {targetWorldSize} ranks");
+        }
+    }
+
+    /// <summary>
+    /// Load metadata from storage
+    /// </summary>
+    private async Task<CheckpointMetadata> LoadMetadataAsync(string checkpointPrefix, CancellationToken cancellationToken)
+    {
+        var metadataPath = $"{checkpointPrefix}.metadata.json";
+        var metadataBytes = await _storage.ReadAsync(metadataPath, cancellationToken);
+        var metadataJson = System.Text.Encoding.UTF8.GetString(metadataBytes);
+        return MetadataSerializer.Deserialize(metadataJson);
     }
 }
