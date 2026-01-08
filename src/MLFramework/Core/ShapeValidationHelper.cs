@@ -16,7 +16,7 @@ public static class ShapeValidationHelper
     /// <param name="layerName">The name of the layer/module (optional).</param>
     /// <param name="inputShapes">The input shapes that caused the failure.</param>
     /// <returns>A ShapeMismatchException with detailed information.</returns>
-    public static ShapeMismatchException CreateException(
+    public static MLFramework.Shapes.ShapeMismatchException CreateException(
         ValidationResult result,
         OperationType operationType,
         string? layerName = null,
@@ -40,7 +40,7 @@ public static class ShapeValidationHelper
             var expectedShapes = inputShapes.Select(s => new SymbolicShape(s.ToList())).ToList();
             var actualShapes = inputShapes.Select(s => new SymbolicShape(s.ToList())).ToList();
 
-            return new ShapeMismatchException(
+            return new MLFramework.Shapes.ShapeMismatchException(
                 operationName,
                 expectedShapes,
                 actualShapes,
