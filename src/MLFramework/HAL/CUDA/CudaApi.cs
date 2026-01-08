@@ -177,6 +177,15 @@ public static class CudaApi
     [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
     public static extern CudaError CudaGraphExecDestroy(IntPtr graphExec);
 
+    /// <summary>
+    /// Get nodes from a graph
+    /// </summary>
+    [DllImport(CudaLibrary, CallingConvention = CallingConvention.Cdecl)]
+    public static extern CudaError CudaGraphGetNodes(
+        IntPtr graph,
+        out IntPtr nodes,
+        out ulong numNodes);
+
     #endregion
 }
 
