@@ -1,57 +1,43 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
-
 namespace MLFramework.ModelVersioning
 {
     /// <summary>
-    /// Metadata associated with a machine learning model
+    /// Metadata associated with a model version.
     /// </summary>
     public class ModelMetadata
     {
         /// <summary>
-        /// Timestamp when the model was created
+        /// Gets or sets the name of the model.
         /// </summary>
-        [JsonPropertyName("creationTimestamp")]
-        public DateTime CreationTimestamp { get; set; }
+        public string ModelName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Training parameters used to create the model
+        /// Gets or sets the description of the model.
         /// </summary>
-        [JsonPropertyName("trainingParameters")]
-        public Dictionary<string, object>? TrainingParameters { get; set; }
+        public string? Description { get; set; }
 
         /// <summary>
-        /// Performance metrics of the model
+        /// Gets or sets the model framework (e.g., PyTorch, TensorFlow).
         /// </summary>
-        [JsonPropertyName("performance")]
-        public PerformanceMetrics? Performance { get; set; }
+        public string Framework { get; set; } = string.Empty;
 
         /// <summary>
-        /// Version of the dataset used for training
+        /// Gets or sets the model architecture or type.
         /// </summary>
-        [JsonPropertyName("datasetVersion")]
-        public string? DatasetVersion { get; set; }
+        public string Architecture { get; set; } = string.Empty;
 
         /// <summary>
-        /// Hash of the model architecture
+        /// Gets or sets the model's input tensor shape.
         /// </summary>
-        [JsonPropertyName("architectureHash")]
-        public string? ArchitectureHash { get; set; }
+        public int[]? InputShape { get; set; }
 
         /// <summary>
-        /// Custom metadata key-value pairs
+        /// Gets or sets the model's output tensor shape.
         /// </summary>
-        [JsonPropertyName("customMetadata")]
+        public int[]? OutputShape { get; set; }
+
+        /// <summary>
+        /// Gets or sets any additional custom metadata.
+        /// </summary>
         public Dictionary<string, string>? CustomMetadata { get; set; }
-
-        /// <summary>
-        /// Creates a string representation of the metadata
-        /// </summary>
-        public override string ToString()
-        {
-            return $"ModelMetadata(Created: {CreationTimestamp}, Dataset: {DatasetVersion ?? "N/A"}, ArchitectureHash: {ArchitectureHash ?? "N/A"})";
-        }
     }
 }

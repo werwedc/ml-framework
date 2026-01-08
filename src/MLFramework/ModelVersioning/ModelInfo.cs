@@ -1,54 +1,48 @@
-using System.Text.Json.Serialization;
-
 namespace MLFramework.ModelVersioning
 {
     /// <summary>
-    /// Information about a registered model version
+    /// Represents information about a registered model version.
     /// </summary>
     public class ModelInfo
     {
         /// <summary>
-        /// Unique identifier for the model
+        /// Gets or sets the unique identifier for the model.
         /// </summary>
-        [JsonPropertyName("modelId")]
-        public string? ModelId { get; set; }
+        public string ModelId { get; set; } = string.Empty;
 
         /// <summary>
-        /// Human-readable name of the model
+        /// Gets or sets the version tag (e.g., v1.0.0).
         /// </summary>
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-
-        /// <summary>
-        /// Version tag (e.g., v1.2.3)
-        /// </summary>
-        [JsonPropertyName("versionTag")]
         public string? VersionTag { get; set; }
 
         /// <summary>
-        /// Model metadata
+        /// Gets or sets the file path to the model.
         /// </summary>
-        [JsonPropertyName("metadata")]
-        public ModelMetadata? Metadata { get; set; }
+        public string ModelPath { get; set; } = string.Empty;
 
         /// <summary>
-        /// Current lifecycle state
+        /// Gets or sets the metadata associated with the model.
         /// </summary>
-        [JsonPropertyName("state")]
-        public LifecycleState State { get; set; }
+        public ModelMetadata Metadata { get; set; } = new ModelMetadata();
 
         /// <summary>
-        /// Parent model ID (for fine-tuning lineage)
+        /// Gets or sets the current lifecycle state of the model.
         /// </summary>
-        [JsonPropertyName("parentModelId")]
+        public LifecycleState State { get; set; } = LifecycleState.Draft;
+
+        /// <summary>
+        /// Gets or sets the parent model ID for fine-tuned models.
+        /// </summary>
         public string? ParentModelId { get; set; }
 
         /// <summary>
-        /// Creates a string representation of the model info
+        /// Gets or sets the timestamp when the model was registered.
         /// </summary>
-        public override string ToString()
-        {
-            return $"ModelInfo(Id: {ModelId}, Name: {Name}, Version: {VersionTag ?? "N/A"}, State: {State})";
-        }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Gets or sets the timestamp when the model was last updated.
+        /// </summary>
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

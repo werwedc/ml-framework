@@ -1,16 +1,23 @@
-I'll generate one new feature idea file. Let me first check the existing structure and trajectory.md to see what's already planned.
+I'll help you generate ONE new feature idea in `0_ideas/`. Let me first check if there's a trajectory.md file to see what features might be planned.
 [96m[1m| [0m[90m Read     [0mtrajectory.md
-[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
-I'll create a new feature idea file for a visualization tool that's mentioned in trajectory.md but hasn't been implemented yet. This is from Section 8.2 on Debugging and Visualization Tools.
-[92m[1m| [0m[90m Write    [0m0_ideas\visualizer_profiler_integration.md
+
+[94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}I'll generate ONE new feature idea file. Looking at trajectory.md, I can see it mentions "Model Versioning and Hot-Swapping" for serving architecture, but it doesn't have an explicit file marker. I'll create a feature idea file for this critical serving capability.
+
+[92m[1m| [0m[90m Write    [0m0_ideas\model_versioning_hotswapping.md[96m[1m| [0m[90m Read     [0mtrajectory.md
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-I've successfully created the feature idea file `0_ideas/visualizer_profiler_integration.md` and marked it as selected in `trajectory.md`. This feature implements a comprehensive visualization and profiling system for the ML framework, including:
+✅ **Feature idea created successfully!**
 
-- Computational graph visualization
-- Real-time metrics dashboard
-- Tensor distribution analysis
-- High-dimensional embedding visualization
-- Hardware profiler integration
-- Distributed training visualization
+I've created a new feature idea file:
+- **File**: `0_ideas/model_versioning_hotswapping.md`
+- **Topic**: Model Versioning and Hot-Swapping for production ML serving
 
-The file is now ready for the Architect to review and create specifications.
+This feature addresses critical production serving capabilities including:
+- Semantic versioning and model registry
+- Multi-version serving with traffic routing
+- A/B testing and canary deployments
+- Zero-downtime hot-swapping
+- Per-version monitoring and observability
+
+I've also updated `trajectory.md` to mark this feature as selected with an implementation in progress marker.
+
+Task complete - stopping immediately.

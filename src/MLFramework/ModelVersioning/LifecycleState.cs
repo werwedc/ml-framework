@@ -1,30 +1,27 @@
-using System.Text.Json.Serialization;
-
 namespace MLFramework.ModelVersioning
 {
     /// <summary>
-    /// Lifecycle states for a model version
+    /// Represents the lifecycle state of a model version.
     /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum LifecycleState
     {
         /// <summary>
-        /// Model is in draft state, still being developed
+        /// Model is in draft state, not ready for use.
         /// </summary>
         Draft,
 
         /// <summary>
-        /// Model is ready for staging/testing
+        /// Model is staged for testing and validation.
         /// </summary>
         Staging,
 
         /// <summary>
-        /// Model is in production use
+        /// Model is in production and serving requests.
         /// </summary>
         Production,
 
         /// <summary>
-        /// Model is archived and no longer in use
+        /// Model has been archived and is no longer in use.
         /// </summary>
         Archived
     }
