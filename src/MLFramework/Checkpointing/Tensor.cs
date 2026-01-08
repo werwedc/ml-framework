@@ -6,19 +6,24 @@ namespace MLFramework.Checkpointing;
 public class Tensor : IDisposable
 {
     /// <summary>
-    /// Gets the size of the tensor in bytes
+    /// Gets size of tensor in bytes
     /// </summary>
     public long SizeInBytes { get; }
 
     /// <summary>
-    /// Gets the total number of elements in the tensor
+    /// Gets total number of elements in tensor
     /// </summary>
     public long ElementCount { get; }
 
     /// <summary>
-    /// Gets the size of each element's data type in bytes
+    /// Gets size of each element's data type in bytes
     /// </summary>
     public int DataTypeSize { get; }
+
+    /// <summary>
+    /// Gets the tensor shape
+    /// </summary>
+    public int[] Shape { get; }
 
     private bool _disposed;
 
@@ -30,6 +35,24 @@ public class Tensor : IDisposable
         ElementCount = elementCount;
         DataTypeSize = dataTypeSize;
         SizeInBytes = elementCount * dataTypeSize;
+        Shape = new int[] { (int)elementCount };
+        _disposed = false;
+    }
+
+    /// <summary>
+    /// Creates a new tensor with data and shape
+    /// </summary>
+    public Tensor(float[] data, int[] shape, int dataTypeSize = 4)
+    {
+        if (data == null)
+            throw new ArgumentNullException(nameof(data));
+        if (shape == null)
+            throw new ArgumentNullException(nameof(shape));
+
+        Shape = shape;
+        ElementCount = data.Length;
+        DataTypeSize = dataTypeSize;
+        SizeInBytes = ElementCount * dataTypeSize;
         _disposed = false;
     }
 
