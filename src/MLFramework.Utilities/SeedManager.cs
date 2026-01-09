@@ -17,6 +17,7 @@ public class SeedManager : IDisposable
     private readonly Dictionary<int, int> _deviceSeeds = new();
     private readonly Dictionary<int, int> _workerSeeds = new();
     private DeterministicModeFlags _deterministicMode = DeterministicModeFlags.None;
+    private readonly List<string> _nonDeterministicOperations = new();
 
     /// <summary>
     /// Initializes a new instance of the SeedManager class.
@@ -483,6 +484,201 @@ public class SeedManager : IDisposable
         SetDeterministicMode(flags);
         return new ScopedContext(this, previousMode, restoreState: false);
     }
+
+    #region Validation and Diagnostics
+
+    /// <summary>
+    /// Registers a known non-deterministic operation
+    /// </summary>
+    /// <param name="operationName">Name of the operation</param>
+    public void RegisterNonDeterministicOperation(string operationName)
+    {
+        if (string.IsNullOrWhiteSpace(operationName))
+            throw new ArgumentException("Operation name cannot be empty", nameof(operationName));
+
+        lock (_lock)
+        {
+            if (!_nonDeterministicOperations.Contains(operationName))
+            {
+                _nonDeterministicOperations.Add(operationName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a list of registered non-deterministic operations
+    /// </summary>
+    /// <returns>List of operation names</returns>
+    public IReadOnlyList<string> GetNonDeterministicOperations()
+    {
+        lock (_lock)
+        {
+            return new List<string>(_nonDeterministicOperations).AsReadOnly();
+        }
+    }
+
+    /// <summary>
+    /// Validates current deterministic configuration
+    /// </summary>
+    /// <returns>ValidationResult with messages, warnings, and errors</returns>
+    public ValidationResult ValidateConfiguration()
+    {
+        var result = new ValidationResult
+        {
+            Messages = new List<string>(),
+            Warnings = new List<string>(),
+            Errors = new List<string>()
+        };
+
+        lock (_lock)
+        {
+            // Check if deterministic mode is enabled
+            if (_deterministicMode != DeterministicModeFlags.None)
+            {
+                result.Messages.Add("Deterministic mode is enabled");
+
+                // Validate devices are seeded if multi-device
+                if (_deviceSeeds.Count > 0)
+                {
+                    result.Messages.Add($"{_deviceSeeds.Count} devices seeded");
+                }
+
+                // Validate workers are seeded if multi-worker
+                if (_workerSeeds.Count > 0)
+                {
+                    result.Messages.Add($"{_workerSeeds.Count} workers seeded");
+                }
+
+                // Check for non-determinizable operations in deterministic mode
+                foreach (var operation in _nonDeterministicOperations)
+                {
+                    if (!CanBeDeterministic(operation))
+                    {
+                        result.Errors.Add($"Non-determinizable operation '{operation}' is used in deterministic mode");
+                    }
+                    else if (KnownNonDeterministicOperations.Determinizable.Contains(operation))
+                    {
+                        result.Warnings.Add($"Determinizable operation '{operation}' is used - ensure proper deterministic settings");
+                    }
+                }
+            }
+            else
+            {
+                result.Messages.Add("Deterministic mode is not enabled");
+            }
+
+            // Set validation status
+            result.IsValid = result.Errors.Count == 0;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Gets diagnostic information about current state
+    /// </summary>
+    /// <returns>DiagnosticInfo object</returns>
+    public DiagnosticInfo GetDiagnosticInfo()
+    {
+        var info = new DiagnosticInfo();
+
+        lock (_lock)
+        {
+            info.DeterministicMode = _deterministicMode;
+            info.CurrentSeed = _currentSeed;
+            info.DeviceCount = _deviceSeeds.Count;
+            info.WorkerCount = _workerSeeds.Count;
+            info.PerformanceImpact = GetPerformanceImpact();
+
+            foreach (var operation in _nonDeterministicOperations)
+            {
+                info.NonDeterministicOperations.Add(operation);
+            }
+        }
+
+        return info;
+    }
+
+    /// <summary>
+    /// Prints diagnostic information to console
+    /// </summary>
+    public void PrintDiagnostics()
+    {
+        var info = GetDiagnosticInfo();
+        var timestamp = DateTime.UtcNow;
+
+        Console.WriteLine($"\n=== SeedManager Diagnostics [{timestamp:yyyy-MM-dd HH:mm:ss}] ===");
+        Console.WriteLine($"Deterministic Mode: {info.DeterministicMode}");
+        Console.WriteLine($"Current Seed: {info.CurrentSeed}");
+        Console.WriteLine($"Device Count: {info.DeviceCount}");
+        Console.WriteLine($"Worker Count: {info.WorkerCount}");
+        Console.WriteLine($"Performance Impact: {info.PerformanceImpact}");
+
+        if (info.NonDeterministicOperations.Count > 0)
+        {
+            Console.WriteLine("\nNon-Deterministic Operations:");
+            foreach (var operation in info.NonDeterministicOperations)
+            {
+                var determinizable = KnownNonDeterministicOperations.Determinizable.Contains(operation);
+                Console.WriteLine($"  - {operation} ({(determinizable ? "Determinizable" : "Non-Determinizable")})");
+            }
+        }
+        else
+        {
+            Console.WriteLine("\nNon-Deterministic Operations: None registered");
+        }
+
+        Console.WriteLine("=====================================================\n");
+    }
+
+    /// <summary>
+    /// Checks if an operation can be made deterministic
+    /// </summary>
+    /// <param name="operationName">Name of the operation</param>
+    /// <returns>True if operation can be deterministic</returns>
+    public bool CanBeDeterministic(string operationName)
+    {
+        if (string.IsNullOrWhiteSpace(operationName))
+            return false;
+
+        return !KnownNonDeterministicOperations.NonDeterminizable.Contains(operationName);
+    }
+
+    /// <summary>
+    /// Warns about performance impact of current deterministic settings
+    /// </summary>
+    /// <returns>Warning message or null if no impact</returns>
+    public string? CheckPerformanceImpact()
+    {
+        lock (_lock)
+        {
+            if (_deterministicMode == DeterministicModeFlags.None)
+            {
+                return null; // No deterministic mode, no performance impact
+            }
+
+            var warnings = new List<string>();
+
+            if ((_deterministicMode & DeterministicModeFlags.CudnnDeterministic) != 0)
+            {
+                warnings.Add("cuDNN deterministic mode may reduce performance by 20-30%");
+            }
+
+            if ((_deterministicMode & DeterministicModeFlags.CublasDeterministic) != 0)
+            {
+                warnings.Add("cuBLAS deterministic mode may reduce performance by 15-25%");
+            }
+
+            if (warnings.Count > 0)
+            {
+                return string.Join("; ", warnings);
+            }
+
+            return null;
+        }
+    }
+
+    #endregion
 
     /// <summary>
     /// Disposes the seed manager and cleans up resources.

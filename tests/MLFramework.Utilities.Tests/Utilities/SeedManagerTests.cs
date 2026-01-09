@@ -1,6 +1,7 @@
 using Xunit;
 using System;
 using System.IO;
+using System.Linq;
 using MLFramework.Utilities;
 
 namespace MLFramework.Tests.Utilities;
@@ -646,37 +647,235 @@ public class SeedManagerTests : IDisposable
 
     #region Validation and Diagnostics Tests
 
-    // Note: Validation and diagnostic features not yet implemented
-    // These tests are placeholders for future implementation
-
-    [Fact(Skip = "Validation not yet implemented")]
+    [Fact]
     public void ValidateConfiguration_WithNoSettings_ReturnsValid()
     {
-        // Placeholder test
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+
+        // Act
+        var result = _seedManager.ValidateConfiguration();
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.False(result.HasErrors);
+        Assert.False(result.HasWarnings);
     }
 
-    [Fact(Skip = "Validation not yet implemented")]
-    public void ValidateConfiguration_WithNonDeterministicOps_Warns()
+    [Fact]
+    public void ValidateConfiguration_WithDeterministicMode_ReturnsValid()
     {
-        // Placeholder test
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+
+        // Act
+        var result = _seedManager.ValidateConfiguration();
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.Contains("Deterministic mode is enabled", result.Messages);
     }
 
-    [Fact(Skip = "Diagnostics not yet implemented")]
+    [Fact]
+    public void ValidateConfiguration_WithNonDeterministicOps_Errors()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.All);
+        _seedManager.RegisterNonDeterministicOperation("atomic_add");
+
+        // Act
+        var result = _seedManager.ValidateConfiguration();
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.True(result.HasErrors);
+        Assert.Contains("atomic_add", result.Errors.FirstOrDefault());
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithDeterminizableOps_Warns()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.All);
+        _seedManager.RegisterNonDeterministicOperation("convolution");
+
+        // Act
+        var result = _seedManager.ValidateConfiguration();
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.True(result.HasWarnings);
+        Assert.Contains("convolution", result.Warnings.FirstOrDefault());
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithMultiDevice_ReportsDeviceCount()
+    {
+        // Arrange
+        _seedManager.SeedAllDevices(42, 4);
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.All);
+
+        // Act
+        var result = _seedManager.ValidateConfiguration();
+
+        // Assert
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Messages, m => m.Contains("4 devices seeded"));
+    }
+
+    [Fact]
     public void RegisterNonDeterministicOperation_TracksOperations()
     {
-        // Placeholder test
+        // Arrange
+        var operation = "atomic_add";
+
+        // Act
+        _seedManager.RegisterNonDeterministicOperation(operation);
+        var operations = _seedManager.GetNonDeterministicOperations();
+
+        // Assert
+        Assert.Contains(operation, operations);
     }
 
-    [Fact(Skip = "Diagnostics not yet implemented")]
+    [Fact]
     public void RegisterNonDeterministicOperation_AvoidsDuplicates()
     {
-        // Placeholder test
+        // Arrange
+        var operation = "atomic_add";
+
+        // Act
+        _seedManager.RegisterNonDeterministicOperation(operation);
+        _seedManager.RegisterNonDeterministicOperation(operation);
+        var operations = _seedManager.GetNonDeterministicOperations();
+
+        // Assert
+        Assert.Single(operations);
+        Assert.Contains(operation, operations);
     }
 
-    [Fact(Skip = "Diagnostics not yet implemented")]
+    [Fact]
+    public void RegisterNonDeterministicOperation_ThrowsOnEmptyName()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => _seedManager.RegisterNonDeterministicOperation(""));
+        Assert.Throws<ArgumentException>(() => _seedManager.RegisterNonDeterministicOperation("  "));
+    }
+
+    [Fact]
     public void GetDiagnosticInfo_ReturnsComprehensiveInfo()
     {
-        // Placeholder test
+        // Arrange
+        _seedManager.SetGlobalSeed(42);
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+        _seedManager.SeedAllDevices(42, 4);
+        _seedManager.SeedWorkers(100, 2);
+        _seedManager.RegisterNonDeterministicOperation("convolution");
+
+        // Act
+        var info = _seedManager.GetDiagnosticInfo();
+
+        // Assert
+        Assert.Equal(42, info.CurrentSeed);
+        Assert.Equal(DeterministicModeFlags.CudnnDeterministic, info.DeterministicMode);
+        Assert.Equal(4, info.DeviceCount);
+        Assert.Equal(2, info.WorkerCount);
+        Assert.Contains("CudnnDeterministic", info.PerformanceImpact);
+        Assert.Contains("convolution", info.NonDeterministicOperations);
+    }
+
+    [Fact]
+    public void CanBeDeterministic_ReturnsTrueForDeterminizableOps()
+    {
+        // Arrange & Act & Assert
+        Assert.True(_seedManager.CanBeDeterministic("convolution"));
+        Assert.True(_seedManager.CanBeDeterministic("matmul"));
+        Assert.True(_seedManager.CanBeDeterministic("dropout"));
+    }
+
+    [Fact]
+    public void CanBeDeterministic_ReturnsFalseForNonDeterminizableOps()
+    {
+        // Arrange & Act & Assert
+        Assert.False(_seedManager.CanBeDeterministic("atomic_add"));
+        Assert.False(_seedManager.CanBeDeterministic("atomic_sub"));
+        Assert.False(_seedManager.CanBeDeterministic("hashmap_lookup"));
+    }
+
+    [Fact]
+    public void CanBeDeterministic_ReturnsFalseForEmptyName()
+    {
+        // Act & Assert
+        Assert.False(_seedManager.CanBeDeterministic(""));
+        Assert.False(_seedManager.CanBeDeterministic(null!));
+    }
+
+    [Fact]
+    public void CheckPerformanceImpact_WithNone_ReturnsNull()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+
+        // Act
+        var warning = _seedManager.CheckPerformanceImpact();
+
+        // Assert
+        Assert.Null(warning);
+    }
+
+    [Fact]
+    public void CheckPerformanceImpact_WithCudnn_ReturnsWarning()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+
+        // Act
+        var warning = _seedManager.CheckPerformanceImpact();
+
+        // Assert
+        Assert.NotNull(warning);
+        Assert.Contains("cuDNN", warning);
+        Assert.Contains("20-30%", warning);
+    }
+
+    [Fact]
+    public void CheckPerformanceImpact_WithCublas_ReturnsWarning()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CublasDeterministic);
+
+        // Act
+        var warning = _seedManager.CheckPerformanceImpact();
+
+        // Assert
+        Assert.NotNull(warning);
+        Assert.Contains("cuBLAS", warning);
+        Assert.Contains("15-25%", warning);
+    }
+
+    [Fact]
+    public void CheckPerformanceImpact_WithMultiple_ReturnsCombinedWarnings()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic | DeterministicModeFlags.CublasDeterministic);
+
+        // Act
+        var warning = _seedManager.CheckPerformanceImpact();
+
+        // Assert
+        Assert.NotNull(warning);
+        Assert.Contains("cuDNN", warning);
+        Assert.Contains("cuBLAS", warning);
+    }
+
+    [Fact]
+    public void PrintDiagnostics_DoesNotThrow()
+    {
+        // Arrange
+        _seedManager.SetGlobalSeed(42);
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+
+        // Act & Assert - Should not throw
+        _seedManager.PrintDiagnostics();
     }
 
     #endregion
