@@ -235,6 +235,7 @@ Finally, the framework must function as a good citizen within the broader MLOps 
 
     Experiment Tracking Hooks: The framework should provide a system of Callbacks or Hooks. These allow users to inject logic at specific lifecycle events (e.g., on_train_start, on_batch_end) without modifying the core training loop. This is used for logging to external systems (MLflow, Weights & Biases), updating progress bars, or triggering early stopping.   
 
-Reproducibility: A comprehensive utility to seed all random number generators (Python, Numpy, CUDA, CuDNN) is essential for deterministic training runs.  
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/deterministic_reproducibility.md]
+    Reproducibility: A comprehensive utility to seed all random number generators (Python, Numpy, CUDA, CuDNN) is essential for deterministic training runs.
 
 Model Zoos: The ecosystem should include a curated repository of pre-trained state-of-the-art models (Model Zoo). This democratizes access to complex architectures and facilitates transfer learning, allowing users to start with a converged model rather than random initialization.   
