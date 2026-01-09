@@ -11,6 +11,7 @@ public class Tensor
     public List<Tensor>? Parents { get; set; }
     public Action<Tensor>? BackwardFn { get; set; }
     public DataType Dtype { get; set; }
+    public Guid Id { get; private set; } = Guid.NewGuid();
 
     // Track the operation that created this tensor (optional)
     public string? SourceOperation { get; set; }
