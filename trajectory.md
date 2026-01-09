@@ -238,4 +238,5 @@ Finally, the framework must function as a good citizen within the broader MLOps 
     [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/deterministic_reproducibility.md]
     Reproducibility: A comprehensive utility to seed all random number generators (Python, Numpy, CUDA, CuDNN) is essential for deterministic training runs.
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/model_zoo.md]
 Model Zoos: The ecosystem should include a curated repository of pre-trained state-of-the-art models (Model Zoo). This democratizes access to complex architectures and facilitates transfer learning, allowing users to start with a converged model rather than random initialization.   
