@@ -28,6 +28,9 @@ public class DefaultShapeInferenceEngine : IShapeInferenceEngine
             case OperationType.Conv2D:
                 return InferConv2DShape(shapes, operationParameters);
 
+            case OperationType.Conv1D:
+                return InferConv1DShape(shapes, operationParameters);
+
             case OperationType.Linear:
                 return InferLinearShape(shapes, operationParameters);
 
@@ -43,12 +46,107 @@ public class DefaultShapeInferenceEngine : IShapeInferenceEngine
             case OperationType.Reshape:
                 return InferReshapeShape(shapes, operationParameters);
 
+            case OperationType.Flatten:
+                return InferFlattenShape(shapes, operationParameters);
+
+            case OperationType.MaxPool2D:
+            case OperationType.AveragePool2D:
+                return InferPoolingShape(shapes, operationParameters);
+
             case OperationType.Broadcast:
                 return InferBroadcastShape(shapes);
 
             default:
                 // Fallback: return first input shape
                 return shapes.Length > 0 ? shapes[0] : Array.Empty<long>();
+        }
+    }
+
+    /// <inheritdoc/>
+    public IDictionary<string, long[]> InferGraphShapes(
+        ComputationGraph graph,
+        IDictionary<string, long[]> inputShapes)
+    {
+        if (graph == null)
+        {
+            throw new ArgumentNullException(nameof(graph));
+        }
+
+        if (inputShapes == null)
+        {
+            throw new ArgumentNullException(nameof(inputShapes));
+        }
+
+        var result = new Dictionary<string, long[]>(inputShapes);
+
+        // Topological sort of nodes
+        var sortedNodes = TopologicalSort(graph);
+
+        foreach (var nodeName in sortedNodes)
+        {
+            var node = graph.Nodes[nodeName];
+
+            // Skip if it's an input node (already in result)
+            if (result.ContainsKey(nodeName))
+            {
+                continue;
+            }
+
+            // Get input shapes from previous nodes
+            var inputShapesForOp = node.InputNames
+                .Select(name => result.ContainsKey(name) ? result[name] : Array.Empty<long>())
+                .ToArray();
+
+            // Infer output shape
+            var outputShape = InferOutputShape(
+                node.OperationType,
+                inputShapesForOp,
+                node.Parameters);
+
+            result[nodeName] = outputShape;
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public bool ValidateOperation(
+        OperationType operationType,
+        IEnumerable<long[]> inputShapes,
+        IDictionary<string, object> operationParameters,
+        out string errorMessage)
+    {
+        errorMessage = null;
+
+        var shapes = inputShapes.ToArray();
+
+        if (shapes.Length == 0)
+        {
+            errorMessage = "No input shapes provided";
+            return false;
+        }
+
+        try
+        {
+            // Try to infer output shape - this validates input shapes
+            var outputShape = InferOutputShape(operationType, shapes, operationParameters);
+
+            // Check for invalid dimensions (zero or negative)
+            foreach (var dim in outputShape)
+            {
+                if (dim <= 0)
+                {
+                    errorMessage = $"Operation would produce invalid output shape with non-positive dimension: {string.Join(", ", outputShape)}";
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            return false;
         }
     }
 
@@ -108,6 +206,21 @@ public class DefaultShapeInferenceEngine : IShapeInferenceEngine
         long outputWidth = ((inputShape[3] + 2 * paddingW - kernelWidth) / strideW) + 1;
 
         return new long[] { inputShape[0], weightShape[0], outputHeight, outputWidth };
+    }
+
+    private long[] InferConv1DShape(long[][] inputShapes, IDictionary<string, object> parameters)
+    {
+        var inputShape = inputShapes[0]; // [N, C_in, L]
+        var weightShape = inputShapes[1]; // [C_out, C_in, k]
+
+        long kernelSize = weightShape[2];
+        int stride = parameters?.TryGetValue("stride", out var s) == true ? (int)s : 1;
+        int padding = parameters?.TryGetValue("padding", out var p) == true ? (int)p : 0;
+
+        long inputLength = inputShape[2];
+        long outputLength = (inputLength + 2 * padding - kernelSize) / stride + 1;
+
+        return new long[] { inputShape[0], weightShape[0], outputLength };
     }
 
     private long[] InferLinearShape(long[][] inputShapes, IDictionary<string, object> parameters)
@@ -222,6 +335,48 @@ public class DefaultShapeInferenceEngine : IShapeInferenceEngine
         return outputShape;
     }
 
+    private long[] InferFlattenShape(long[][] inputShapes, IDictionary<string, object> parameters)
+    {
+        var inputShape = inputShapes[0];
+
+        int startDim = parameters?.TryGetValue("start_dim", out var sd) == true ? (int)sd : 1;
+        int endDim = parameters?.TryGetValue("end_dim", out var ed) == true ? (int)ed : inputShape.Length - 1;
+
+        // Calculate total size of flattened dimensions
+        long flattenedSize = 1;
+        for (int i = startDim; i <= endDim; i++)
+        {
+            flattenedSize *= inputShape[i];
+        }
+
+        // Construct output shape
+        var outputShape = new List<long>();
+        for (int i = 0; i < startDim; i++)
+        {
+            outputShape.Add(inputShape[i]);
+        }
+        outputShape.Add(flattenedSize);
+
+        return outputShape.ToArray();
+    }
+
+    private long[] InferPoolingShape(long[][] inputShapes, IDictionary<string, object> parameters)
+    {
+        var inputShape = inputShapes[0]; // [N, C, H, W]
+
+        int kernelSize = parameters?.TryGetValue("kernel_size", out var ks) == true ? (int)ks : 2;
+        int stride = parameters?.TryGetValue("stride", out var s) == true ? (int)s : kernelSize;
+        int padding = parameters?.TryGetValue("padding", out var p) == true ? (int)p : 0;
+
+        int inputHeight = (int)inputShape[2];
+        int inputWidth = (int)inputShape[3];
+
+        int outputHeight = (inputHeight + 2 * padding - kernelSize) / stride + 1;
+        int outputWidth = (inputWidth + 2 * padding - kernelSize) / stride + 1;
+
+        return new long[] { inputShape[0], inputShape[1], outputHeight, outputWidth };
+    }
+
     private long[] InferBroadcastShape(long[][] inputShapes)
     {
         if (inputShapes.Length == 0)
@@ -259,6 +414,58 @@ public class DefaultShapeInferenceEngine : IShapeInferenceEngine
             }
 
             result = newResult;
+        }
+
+        return result;
+    }
+
+    private List<string> TopologicalSort(ComputationGraph graph)
+    {
+        // Standard topological sort using Kahn's algorithm
+        var result = new List<string>();
+        var inDegree = new Dictionary<string, int>();
+        var queue = new Queue<string>();
+
+        // Initialize in-degrees
+        foreach (var node in graph.Nodes)
+        {
+            inDegree[node.Key] = 0;
+        }
+
+        foreach (var edge in graph.Edges)
+        {
+            inDegree[edge.to]++;
+        }
+
+        // Enqueue nodes with in-degree 0
+        foreach (var node in graph.Nodes)
+        {
+            if (inDegree[node.Key] == 0)
+            {
+                queue.Enqueue(node.Key);
+            }
+        }
+
+        // Process nodes
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            result.Add(current);
+
+            foreach (var edge in graph.Edges.Where(e => e.from == current))
+            {
+                inDegree[edge.to]--;
+                if (inDegree[edge.to] == 0)
+                {
+                    queue.Enqueue(edge.to);
+                }
+            }
+        }
+
+        // Check for cycles
+        if (result.Count != graph.Nodes.Count)
+        {
+            throw new InvalidOperationException("Computation graph contains a cycle");
         }
 
         return result;
