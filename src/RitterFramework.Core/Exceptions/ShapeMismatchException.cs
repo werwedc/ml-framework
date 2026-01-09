@@ -92,57 +92,24 @@ public class ShapeMismatchException : Exception
     /// <returns>A formatted string containing all diagnostic information.</returns>
     public string GetDiagnosticReport()
     {
-        var report = new System.Text.StringBuilder();
+        return Diagnostics.ShapeReportFormatter.Format(this);
+    }
 
-        // Exception header
-        report.AppendLine($"MLFramework.ShapeMismatchException: {Message}");
+    /// <summary>
+    /// Generates a multi-line formatted detailed report with visualizations.
+    /// </summary>
+    /// <returns>A detailed report with shape visualizations and dimension analysis.</returns>
+    public string GetDetailedReport()
+    {
+        return Diagnostics.ShapeReportFormatter.FormatDetailed(this);
+    }
 
-        // Add layer name if available
-        if (!string.IsNullOrEmpty(LayerName))
-        {
-            report.AppendLine($"Layer: '{LayerName}'");
-            report.AppendLine($"Operation: {OperationType}");
-        }
-
-        report.AppendLine();
-
-        // Input shapes
-        if (InputShapes.Count > 0)
-        {
-            for (int i = 0; i < InputShapes.Count; i++)
-            {
-                report.AppendLine($"Input shape {(InputShapes.Count > 1 ? $"[{i}] " : "")}:   [{string.Join(", ", InputShapes[i])}]");
-            }
-        }
-
-        // Expected shapes
-        if (ExpectedShapes.Count > 0)
-        {
-            for (int i = 0; i < ExpectedShapes.Count; i++)
-            {
-                report.AppendLine($"Expected {(ExpectedShapes.Count > 1 ? $"[{i}] " : "")}:      [{string.Join(", ", ExpectedShapes[i])}]");
-            }
-        }
-
-        report.AppendLine();
-
-        // Problem description
-        if (!string.IsNullOrEmpty(ProblemDescription))
-        {
-            report.AppendLine($"Problem: {ProblemDescription}");
-            report.AppendLine();
-        }
-
-        // Suggested fixes
-        if (SuggestedFixes.Count > 0)
-        {
-            report.AppendLine("Suggested fixes:");
-            for (int i = 0; i < SuggestedFixes.Count; i++)
-            {
-                report.AppendLine($"{i + 1}. {SuggestedFixes[i]}");
-            }
-        }
-
-        return report.ToString();
+    /// <summary>
+    /// Generates a one-line summary of the exception.
+    /// </summary>
+    /// <returns>A one-line summary string.</returns>
+    public string GetSummary()
+    {
+        return Diagnostics.ShapeReportFormatter.FormatSummary(this);
     }
 }
