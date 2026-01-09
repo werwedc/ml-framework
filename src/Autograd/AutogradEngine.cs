@@ -61,7 +61,7 @@ public sealed class AutogradEngine
         {
             if (outputs[i].RequiresGrad)
             {
-                outputs[i].SetGradFn(CreateBackwardFunction(node, i));
+                outputs[i].BackwardFn = CreateBackwardFunction(node, i);
             }
         }
 
@@ -75,17 +75,24 @@ public sealed class AutogradEngine
     /// <param name="node">The custom function node.</param>
     /// <param name="outputIndex">The index of the output tensor.</param>
     /// <returns>A function that computes gradients when called.</returns>
-    private Func<Tensor[], Tensor[]> CreateBackwardFunction(CustomFunctionNode node, int outputIndex)
+    private Action<Tensor> CreateBackwardFunction(CustomFunctionNode node, int outputIndex)
     {
-        return (Tensor[] upstreamGrads) =>
+        return (Tensor gradOutput) =>
         {
             // Call the custom function's backward pass
             var gradOutputs = new Tensor[node.Outputs.Length];
-            gradOutputs[outputIndex] = upstreamGrads[0];
+            gradOutputs[outputIndex] = gradOutput;
 
             var gradInputs = node.Function.Backward(gradOutputs, node.Context);
 
-            return gradInputs;
+            // Accumulate gradients on input tensors
+            for (int i = 0; i < gradInputs.Length && i < node.Inputs.Length; i++)
+            {
+                if (node.Inputs[i].RequiresGrad && gradInputs[i] != null)
+                {
+                    node.Inputs[i].AccumulateGrad(gradInputs[i]);
+                }
+            }
         };
     }
 
@@ -151,15 +158,12 @@ public sealed class AutogradEngine
                 {
                     var outputTensor = currentNode.Outputs[i];
 
-                    // Use gradient if set, otherwise use zeros
-                    if (outputTensor.Gradient != null)
+                    // Ensure gradient tensor exists (initialize to zeros if needed)
+                    if (outputTensor.Gradient == null)
                     {
-                        gradOutputs[i] = outputTensor.Gradient;
+                        outputTensor.Gradient = Tensor.Zeros(outputTensor.Shape);
                     }
-                    else
-                    {
-                        gradOutputs[i] = Tensor.Zeros(outputTensor.Shape);
-                    }
+                    gradOutputs[i] = outputTensor.Gradient;
                 }
 
                 // Call the node's backward method directly
@@ -177,6 +181,8 @@ public sealed class AutogradEngine
                         {
                             visited.Add(inputTensor.Id);
                             var inputNode = FindNodeForOutput(inputTensor);
+                            // inputNode can be null for leaf tensors (no backward function)
+                            // We still mark as visited to prevent reprocessing
                             queue.Enqueue((inputTensor, inputNode, 0));
                         }
                     }

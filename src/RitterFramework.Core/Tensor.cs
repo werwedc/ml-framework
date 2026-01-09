@@ -13,6 +13,24 @@ public class Tensor
     public DataType Dtype { get; set; }
     public Guid Id { get; private set; } = Guid.NewGuid();
 
+    /// <summary>
+    /// Gets the backward function associated with this tensor.
+    /// </summary>
+    /// <returns>The backward function, or null if not set.</returns>
+    public Action<Tensor>? GetGradFn()
+    {
+        return BackwardFn;
+    }
+
+    /// <summary>
+    /// Sets the backward function for this tensor.
+    /// </summary>
+    /// <param name="fn">The backward function to set.</param>
+    public void SetGradFn(Action<Tensor>? fn)
+    {
+        BackwardFn = fn;
+    }
+
     // Track the operation that created this tensor (optional)
     public string? SourceOperation { get; set; }
 
@@ -183,6 +201,23 @@ public class Tensor
         }
             
         return newTensor;
+    }
+
+    /// <summary>
+    /// Accumulates gradients from a single backward pass.
+    /// Used by custom functions to add gradients to existing gradient tensor.
+    /// </summary>
+    /// <param name="grad">The gradient tensor to accumulate.</param>
+    public void AccumulateGrad(Tensor grad)
+    {
+        if (grad == null)
+            throw new ArgumentNullException(nameof(grad));
+
+        if (Gradient == null)
+            Gradient = Zeros(Shape);
+
+        for (int i = 0; i < Size; i++)
+            Gradient._data[i] += grad._data[i];
     }
 
     public void Backward(Tensor? gradOutput = null)
