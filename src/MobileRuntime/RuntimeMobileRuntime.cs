@@ -125,12 +125,9 @@ namespace MobileRuntime
             var outputs = new ITensor[inputs.Length];
             for (int i = 0; i < inputs.Length; i++)
             {
-                outputs[i] = new Tensor
-                {
-                    Shape = inputs[i].Shape,
-                    DataType = inputs[i].DataType,
-                    Data = (float[])inputs[i].Data.Clone()
-                };
+                var inputData = inputs[i].Data;
+                var tensor = Tensor.FromArray(inputData, inputs[i].Shape);
+                outputs[i] = tensor;
             }
             return outputs;
         }
