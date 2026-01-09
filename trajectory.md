@@ -206,7 +206,8 @@ Continuous Batching: Unlike standard dynamic batching, continuous batching (or i
 
     Export Formats: The framework must facilitate exporting models to standard interchange formats like ONNX. This decouples the model from the training framework, allowing it to run on high-performance inference engines like TensorRT or OpenVINO.   
 
-Mobile Runtimes: A dedicated, lightweight runtime (e.g., TensorFlow Lite, ExecuTorch) is required for mobile and embedded devices. These runtimes strip away the heavy compilation and gradient machinery, focusing purely on efficient forward-pass execution on ARM CPUs or DSPs.  
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/mobile_runtimes.md]
+    Mobile Runtimes: A dedicated, lightweight runtime (e.g., TensorFlow Lite, ExecuTorch) is required for mobile and embedded devices. These runtimes strip away the heavy compilation and gradient machinery, focusing purely on efficient forward-pass execution on ARM CPUs or DSPs.
 
 8. API Design and Developer Experience (DX)
 

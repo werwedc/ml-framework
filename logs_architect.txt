@@ -1,70 +1,17 @@
-I'll help you process the pending idea in `0_ideas/`. Let me first check what files are there.
+I'll help you process the pending idea in 0_ideas/. Let me start by checking what files are there and reading the AGENTS.md file.
+[96m[1m| [0m[90m Read     [0mAGENTS.md
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
 
-[96m[1m| [0m[90m Read     [0m0_ideas\model_zoo.mdI'll process the Model Zoo idea by breaking it down into atomic technical specs. Let me create a todo list first to track this work.
-[93m[1m| [0m[90m Todo     [0m5 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_download_service.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_metadata.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_cache_manager.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_registry.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_zoo_load_api.md
-Now I'll create the atomic technical specs. Let me start with Phase 1 - Core Functionality:
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_serialization.md
-[93m[1m| [0m[90m Todo     [0m4 todos
-Now creating Phase 2 specs (Transfer Learning):
-[92m[1m| [0m[90m Write    [0m1_specs\spec_head_replacement.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_layer_freezing.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_layerwise_lr_scheduling.md
-[93m[1m| [0m[90m Todo     [0m3 todos
-Now creating Phase 3 specs (Discovery):
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_recommendation.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_search_api.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_benchmarking.md
-[93m[1m| [0m[90m Todo     [0m2 todos
-[92m[1m| [0m[90m Write    [0m1_specs\spec_external_hub_integration.md
-Now creating Phase 4 specs (Advanced Features):
-[92m[1m| [0m[90m Write    [0m1_specs\spec_progressive_loading.md
-[92m[1m| [0m[90m Write    [0m1_specs\spec_model_zoo_extensibility.md
-[93m[1m| [0m[90m Todo     [0m1 todos
-[91m[1m| [0m[90m Bash     [0mDelete model_zoo.md from 0_ideas/
-[93m[1m| [0m[90m Todo     [0m0 todos
-[94m[1m| [0m[90m Glob     [0m{"pattern":"1_specs/*.md"}
-Perfect! I've successfully processed the Model Zoo idea from `0_ideas/` and broken it down into 15 atomic technical specs in `1_specs/`. Here's a summary:
-
-## Created Specs
-
-### Phase 1: Core Functionality (6 specs)
-1. **spec_model_metadata.md** - Metadata schema and validation
-2. **spec_model_registry.md** - In-memory registry for model management
-3. **spec_model_download_service.md** - HTTP downloads with checksums and resume
-4. **spec_model_cache_manager.md** - Local cache with LRU eviction
-5. **spec_model_zoo_load_api.md** - Primary loading API
-6. **spec_model_serialization.md** - Native binary format for model weights
-
-### Phase 2: Transfer Learning (3 specs)
-7. **spec_layer_freezing.md** - Freeze/unfreeze utilities and gradual unfreezing
-8. **spec_head_replacement.md** - Replace final layers with custom heads
-9. **spec_layerwise_lr_scheduling.md** - Different learning rates per parameter group
-
-### Phase 3: Discovery (3 specs)
-10. **spec_model_search_api.md** - Query models by criteria
-11. **spec_model_recommendation.md** - Intelligent recommendation engine
-12. **spec_model_benchmarking.md** - Performance evaluation framework
-
-### Phase 4: Advanced Features (3 specs)
-13. **spec_external_hub_integration.md** - Hugging Face, TensorFlow Hub, ONNX integration
-14. **spec_progressive_loading.md** - Lazy loading for large models
-15. **spec_model_zoo_extensibility.md** - Plugin architecture for custom registries
-
-## Key Features of the Specs
-- Each spec represents ~30-60 minutes of coding work
-- Atomic and implementable in a single execution
-- Clear file structures with namespaces
-- Comprehensive unit test requirements
-- Well-defined dependencies between specs
-- Success criteria for validation
-
-## Original File Status
-✅ `0_ideas/model_zoo.md` has been deleted
-
-The Coder can now begin implementing these specs starting with Phase 1, building each component sequentially as per the dependency chain.
+[96m[1m| [0m[90m Read     [0m0_ideas\mobile_runtimes.md[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_runtime_core.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_tensor_ops.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_memory_pool.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_model_format.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_backend_cpu.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_backend_metal.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_backend_vulkan.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_model_loader.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_tests.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_model_converter.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_benchmarking.md
+[92m[1m| [0m[90m Write    [0m1_specs\spec_mobile_build_system.md
+I'll now process the mobile runtimes idea by breaking it down into multiple atomic technical specs. Let me create a comprehensive set of specs that each represent 30-60 minutes of coding work.
