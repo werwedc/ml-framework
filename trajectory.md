@@ -39,6 +39,8 @@ The engine of deep learning is Automatic Differentiation (AD). A modern framewor
 
     Custom Autograd Functions: Users must have the ability to define custom forward and backward passes for operations that are numerically unstable or non-differentiable by default, providing a "trapdoor" to manual gradient definition when the automatic engine falls short.
 
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/custom_autograd_functions.md]
+
     Checkpointing (Activation Recomputation): To train massive models that exceed GPU memory, the AD system must support gradient checkpointing. This feature allows the framework to discard intermediate activations during the forward pass and recompute them on-the-fly during the backward pass, trading computation time for significant memory savings.
 
     [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/activation_checkpointing.md]
@@ -204,7 +206,8 @@ Continuous Batching: Unlike standard dynamic batching, continuous batching (or i
 
     Export Formats: The framework must facilitate exporting models to standard interchange formats like ONNX. This decouples the model from the training framework, allowing it to run on high-performance inference engines like TensorRT or OpenVINO.   
 
-Mobile Runtimes: A dedicated, lightweight runtime (e.g., TensorFlow Lite, ExecuTorch) is required for mobile and embedded devices. These runtimes strip away the heavy compilation and gradient machinery, focusing purely on efficient forward-pass execution on ARM CPUs or DSPs.  
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/mobile_runtimes.md]
+    Mobile Runtimes: A dedicated, lightweight runtime (e.g., TensorFlow Lite, ExecuTorch) is required for mobile and embedded devices. These runtimes strip away the heavy compilation and gradient machinery, focusing purely on efficient forward-pass execution on ARM CPUs or DSPs.
 
 8. API Design and Developer Experience (DX)
 
@@ -233,6 +236,8 @@ Finally, the framework must function as a good citizen within the broader MLOps 
 
     Experiment Tracking Hooks: The framework should provide a system of Callbacks or Hooks. These allow users to inject logic at specific lifecycle events (e.g., on_train_start, on_batch_end) without modifying the core training loop. This is used for logging to external systems (MLflow, Weights & Biases), updating progress bars, or triggering early stopping.   
 
-Reproducibility: A comprehensive utility to seed all random number generators (Python, Numpy, CUDA, CuDNN) is essential for deterministic training runs.  
+    [✓ FEATURE SELECTED - Implementation in progress: 0_ideas/deterministic_reproducibility.md]
+    Reproducibility: A comprehensive utility to seed all random number generators (Python, Numpy, CUDA, CuDNN) is essential for deterministic training runs.
 
+[✓ FEATURE SELECTED - Implementation in progress: 0_ideas/model_zoo.md]
 Model Zoos: The ecosystem should include a curated repository of pre-trained state-of-the-art models (Model Zoo). This democratizes access to complex architectures and facilitates transfer learning, allowing users to start with a converged model rather than random initialization.   

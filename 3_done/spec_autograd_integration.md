@@ -1,462 +1,304 @@
-# Spec: Autograd Integration
+# Spec: Autograd Integration for Custom Functions
 
 ## Overview
-Implement integration with the automatic differentiation (autograd) system to automatically trigger recomputation during the backward pass. This enables seamless checkpointing with minimal user code changes.
+Implement the integration layer that connects custom functions to the existing autograd computational graph. This spec covers the mechanism to register custom functions, create graph nodes, and ensure gradients flow correctly through custom backward passes.
 
-## Classes
+## Requirements
 
-### Location
-`src/MLFramework/Checkpointing/AutogradIntegration.cs`
+### 1. Graph Node for Custom Functions
 
-### Class: CheckpointFunction
+Create a `CustomFunctionNode` class in `src/Autograd/Nodes/CustomFunctionNode.cs` that represents a custom function in the computational graph.
 
+#### Properties
+- `CustomFunction Function` - Reference to the custom function instance
+- `FunctionContext Context` - Saved context from forward pass
+- `Tensor[] Inputs` - Input tensors to the function
+- `Tensor[] Outputs` - Output tensors from the function
+- `Guid Id` - Unique identifier for debugging
+
+#### Methods
+- `void Backward(Tensor[] gradOutputs)` - Execute backward pass
+- `void Dispose()` - Cleanup resources and context
+
+### 2. Autograd Engine Extensions
+
+Extend the existing autograd engine to support custom functions. Create or modify classes in `src/Autograd/`:
+
+#### RegisterCustomFunction Method
 ```csharp
-namespace MLFramework.Checkpointing;
-
-/// <summary>
-/// Autograd function that implements checkpointing for backward pass recomputation
-/// </summary>
-public class CheckpointFunction : AutogradFunction
+public void RegisterCustomFunction(
+    Tensor[] outputs,
+    CustomFunction function,
+    FunctionContext context,
+    Tensor[] inputs)
 {
-    private readonly string _layerId;
-    private readonly Func<Tensor> _forwardFunc;
-    private readonly Action<Tensor>? _backwardHook;
-    private readonly CheckpointManager _checkpointManager;
-    private readonly RecomputationEngine _recomputeEngine;
-
-    /// <summary>
-    /// Initializes a new instance of CheckpointFunction
-    /// </summary>
-    /// <param name="layerId">Unique identifier for the layer</param>
-    /// <param name="forwardFunc">Forward pass function</param>
-    /// <param name="backwardHook">Optional backward hook</param>
-    /// <param name="checkpointManager">Checkpoint manager instance</param>
-    /// <param name="recomputeEngine">Recomputation engine instance</param>
-    public CheckpointFunction(
-        string layerId,
-        Func<Tensor> forwardFunc,
-        Action<Tensor>? backwardHook,
-        CheckpointManager checkpointManager,
-        RecomputationEngine recomputeEngine);
-
-    /// <summary>
-    /// Forward pass - executes the function and optionally checkpoints
-    /// </summary>
-    /// <param name="inputs">Input tensors</param>
-    /// <returns>Output tensor</returns>
-    protected override Tensor Forward(params Tensor[] inputs);
-
-    /// <summary>
-    /// Backward pass - recomputes if needed and computes gradients
-    /// </summary>
-    /// <param name="gradOutput">Gradient from subsequent layers</param>
-    /// <returns>Gradients for input tensors</returns>
-    protected override Tensor[] Backward(params Tensor[] gradOutput);
-}
-```
-
-## Implementation Details
-
-### CheckpointFunction Constructor
-
-```csharp
-public CheckpointFunction(
-    string layerId,
-    Func<Tensor> forwardFunc,
-    Action<Tensor>? backwardHook,
-    CheckpointManager checkpointManager,
-    RecomputationEngine recomputeEngine)
-{
-    _layerId = layerId ?? throw new ArgumentNullException(nameof(layerId));
-    _forwardFunc = forwardFunc ?? throw new ArgumentNullException(nameof(forwardFunc));
-    _backwardHook = backwardHook;
-    _checkpointManager = checkpointManager ?? throw new ArgumentNullException(nameof(checkpointManager));
-    _recomputeEngine = recomputeEngine ?? throw new ArgumentNullException(nameof(recomputeEngine));
-
-    // Register the recompute function
-    _recomputeEngine.RegisterRecomputeFunction(layerId, forwardFunc);
-}
-```
-
-### CheckpointFunction.Forward
-
-```csharp
-protected override Tensor Forward(params Tensor[] inputs)
-{
-    // Execute forward pass
-    var output = _forwardFunc();
-
-    // Determine if we should checkpoint (based on strategy)
-    var shouldCheckpoint = ShouldCheckpoint(_layerId);
-
-    if (shouldCheckpoint)
+    var node = new CustomFunctionNode
     {
-        // Save inputs for potential recomputation
-        // We need to save them in a context that Backward can access
-        SaveInputsForRecomputation(inputs);
+        Function = function,
+        Context = context,
+        Inputs = inputs,
+        Outputs = outputs
+    };
 
-        // Register backward hook if provided
-        if (_backwardHook != null)
+    // Attach backward function to outputs that require grad
+    for (int i = 0; i < outputs.Length; i++)
+    {
+        if (outputs[i].RequiresGrad)
         {
-            output.RegisterBackwardHook(_backwardHook);
+            outputs[i].GradFn = CreateBackwardFunction(node, i);
         }
+    }
+
+    // Add node to graph
+    AddNode(node);
+}
+```
+
+#### CreateBackwardFunction Method
+```csharp
+private Func<Tensor[], Tensor[]> CreateBackwardFunction(CustomFunctionNode node, int outputIndex)
+{
+    return (Tensor[] upstreamGrads) =>
+    {
+        // Call the custom function's backward pass
+        var gradOutputs = new Tensor[node.Outputs.Length];
+        gradOutputs[outputIndex] = upstreamGrads[0];
+
+        var gradInputs = node.Function.Backward(gradOutputs, node.Context);
+
+        return gradInputs;
+    };
+}
+```
+
+### 3. Tensor Extensions
+
+Add necessary properties/methods to the Tensor class (in `src/Tensors/Tensor.cs` or `src/Autograd/TensorExtensions.cs`):
+
+#### Properties
+- `GradFn` - Reference to backward function (or null)
+- `Grad` - Computed gradient tensor
+- `RequiresGrad` - Whether gradient is needed
+
+#### Methods
+- `void Backward()` - Compute gradients backward through the graph
+- `void AccumulateGrad(Tensor grad)` - Add gradient to tensor's grad
+
+### 4. Context Lifecycle Management
+
+Ensure proper lifecycle management for FunctionContext:
+
+#### During Forward Pass
+1. Create new FunctionContext for each invocation
+2. Pass context to Forward() method
+3. Forward() saves necessary tensors/objects
+4. Store context with graph node
+
+#### During Backward Pass
+1. Retrieve context from graph node
+2. Pass context to Backward() method
+3. Backward() retrieves saved tensors/objects
+4. Dispose context after backward pass (or clear)
+
+#### Automatic Cleanup
+- Implement IDisposable on CustomFunctionNode
+- Clear context when node is disposed
+- Optionally clear context immediately after backward pass
+
+### 5. Gradient Accumulation
+
+Support gradient accumulation when a tensor is used multiple times:
+
+#### Accumulation Logic
+```csharp
+public void AccumulateGrad(Tensor newGrad)
+{
+    if (Grad == null)
+    {
+        Grad = newGrad.Clone();
     }
     else
     {
-        // Not checkpointing - this activation will be stored normally
-        // No special handling needed
+        Grad += newGrad;
     }
-
-    return output;
-}
-
-private bool ShouldCheckpoint(string layerId)
-{
-    // This will be determined by the checkpoint strategy
-    // For now, we'll delegate to a strategy manager
-    return false; // Placeholder - will be implemented in strategy spec
-}
-
-private void SaveInputsForRecomputation(Tensor[] inputs)
-{
-    // Store inputs in a way that Backward can access
-    // This could be in a thread-local context or a class field
-    // Implementation depends on the autograd system's capabilities
 }
 ```
 
-### CheckpointFunction.Backward
+#### Multiple Use Cases
+If a tensor is used as input to multiple functions, gradients are accumulated:
+- Sum all incoming gradients
+- Each function contributes one gradient
 
+### 6. Backward Traversal
+
+Implement backward traversal logic in the autograd engine:
+
+#### Algorithm
+1. Start from output tensors that called Backward()
+2. Follow graph edges backwards
+3. For each node, call its backward function
+4. Pass gradients to previous nodes
+5. Accumulate gradients at leaf nodes
+
+#### Pseudo-code
 ```csharp
-protected override Tensor[] Backward(params Tensor[] gradOutput)
+public void Backward(Tensor output, Tensor initialGrad = null)
 {
-    // Retrieve saved inputs
-    var inputs = RetrieveSavedInputs();
+    var queue = new Queue<Tensor>();
+    var visited = new HashSet<Guid>();
 
-    // Recompute the forward pass if needed
-    var output = _recomputeEngine.Recompute(_layerId);
-
-    // Compute gradients using the recomputed output
-    var gradients = ComputeGradients(inputs, output, gradOutput);
-
-    return gradients;
-}
-
-private Tensor[] ComputeGradients(Tensor[] inputs, Tensor output, Tensor[] gradOutput)
-{
-    // Implement gradient computation
-    // This will depend on the specific operation
-    // For now, return empty as a placeholder
-    return Array.Empty<Tensor>();
-}
-```
-
-## Checkpoint Decorator
-
-### Class: Checkpoint
-
-```csharp
-namespace MLFramework.Checkpointing;
-
-/// <summary>
-/// Static class providing convenient methods for checkpointing functions
-/// </summary>
-public static class Checkpoint
-{
-    /// <summary>
-    /// Checkpoints a function during the forward pass
-    /// </summary>
-    /// <param name="layerId">Unique identifier for the layer</param>
-    /// <param name="func">Function to checkpoint</param>
-    /// <param name="checkpointManager">Checkpoint manager (optional, uses default if null)</param>
-    /// <param name="recomputeEngine">Recompute engine (optional, uses default if null)</param>
-    /// <returns>Result of the function</returns>
-    public static Tensor CheckpointFunction(
-        string layerId,
-        Func<Tensor> func,
-        CheckpointManager? checkpointManager = null,
-        RecomputationEngine? recomputeEngine = null)
+    if (initialGrad != null)
     {
-        var manager = checkpointManager ?? GetDefaultCheckpointManager();
-        var engine = recomputeEngine ?? GetDefaultRecomputeEngine();
-
-        var checkpointFunc = new CheckpointFunction(
-            layerId,
-            func,
-            null,
-            manager,
-            engine);
-
-        return checkpointFunc.Apply();
+        output.AccumulateGrad(initialGrad);
     }
-
-    /// <summary>
-    /// Creates a checkpointed version of a module/layers
-    /// </summary>
-    /// <typeparam name="T">Type of the module</typeparam>
-    /// <param name="module">Module to checkpoint</param>
-    /// <param name="layerId">Unique identifier for the layer</param>
-    /// <returns>Checkpointed module wrapper</returns>
-    public static T CheckpointModule<T>(T module, string layerId)
-        where T : class
+    else
     {
-        // Implementation will wrap the module's forward pass with checkpointing
-        throw new NotImplementedException();
+        output.AccumulateGrad(Tensor.OnesLike(output));
     }
 
-    private static CheckpointManager GetDefaultCheckpointManager()
+    queue.Enqueue(output);
+    visited.Add(output.Id);
+
+    while (queue.Count > 0)
     {
-        // Return or create a default singleton instance
-        throw new NotImplementedException();
+        var tensor = queue.Dequeue();
+        var gradFn = tensor.GradFn;
+
+        if (gradFn != null)
+        {
+            // Compute gradients w.r.t. inputs
+            var inputGrads = gradFn(new[] { tensor.Grad });
+
+            // Propagate to input tensors
+            for (int i = 0; i < inputGrads.Length; i++)
+            {
+                var inputGrad = inputGrads[i];
+                var inputTensor = tensor.GradFn.Inputs[i];
+
+                if (inputTensor.RequiresGrad)
+                {
+                    inputTensor.AccumulateGrad(inputGrad);
+
+                    if (!visited.Contains(inputTensor.Id))
+                    {
+                        visited.Add(inputTensor.Id);
+                        queue.Enqueue(inputTensor);
+                    }
+                }
+            }
+        }
     }
-
-    private static RecomputationEngine GetDefaultRecomputeEngine()
-    {
-        // Return or create a default singleton instance
-        throw new NotImplementedException();
-    }
 }
 ```
 
-## Backward Hook System
+### 7. Error Handling
 
-### Class: BackwardHookManager
+#### Graph Validation
+- Detect cycles in the computational graph
+- Ensure all tensors are properly connected
+- Validate gradient flow (no disconnected nodes)
 
-```csharp
-namespace MLFramework.Checkpointing;
+#### Context Validation
+- Ensure context is not null when accessing in backward pass
+- Ensure context is not already disposed
+- Ensure saved tensors are not disposed
 
-/// <summary>
-/// Manages backward hooks for checkpointing
-/// </summary>
-public class BackwardHookManager : IDisposable
-{
-    /// <summary>
-    /// Registers a backward hook for a specific layer
-    /// </summary>
-    /// <param name="layerId">Unique identifier for the layer</param>
-    /// <param name="hook">Hook function to call during backward pass</param>
-    /// <returns>Handle that can be used to remove the hook</returns>
-    public int RegisterHook(string layerId, Action<Tensor> hook);
+#### Gradient Validation
+- Validate gradient shapes match input shapes
+- Validate gradient dtypes match input dtypes
+- Use GradientValidator from previous spec
 
-    /// <summary>
-    /// Removes a previously registered hook
-    /// </summary>
-    /// <param name="handle">Handle returned from RegisterHook</param>
-    public void RemoveHook(int handle);
+### 8. Debugging Support
 
-    /// <summary>
-    /// Removes all hooks for a specific layer
-    /// </summary>
-    /// <param name="layerId">Unique identifier for the layer</param>
-    public void RemoveHooksForLayer(string layerId);
+#### Graph Visualization (Optional)
+- Provide method to print/visualize the computational graph
+- Show custom function nodes with their type and ID
+- Show tensor connections
 
-    /// <summary>
-    /// Removes all registered hooks
-    /// </summary>
-    public void ClearAllHooks();
-
-    /// <summary>
-    /// Invokes hooks for a specific layer
-    /// </summary>
-    /// <param name="layerId">Unique identifier for the layer</param>
-    /// <param name="gradient">Gradient tensor</param>
-    public void InvokeHooks(string layerId, Tensor gradient);
-
-    /// <summary>
-    /// Disposes the manager and releases resources
-    /// </summary>
-    public void Dispose();
-
-    private readonly Dictionary<int, (string LayerId, Action<Tensor> Hook)> _hooks;
-    private int _nextHandle;
-}
-```
-
-## Gradient Accumulation Integration
-
-### Class: CheckpointedGradientAccumulator
-
-```csharp
-namespace MLFramework.Checkpointing;
-
-/// <summary>
-/// Gradient accumulator that works with checkpointed activations
-/// </summary>
-public class CheckpointedGradientAccumulator : IDisposable
-{
-    /// <summary>
-    /// Initializes a new instance of CheckpointedGradientAccumulator
-    /// </summary>
-    /// <param name="accumulationSteps">Number of steps to accumulate</param>
-    public CheckpointedGradientAccumulator(int accumulationSteps);
-
-    /// <summary>
-    /// Accumulates gradients for a batch
-    /// </summary>
-    /// <param name="gradients">Gradients to accumulate</param>
-    public void Accumulate(Dictionary<string, Tensor> gradients);
-
-    /// <summary>
-    /// Gets the accumulated gradients and resets the accumulator
-    /// </summary>
-    /// <returns>Accumulated gradients</returns>
-    public Dictionary<string, Tensor> GetAccumulatedGradients();
-
-    /// <summary>
-    /// Resets the accumulator without returning gradients
-    /// </summary>
-    public void Reset();
-
-    /// <summary>
-    /// Checks if it's time to apply accumulated gradients
-    /// </summary>
-    /// <returns>True if accumulation steps reached, false otherwise</returns>
-    public bool ShouldApplyGradients();
-
-    /// <summary>
-    /// Disposes the accumulator and releases resources
-    /// </summary>
-    public void Dispose();
-
-    private readonly int _accumulationSteps;
-    private int _currentStep;
-    private readonly Dictionary<string, Tensor> _accumulatedGradients;
-}
-```
-
-## Context Management
-
-### Class: CheckpointContext
-
-```csharp
-namespace MLFramework.Checkpointing;
-
-/// <summary>
-/// Manages checkpointing context for a forward/backward pass
-/// </summary>
-public class CheckpointContext : IDisposable
-{
-    /// <summary>
-    /// Initializes a new instance of CheckpointContext
-    /// </summary>
-    /// <param name="config">Checkpoint configuration</param>
-    public CheckpointContext(CheckpointConfig config);
-
-    /// <summary>
-    /// Enters the checkpoint context (enables checkpointing)
-    /// </summary>
-    public void Enter();
-
-    /// <summary>
-    /// Exits the checkpoint context (disables checkpointing and cleans up)
-    /// </summary>
-    public void Exit();
-
-    /// <summary>
-    /// Gets the current checkpoint configuration
-    /// </summary>
-    public CheckpointConfig Config { get; }
-
-    /// <summary>
-    /// Gets whether checkpointing is currently enabled
-    /// </summary>
-    public bool IsEnabled { get; private set; }
-
-    /// <summary>
-    /// Disposes the context and exits if still active
-    /// </summary>
-    public void Dispose();
-
-    private CheckpointManager _checkpointManager;
-    private RecomputationEngine _recomputeEngine;
-    private MemoryTracker _memoryTracker;
-}
-```
-
-## Testing Requirements
-
-### Unit Tests
-
-1. **CheckpointFunction Tests**
-   - [ ] Forward pass executes correctly
-   - [ ] Backward pass triggers recomputation
-   - [ ] Backward hook is called correctly
-   - [ ] Inputs are properly saved for recomputation
-   - [ ] Gradients are computed correctly
-
-2. **Checkpoint Decorator Tests**
-   - [ ] CheckpointFunction creates correct CheckpointFunction
-   - [ ] Default managers are created correctly
-   - [ ] Custom managers are used when provided
-   - [ ] CheckpointModule wraps module correctly
-
-3. **BackwardHookManager Tests**
-   - [ ] Hook registration returns unique handle
-   - [ ] Hook removal works correctly
-   - [ ] Multiple hooks can be registered for same layer
-   - [ ] Hooks are invoked in correct order
-   - [ ] ClearAllHooks removes all hooks
-
-4. **CheckpointedGradientAccumulator Tests**
-   - [ ] Gradients are accumulated correctly
-   - [ ] ShouldApplyGradients returns correct value
-   - [ ] GetAccumulatedGradients returns correct gradients
-   - [ ] Reset clears accumulated gradients
-   - [ ] Accumulation steps are respected
-
-5. **CheckpointContext Tests**
-   - [ ] Enter enables checkpointing
-   - [ ] Exit disables checkpointing
-   - [ ] Context is properly cleaned up on exit
-   - [ ] Config is preserved correctly
-   - [ ] IsEnabled reflects current state
-
-6. **Integration Tests**
-   - [ ] End-to-end forward/backward with checkpointing
-   - [ ] Gradients match non-checkpointed version
-   - [ ] Memory is reduced with checkpointing
-   - [ ] Multiple forward/backward passes work correctly
-
-7. **Edge Cases**
-   - [ ] Handle null forward function
-   - [ ] Handle exceptions in forward function
-   - [ ] Handle exceptions in backward function
-   - [ ] Handle multiple contexts simultaneously
-   - [ ] Handle nested checkpoint contexts
-
-8. **Thread Safety Tests**
-   - [ ] Multiple forward passes can execute concurrently
-   - [ ] Contexts are thread-safe
-   - [ ] Hook manager is thread-safe
+#### Tracing (Optional)
+- Provide option to trace forward/backward passes
+- Log function calls and gradient values
+- Useful for debugging custom functions
 
 ## Implementation Notes
 
-1. **Autograd System Integration**:
-   - Must integrate with the existing autograd framework
-   - Respect autograd's existing hooks and callbacks
-   - Ensure compatibility with custom autograd functions
+### Integration with CustomFunction.Apply
+Update the `Apply` method in CustomFunction to use the autograd integration:
 
-2. **Performance**:
-   - Minimize overhead in forward pass
-   - Optimize backward pass to reduce recomputation
-   - Use efficient data structures for storing inputs
+```csharp
+public Tensor[] ApplyMany(params Tensor[] inputs)
+{
+    // Validate inputs
+    if (inputs == null || inputs.Any(t => t == null))
+        throw new ArgumentNullException(nameof(inputs));
 
-3. **Correctness**:
-   - Ensure gradients are numerically identical
-   - Handle edge cases in gradient computation
-   - Preserve gradient metadata
+    // Create context
+    var ctx = new FunctionContext();
 
-4. **Error Handling**:
-   - Provide clear error messages
-   - Allow recovery from failures
-   - Maintain state consistency
+    // Call forward
+    var outputs = Forward(inputs, ctx);
+    if (outputs == null)
+        throw new InvalidOperationException("Forward pass returned null");
 
-## Dependencies on Other Specs
+    // Register with autograd engine
+    AutogradEngine.Instance.RegisterCustomFunction(outputs, this, ctx, inputs);
 
-This spec depends on:
-- **Checkpoint Manager Core** (spec_1) for CheckpointManager
-- **Recomputation Engine** (spec_4) for RecomputationEngine
-- **Checkpoint Configuration** (spec_2) for CheckpointConfig
+    return outputs;
+}
+```
 
-## Estimated Implementation Time
-45-60 minutes
+### Thread Safety
+If supporting multi-threaded computation:
+- Use thread-local storage for context
+- Ensure gradient accumulation is atomic
+- Use proper locking for graph modifications
+
+## Testing Requirements
+Create unit tests in `tests/Autograd/CustomFunctionIntegrationTests.cs`:
+
+1. **Basic Integration Tests**
+   - Create a simple custom function
+   - Apply to tensors and verify graph node is created
+   - Call Backward() and verify gradients flow
+   - Verify context is passed correctly
+
+2. **Multiple Output Tests**
+   - Test function with multiple outputs
+   - Verify gradients flow to correct inputs
+   - Verify gradient accumulation
+
+3. **Graph Construction Tests**
+   - Build a computational graph with multiple custom functions
+   - Verify graph structure is correct
+   - Verify backward traversal order
+
+4. **Context Lifecycle Tests**
+   - Verify context is created for each forward pass
+   - Verify context is accessible during backward pass
+   - Verify context is disposed after backward pass
+   - Verify context cleanup prevents memory leaks
+
+5. **Gradient Accumulation Tests**
+   - Use same tensor as input to multiple functions
+   - Verify gradients are accumulated correctly
+   - Verify final gradient is sum of all contributions
+
+6. **Error Handling Tests**
+   - Test with invalid graph (cycles, disconnected nodes)
+   - Test with null context
+   - Test with gradient shape mismatches
+
+7. **Integration with Existing Autograd Tests**
+   - Ensure custom functions work alongside standard operations
+   - Test mixed graphs with custom and built-in functions
+
+## Success Criteria
+- [ ] CustomFunctionNode class is implemented
+- [ ] AutogradEngine supports custom function registration
+- [ ] CustomFunction.Apply integrates with autograd engine
+- [ ] Context lifecycle is managed correctly
+- [ ] Backward traversal works with custom functions
+- [ ] Gradient accumulation works for multiple uses
+- [ ] All error handling is in place
+- [ ] Unit tests cover all scenarios with >90% code coverage
+- [ ] All example functions work in computational graphs

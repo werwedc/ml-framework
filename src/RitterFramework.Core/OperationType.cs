@@ -21,6 +21,21 @@ public enum OperationType
     Conv2D,
 
     /// <summary>
+    /// 1D convolution operation.
+    /// </summary>
+    Conv1D,
+
+    /// <summary>
+    /// Max pooling 2D operation.
+    /// </summary>
+    MaxPool2D,
+
+    /// <summary>
+    /// Average pooling 2D operation.
+    /// </summary>
+    AveragePool2D,
+
+    /// <summary>
     /// Concatenation operation along specified axis.
     /// </summary>
     Concat,
@@ -49,6 +64,11 @@ public enum OperationType
     /// Reshape operation.
     /// </summary>
     Reshape,
+
+    /// <summary>
+    /// Flatten operation.
+    /// </summary>
+    Flatten,
 
     /// <summary>
     /// Broadcasting operation.
