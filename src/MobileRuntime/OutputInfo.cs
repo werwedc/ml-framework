@@ -1,4 +1,6 @@
-namespace MLFramework.MobileRuntime
+using System;
+
+namespace MobileRuntime
 {
     /// <summary>
     /// Information about a model output.

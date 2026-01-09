@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace MLFramework.MobileRuntime
+namespace MobileRuntime
 {
     /// <summary>
     /// Abstract base class for model implementations.

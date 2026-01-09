@@ -1,45 +1,30 @@
 using System;
 
-namespace MLFramework.MobileRuntime
+namespace MobileRuntime
 {
     /// <summary>
-    /// Interface for a tensor in the mobile runtime.
+    /// Interface for tensor
     /// </summary>
     public interface ITensor : IDisposable
     {
         /// <summary>
-        /// Shape of the tensor.
+        /// Gets the tensor shape
         /// </summary>
         int[] Shape { get; }
 
         /// <summary>
-        /// Data type of the tensor.
+        /// Gets the data type
         /// </summary>
         DataType DataType { get; }
 
         /// <summary>
-        /// Total number of elements in the tensor.
+        /// Gets the total number of elements
         /// </summary>
-        long Size { get; }
+        int Length { get; }
 
         /// <summary>
-        /// Total number of bytes occupied by the tensor.
+        /// Gets or sets tensor data
         /// </summary>
-        long ByteCount { get; }
-
-        /// <summary>
-        /// Gets the value at the specified indices.
-        /// </summary>
-        /// <typeparam name="T">Type to return.</typeparam>
-        /// <param name="indices">Indices into the tensor.</param>
-        /// <returns>Value at the specified position.</returns>
-        T GetData<T>(params int[] indices);
-
-        /// <summary>
-        /// Converts the tensor to a flat array.
-        /// </summary>
-        /// <typeparam name="T">Type of array elements.</typeparam>
-        /// <returns>Flat array of tensor data.</returns>
-        T[] ToArray<T>();
+        float[] Data { get; set; }
     }
 }

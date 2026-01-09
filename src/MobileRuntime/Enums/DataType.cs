@@ -1,4 +1,4 @@
-namespace MLFramework.MobileRuntime
+namespace MobileRuntime
 {
     /// <summary>
     /// Data types supported by tensors.

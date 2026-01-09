@@ -1,4 +1,6 @@
-namespace MLFramework.MobileRuntime
+using System;
+
+namespace MobileRuntime
 {
     /// <summary>
     /// Information about the mobile runtime.
@@ -13,7 +15,7 @@ namespace MLFramework.MobileRuntime
         /// <summary>
         /// Supported hardware backends.
         /// </summary>
-        public BackendType SupportedBackends { get; set; }
+        public BackendType[] SupportedBackends { get; set; } = Array.Empty<BackendType>();
 
         /// <summary>
         /// Platform information (e.g., "iOS", "Android", "Windows").

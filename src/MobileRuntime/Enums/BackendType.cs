@@ -1,4 +1,4 @@
-namespace MLFramework.MobileRuntime
+namespace MobileRuntime
 {
     /// <summary>
     /// Hardware backend types supported by the mobile runtime.
@@ -6,23 +6,18 @@ namespace MLFramework.MobileRuntime
     public enum BackendType
     {
         /// <summary>
-        /// CPU-based execution.
+        /// CPU-based execution with ARM NEON/SVE optimization.
         /// </summary>
-        CPU,
+        Cpu,
 
         /// <summary>
-        /// GPU-based execution (e.g., Vulkan, Metal, OpenCL).
+        /// Metal-based execution for iOS.
         /// </summary>
-        GPU,
+        Metal,
 
         /// <summary>
-        /// Neural Processing Unit (NPU) execution.
+        /// Vulkan-based execution for Android.
         /// </summary>
-        NPU,
-
-        /// <summary>
-        /// Automatically select the best available backend.
-        /// </summary>
-        Auto
+        Vulkan
     }
 }

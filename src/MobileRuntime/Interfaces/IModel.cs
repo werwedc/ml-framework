@@ -1,50 +1,46 @@
 using System;
 using System.Threading.Tasks;
 
-namespace MLFramework.MobileRuntime
+namespace MobileRuntime
 {
     /// <summary>
-    /// Interface for a loaded model in the mobile runtime.
+    /// Interface for ML model
     /// </summary>
     public interface IModel : IDisposable
     {
         /// <summary>
-        /// Name of the model.
+        /// Gets the model name
         /// </summary>
         string Name { get; }
 
         /// <summary>
-        /// Array of input tensor information.
+        /// Gets input tensor information
         /// </summary>
         InputInfo[] Inputs { get; }
 
         /// <summary>
-        /// Array of output tensor information.
+        /// Gets output tensor information
         /// </summary>
         OutputInfo[] Outputs { get; }
 
         /// <summary>
-        /// Performs synchronous inference on the model.
-        /// </summary>
-        /// <param name="inputs">Input tensors.</param>
-        /// <returns>Output tensors.</returns>
-        ITensor[] Predict(ITensor[] inputs);
-
-        /// <summary>
-        /// Performs asynchronous inference on the model.
-        /// </summary>
-        /// <param name="inputs">Input tensors.</param>
-        /// <returns>Output tensors.</returns>
-        Task<ITensor[]> PredictAsync(ITensor[] inputs);
-
-        /// <summary>
-        /// Gets the memory footprint of the model in bytes.
+        /// Gets the memory footprint in bytes
         /// </summary>
         long MemoryFootprint { get; }
 
         /// <summary>
-        /// Gets the format of the model.
+        /// Gets the model format
         /// </summary>
         ModelFormat Format { get; }
+
+        /// <summary>
+        /// Performs synchronous inference
+        /// </summary>
+        ITensor[] Predict(ITensor[] inputs);
+
+        /// <summary>
+        /// Performs asynchronous inference
+        /// </summary>
+        Task<ITensor[]> PredictAsync(ITensor[] inputs);
     }
 }

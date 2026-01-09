@@ -1,4 +1,4 @@
-namespace MLFramework.MobileRuntime
+namespace MobileRuntime
 {
     /// <summary>
     /// Model format types supported by the mobile runtime.

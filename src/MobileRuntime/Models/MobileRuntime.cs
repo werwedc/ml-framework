@@ -1,6 +1,6 @@
 using System;
 
-namespace MLFramework.MobileRuntime
+namespace MobileRuntime
 {
     /// <summary>
     /// Abstract base class for mobile runtime implementations.
@@ -15,14 +15,13 @@ namespace MLFramework.MobileRuntime
         /// <summary>
         /// Currently selected hardware backend.
         /// </summary>
-        protected BackendType _currentBackend;
+        protected BackendType _currentBackend = BackendType.Cpu;
 
         /// <summary>
         /// Initializes a new instance of the MobileRuntime class.
         /// </summary>
         protected MobileRuntime()
         {
-            _currentBackend = BackendType.Auto;
             _memoryLimit = long.MaxValue; // Default to unlimited
         }
 

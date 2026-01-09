@@ -1,12 +1,87 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <RootNamespace>MLFramework.MobileRuntime</RootNamespace>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    </PropertyGroup>
+  <PropertyGroup>
+    <TargetFrameworks Condition=" '$(BuildMobile)' != 'true' ">netstandard2.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(BuildMobile)' == 'true' ">netstandard2.0;net6.0-android;net6.0-ios</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>CS1591</NoWarn>
+    <RootNamespace>MobileRuntime</RootNamespace>
+    <AssemblyName>MobileRuntime</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>ML Framework Team</Authors>
+    <Company>ML Framework</Company>
+    <Description>Lightweight mobile runtime for ML model inference on iOS and Android</Description>
+    <PackageTags>machine-learning;mobile;inference;ios;android;metal;vulkan</PackageTags>
+    <PackageProjectUrl>https://github.com/your-org/ml-framework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/your-org/ml-framework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>
+      Initial release of Mobile Runtime
+      - CPU backend with ARM NEON/SVE optimization
+      - Metal backend for iOS
+      - Vulkan backend for Android
+      - Lightweight tensor operations
+      - Memory pool for efficient memory management
+    </PackageReleaseNotes>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <DefineConstants>NETSTANDARD</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0-android'">
+    <DefineConstants>ANDROID;NET6_0_OR_GREATER</DefineConstants>
+    <SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+    <AndroidEnablePackageValidation>false</AndroidEnablePackageValidation>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0-ios'">
+    <DefineConstants>IOS;NET6_0_OR_GREATER</DefineConstants>
+    <SupportedOSPlatformVersion>12.0</SupportedOSPlatformVersion>
+    <MtouchEnableSGenConc>true</MtouchEnableSGenConc>
+    <MtouchHttpClientHandler>NSUrlSessionHandler</MtouchHttpClientHandler>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../images/icon.png" Pack="true" PackagePath="\" />
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+  </ItemGroup>
+
+  <!-- Android-specific references -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0-android'">
+    <PackageReference Include="Xamarin.AndroidX.AppCompat" Version="1.3.1" />
+  </ItemGroup>
+
+  <!-- iOS-specific references -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0-ios'">
+    <PackageReference Include="Xamarin.iOS" Version="15.0.0" />
+  </ItemGroup>
+
+  <!-- Native libraries -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0-android'">
+    <AndroidNativeLibrary Include="libs/android/arm64-v8a/libvulkan.so" />
+    <AndroidNativeLibrary Include="libs/android/armeabi-v7a/libvulkan.so" />
+    <AndroidNativeLibrary Include="libs/android/x86_64/libvulkan.so" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0-ios'">
+    <NativeReference Include="libs/ios/libMobileRuntime.framework">
+      <SmartLink>true</SmartLink>
+      <ForceLoad>true</ForceLoad>
+      <IsCxx>true</IsCxx>
+    </NativeReference>
+  </ItemGroup>
 
 </Project>
