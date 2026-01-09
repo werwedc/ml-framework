@@ -1,74 +1,27 @@
-using NUnit.Framework;
+using MLFramework.Core;
+using MLFramework.Exceptions;
+using Xunit;
 
-namespace RitterFramework.Core.Tests.Exceptions;
+namespace MLFramework.Tests.Exceptions;
 
 /// <summary>
-/// Unit tests for the ShapeMismatchException class.
+/// Unit tests for ShapeMismatchException class.
 /// </summary>
-[TestFixture]
 public class ShapeMismatchExceptionTests
 {
-    [Test]
-    public void DefaultConstructor_CreatesEmptyException()
-    {
-        // Arrange & Act
-        var exception = new ShapeMismatchException();
-
-        // Assert
-        Assert.That(exception.Message, Is.Empty);
-        Assert.That(exception.LayerName, Is.Null);
-        Assert.That(exception.InputShapes, Is.Empty);
-        Assert.That(exception.ExpectedShapes, Is.Empty);
-        Assert.That(exception.SuggestedFixes, Is.Empty);
-    }
-
-    [Test]
-    public void MessageConstructor_CreatesExceptionWithMessage()
+    [Fact]
+    public void Constructor_WithAllParameters_CreatesExceptionCorrectly()
     {
         // Arrange
-        var message = "Shape mismatch occurred";
-
-        // Act
-        var exception = new ShapeMismatchException(message);
-
-        // Assert
-        Assert.That(exception.Message, Is.EqualTo(message));
-    }
-
-    [Test]
-    public void MessageAndInnerExceptionConstructor_CreatesExceptionWithBoth()
-    {
-        // Arrange
-        var message = "Shape mismatch occurred";
-        var innerException = new InvalidOperationException("Inner error");
-
-        // Act
-        var exception = new ShapeMismatchException(message, innerException);
-
-        // Assert
-        Assert.That(exception.Message, Is.EqualTo(message));
-        Assert.That(exception.InnerException, Is.SameAs(innerException));
-    }
-
-    [Test]
-    public void FullConstructor_CreatesExceptionWithAllProperties()
-    {
-        // Arrange
-        var message = "Matrix multiplication failed";
-        var layerName = "encoder.fc2";
+        var layerName = "test_layer";
         var operationType = OperationType.MatrixMultiply;
-        var inputShapes = new List<long[]> { new[] { 32L, 256L } };
-        var expectedShapes = new List<long[]> { new[] { -1L, 128L } };
-        var problemDescription = "Dimension 1 of input (256) does not match dimension 0 of weight (128)";
-        var suggestedFixes = new List<string>
-        {
-            "Check layer configuration",
-            "Verify input features match expected dimension"
-        };
+        var inputShapes = new[] { new long[] { 32, 256 } };
+        var expectedShapes = new[] { new long[] { 32, 128 } };
+        var problemDescription = "Dimension mismatch";
+        var suggestedFixes = new List<string> { "Fix 1", "Fix 2" };
 
         // Act
         var exception = new ShapeMismatchException(
-            message,
             layerName,
             operationType,
             inputShapes,
@@ -77,226 +30,219 @@ public class ShapeMismatchExceptionTests
             suggestedFixes);
 
         // Assert
-        Assert.That(exception.Message, Is.EqualTo(message));
-        Assert.That(exception.LayerName, Is.EqualTo(layerName));
-        Assert.That(exception.OperationType, Is.EqualTo(operationType));
-        Assert.That(exception.InputShapes.Count, Is.EqualTo(1));
-        Assert.That(exception.InputShapes[0], Is.EqualTo(new[] { 32L, 256L }));
-        Assert.That(exception.ExpectedShapes.Count, Is.EqualTo(1));
-        Assert.That(exception.ExpectedShapes[0], Is.EqualTo(new[] { -1L, 128L }));
-        Assert.That(exception.ProblemDescription, Is.EqualTo(problemDescription));
-        Assert.That(exception.SuggestedFixes.Count, Is.EqualTo(2));
-        Assert.That(exception.SuggestedFixes[0], Is.EqualTo("Check layer configuration"));
+        Assert.Equal(layerName, exception.LayerName);
+        Assert.Equal(operationType, exception.OperationType);
+        Assert.Equal(inputShapes, exception.InputShapes);
+        Assert.Equal(expectedShapes, exception.ExpectedShapes);
+        Assert.Equal(problemDescription, exception.ProblemDescription);
+        Assert.Equal(suggestedFixes, exception.SuggestedFixes);
     }
 
-    [Test]
-    public void FullConstructor_WithNullSuggestedFixes_CreatesEmptyList()
+    [Fact]
+    public void Constructor_WithMinimalParameters_CreatesExceptionCorrectly()
+    {
+        // Arrange & Act
+        var exception = new ShapeMismatchException(
+            "test_layer",
+            OperationType.Conv2D,
+            new[] { new long[] { 32, 3, 224, 224 } },
+            new[] { new long[] { 32, 64, 224, 224 } },
+            "Channel mismatch");
+
+        // Assert
+        Assert.NotNull(exception);
+        Assert.Equal("test_layer", exception.LayerName);
+        Assert.Null(exception.SuggestedFixes);
+        Assert.False(exception.BatchSize.HasValue);
+    }
+
+    [Fact]
+    public void GetDiagnosticReport_GeneratesCorrectFormat()
     {
         // Arrange
-        var message = "Shape mismatch";
-        var inputShapes = new List<long[]> { new[] { 32L, 256L } };
-        var expectedShapes = new List<long[]> { new[] { -1L, 128L } };
+        var exception = new ShapeMismatchException(
+            "encoder.fc2",
+            OperationType.MatrixMultiply,
+            new[] { new long[] { 32, 256 } },
+            new[] { new long[] { 128, 10 } },
+            "Dimension 1 mismatch",
+            new List<string> { "Suggestion 1", "Suggestion 2" },
+            32,
+            "encoder.fc1 [32, 256]");
+
+        // Act
+        var report = exception.GetDiagnosticReport();
+
+        // Assert
+        Assert.NotNull(report);
+        Assert.Contains("encoder.fc2", report);
+        Assert.Contains("MatrixMultiply", report);
+        Assert.Contains("Dimension 1 mismatch", report);
+        Assert.Contains("Suggestion 1", report);
+        Assert.Contains("Suggestion 2", report);
+        Assert.Contains("encoder.fc1", report);
+    }
+
+    [Fact]
+    public void Exception_Message_IsGeneratedCorrectly()
+    {
+        // Arrange & Act
+        var exception = new ShapeMismatchException(
+            "layer1",
+            OperationType.Concat,
+            new[] { new long[] { 32, 10 } },
+            new[] { new long[] { 32, 20 } },
+            "Channel mismatch");
+
+        // Assert
+        Assert.Contains("layer1", exception.Message);
+        Assert.Contains("Concat", exception.Message);
+        Assert.Contains("Shape mismatch", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_WithAllOptionalParameters_CreatesExceptionCorrectly()
+    {
+        // Arrange
+        var layerName = "fc1";
+        var operationType = OperationType.Linear;
+        var inputShapes = new[] { new long[] { 32, 784 } };
+        var expectedShapes = new[] { new long[] { 784, 256 } };
+        var problemDescription = "Weight dimension mismatch";
+        var suggestedFixes = new List<string> { "Check weight shape", "Verify input size" };
+        var batchSize = 32L;
+        var previousLayerContext = "input [32, 784]";
 
         // Act
         var exception = new ShapeMismatchException(
-            message,
-            null,
-            OperationType.Linear,
+            layerName,
+            operationType,
             inputShapes,
             expectedShapes,
-            null,
-            null);
+            problemDescription,
+            suggestedFixes,
+            batchSize,
+            previousLayerContext);
 
         // Assert
-        Assert.That(exception.SuggestedFixes, Is.Not.Null);
-        Assert.That(exception.SuggestedFixes, Is.Empty);
+        Assert.Equal(layerName, exception.LayerName);
+        Assert.Equal(operationType, exception.OperationType);
+        Assert.Equal(inputShapes, exception.InputShapes);
+        Assert.Equal(expectedShapes, exception.ExpectedShapes);
+        Assert.Equal(problemDescription, exception.ProblemDescription);
+        Assert.Equal(suggestedFixes, exception.SuggestedFixes);
+        Assert.Equal(batchSize, exception.BatchSize);
+        Assert.Equal(previousLayerContext, exception.PreviousLayerContext);
     }
 
-    [Test]
-    public void GetDiagnosticReport_WithAllFields_ReturnsFormattedReport()
+    [Fact]
+    public void GetDiagnosticReport_WithoutSuggestedFixes_DoesNotIncludeFixesSection()
     {
         // Arrange
         var exception = new ShapeMismatchException(
-            "Matrix multiplication failed",
-            "encoder.fc2",
+            "layer1",
             OperationType.MatrixMultiply,
-            new List<long[]> { new[] { 32L, 256L } },
-            new List<long[]> { new[] { -1L, 128L } },
-            "Dimension 1 of input (256) does not match dimension 0 of weight (128)",
-            new List<string> { "Check layer configuration", "Verify input features match expected dimension" });
+            new[] { new long[] { 32, 10 } },
+            new[] { new long[] { 10, 5 } },
+            "Test error");
 
         // Act
         var report = exception.GetDiagnosticReport();
 
         // Assert
-        Assert.That(report, Does.Contain("MLFramework.ShapeMismatchException"));
-        Assert.That(report, Does.Contain("encoder.fc2"));
-        Assert.That(report, Does.Contain("MatrixMultiply"));
-        Assert.That(report, Does.Contain("[32, 256]"));
-        Assert.That(report, Does.Contain("[*, 128]"));
-        Assert.That(report, Does.Contain("Dimension 1 of input (256) does not match dimension 0 of weight (128)"));
-        Assert.That(report, Does.Contain("Suggested fixes"));
-        Assert.That(report, Does.Contain("1. Check layer configuration"));
-        Assert.That(report, Does.Contain("2. Verify input features match expected dimension"));
+        Assert.NotNull(report);
+        Assert.DoesNotContain("Suggested fixes", report);
     }
 
-    [Test]
-    public void GetDiagnosticReport_WithMultipleShapes_CorrectlyLabelsThem()
+    [Fact]
+    public void GetDiagnosticReport_WithBatchSize_IncludesBatchSizeInContext()
     {
         // Arrange
         var exception = new ShapeMismatchException(
-            "Concatenation failed",
-            "concat_layer",
-            OperationType.Concat,
-            new List<long[]>
-            {
-                new[] { 32L, 128L },
-                new[] { 32L, 256L }
-            },
-            new List<long[]>
-            {
-                new[] { 32L, 128L },
-                new[] { 32L, 128L }
-            },
-            "Shapes don't match on axis 1");
+            "layer1",
+            OperationType.Conv2D,
+            new[] { new long[] { 32, 3, 224, 224 } },
+            new[] { new long[] { 64, 3, 3, 3 } },
+            "Channel mismatch",
+            batchSize: 32);
 
         // Act
         var report = exception.GetDiagnosticReport();
 
         // Assert
-        Assert.That(report, Does.Contain("Input shape [0]"));
-        Assert.That(report, Does.Contain("Input shape [1]"));
-        Assert.That(report, Does.Contain("[32, 128]"));
-        Assert.That(report, Does.Contain("[32, 256]"));
+        Assert.NotNull(report);
+        Assert.Contains("Batch size: 32", report);
     }
 
-    [Test]
-    public void GetDiagnosticReport_WithoutLayerName_StillShowsShapes()
+    [Fact]
+    public void GetDiagnosticReport_WithPreviousLayerContext_IncludesContext()
     {
         // Arrange
         var exception = new ShapeMismatchException(
-            "Shape mismatch",
-            null,
+            "layer2",
             OperationType.Linear,
-            new List<long[]> { new[] { 32L, 256L } },
-            new List<long[]> { new[] { 32L, 128L } });
+            new[] { new long[] { 32, 256 } },
+            new[] { new long[] { 256, 10 } },
+            "Dimension mismatch",
+            previousLayerContext: "layer1 [32, 256]");
 
         // Act
         var report = exception.GetDiagnosticReport();
 
         // Assert
-        Assert.That(report, Does.Contain("[32, 256]"));
-        Assert.That(report, Does.Contain("[32, 128]"));
-        Assert.That(report, Does.Not.Contain("Layer:"));
+        Assert.NotNull(report);
+        Assert.Contains("Previous layer output: layer1 [32, 256]", report);
     }
 
-    [Test]
-    public void GetDiagnosticReport_WithoutSuggestedFixes_DoesNotShowSection()
+    [Fact]
+    public void GetDiagnosticReport_DifferentOperationTypes_GeneratesCorrectErrorMessages()
+    {
+        // Arrange & Act
+        var matrixMultiplyException = new ShapeMismatchException(
+            "fc1", OperationType.MatrixMultiply,
+            new[] { new long[] { 32, 10 } },
+            new[] { new long[] { 5, 10 } },
+            "Test error");
+        var conv2DException = new ShapeMismatchException(
+            "conv1", OperationType.Conv2D,
+            new[] { new long[] { 32, 3, 224, 224 } },
+            new[] { new long[] { 64, 3, 3, 3 } },
+            "Test error");
+        var concatException = new ShapeMismatchException(
+            "concat1", OperationType.Concat,
+            new[] { new long[] { 32, 10 } },
+            new[] { new long[] { 32, 20 } },
+            "Test error");
+
+        var matrixMultiplyReport = matrixMultiplyException.GetDiagnosticReport();
+        var conv2DReport = conv2DException.GetDiagnosticReport();
+        var concatReport = concatException.GetDiagnosticReport();
+
+        // Assert
+        Assert.Contains("Matrix multiplication failed", matrixMultiplyReport);
+        Assert.Contains("Conv2D operation failed", conv2DReport);
+        Assert.Contains("Concatenation failed", concatReport);
+    }
+
+    [Fact]
+    public void GetDiagnosticReport_MultipleSuggestedFixes_IncludesAllFixes()
     {
         // Arrange
         var exception = new ShapeMismatchException(
-            "Shape mismatch",
-            "test_layer",
-            OperationType.Reshape,
-            new List<long[]> { new[] { 784L } },
-            new List<long[]> { new[] { 28L, 28L } });
-
-        // Act
-        var report = exception.GetDiagnosticReport();
-
-        // Assert
-        Assert.That(report, Does.Not.Contain("Suggested fixes"));
-    }
-
-    [Test]
-    public void GetDiagnosticReport_WithBroadcastingFailure_FormatCorrectly()
-    {
-        // Arrange
-        var exception = new ShapeMismatchException(
-            "Broadcasting failed",
-            "add_op",
-            OperationType.Broadcast,
-            new List<long[]>
-            {
-                new[] { 32L, 10L },
-                new[] { 20L, 10L }
-            },
-            new List<long[]>
-            {
-                new[] { 32L, 10L },
-                new[] { 32L, 10L }
-            },
-            "Cannot broadcast shapes [32, 10] and [20, 10]");
-
-        // Act
-        var report = exception.GetDiagnosticReport();
-
-        // Assert
-        Assert.That(report, Does.Contain("Broadcasting failed"));
-        Assert.That(report, Does.Contain("[32, 10]"));
-        Assert.That(report, Does.Contain("[20, 10]"));
-        Assert.That(report, Does.Contain("Cannot broadcast shapes"));
-    }
-
-    [Test]
-    public void Properties_AreMutable()
-    {
-        // Arrange
-        var exception = new ShapeMismatchException("Test");
-
-        // Act
-        exception.LayerName = "new_layer";
-        exception.OperationType = OperationType.Conv2D;
-        exception.ProblemDescription = "New problem";
-        exception.SuggestedFixes = new List<string> { "Fix it" };
-
-        // Assert
-        Assert.That(exception.LayerName, Is.EqualTo("new_layer"));
-        Assert.That(exception.OperationType, Is.EqualTo(OperationType.Conv2D));
-        Assert.That(exception.ProblemDescription, Is.EqualTo("New problem"));
-        Assert.That(exception.SuggestedFixes[0], Is.EqualTo("Fix it"));
-    }
-
-    [Test]
-    public void Properties_CanAddShapes()
-    {
-        // Arrange
-        var exception = new ShapeMismatchException("Test");
-
-        // Act
-        exception.InputShapes.Add(new[] { 10L, 20L });
-        exception.ExpectedShapes.Add(new[] { 10L, 30L });
-
-        // Assert
-        Assert.That(exception.InputShapes.Count, Is.EqualTo(1));
-        Assert.That(exception.ExpectedShapes.Count, Is.EqualTo(1));
-        Assert.That(exception.InputShapes[0], Is.EqualTo(new[] { 10L, 20L }));
-        Assert.That(exception.ExpectedShapes[0], Is.EqualTo(new[] { 10L, 30L }));
-    }
-
-    [Test]
-    public void GetDiagnosticReport_OutputFormatMatchesSpecExample()
-    {
-        // Arrange
-        var exception = new ShapeMismatchException(
-            "Matrix multiplication failed in layer 'encoder.fc2'",
-            "encoder.fc2",
+            "layer1",
             OperationType.MatrixMultiply,
-            new List<long[]> { new[] { 32L, 256L } },
-            new List<long[]> { new[] { -1L, 128L } },
-            "Dimension 1 of input (256) does not match dimension 0 of weight (128)",
-            new List<string>
-            {
-                "Check layer configuration",
-                "Verify input features match expected dimension"
-            });
+            new[] { new long[] { 32, 256 } },
+            new[] { new long[] { 128, 10 } },
+            "Dimension mismatch",
+            new List<string> { "Fix 1", "Fix 2", "Fix 3" });
 
         // Act
         var report = exception.GetDiagnosticReport();
 
-        // Assert - Verify format matches spec example structure
-        var lines = report.Split('\n');
-        Assert.That(lines.Length, Is.GreaterThan(5));
-        Assert.That(lines[0], Does.Contain("MLFramework.ShapeMismatchException"));
+        // Assert
+        Assert.NotNull(report);
+        Assert.Contains("1. Fix 1", report);
+        Assert.Contains("2. Fix 2", report);
+        Assert.Contains("3. Fix 3", report);
     }
 }
