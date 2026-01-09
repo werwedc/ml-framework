@@ -1,25 +1,19 @@
-I'll help you create a new feature idea for the ML framework. Let me first check the trajectory.md file and the current project structure.
+I'll help you generate a new feature idea. Let me first check the trajectory.md file and the 0_ideas/ directory to understand the context and format.
 [96m[1m| [0m[90m Read     [0mtrajectory.md
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*.md"}
-[94m[1m| [0m[90m Glob     [0m{"pattern":"src/**/*.cs"}
-I can see the trajectory.md file has many features, and the 0_ideas/ directory is currently empty. Let me check what exists in the project and pick an unselected feature to create as an idea file.
 [94m[1m| [0m[90m Glob     [0m{"pattern":"0_ideas/*"}
-I can see the 0_ideas/ directory is empty and trajectory.md has many features. Looking through the document, I found an unselected feature for robust error reporting and debugging aids. Let me create a new feature idea file for this.
-[92m[1m| [0m[90m Write    [0m0_ideas\shape_mismatch_error_reporting.md
-Perfect! I've created a comprehensive feature idea file for "Shape Mismatch Error Reporting" in `0_ideas/shape_mismatch_error_reporting.md`. Now let me mark this feature as selected in the trajectory.md file:
+I can see the 0_ideas/ directory is empty. Looking at trajectory.md, I'll select an unselected feature for implementation. I found that "Custom Autograd Functions" hasn't been selected yet, which is a critical feature for a machine learning framework.
+
+Let me create a feature idea file for Custom Autograd Functions:
+[92m[1m| [0m[90m Write    [0m0_ideas\custom_autograd_functions.md
+Now I need to mark this feature as selected in trajectory.md:
 [92m[1m| [0m[90m Edit     [0mtrajectory.md
-✅ **Task Complete!**
+Done! I've created a new feature idea file for **Custom Autograd Functions** in `0_ideas/custom_autograd_functions.md` and marked it as selected in trajectory.md.
 
-I've created a new feature idea file in `0_ideas/shape_mismatch_error_reporting.md` focusing on enhanced error reporting for tensor shape mismatches in the ML framework.
+This feature allows users to define custom forward and backward passes for operations that:
+- Are numerically unstable and need careful gradient computation
+- Are non-differentiable by default (requiring techniques like straight-through estimator)
+- Need performance optimization beyond what automatic tracing provides
+- Implement novel research ideas or custom loss functions
 
-**Feature Overview:**
-The idea proposes a comprehensive shape mismatch diagnostic system that provides:
-- Detailed shape information with exact dimension sizes
-- Contextual, human-readable error messages
-- Layer-specific diagnostics showing where the error occurred
-- Common pattern detection with suggested fixes
-- Optional shape visualization
-
-This addresses a critical pain point in deep learning development where opaque shape mismatch errors cause significant debugging delays. The enhanced error system will dramatically improve developer experience and reduce time spent debugging shape-related issues.
-
-The feature has been marked as selected in `trajectory.md` and is ready for the Architect to review and create specifications.
+The file includes detailed technical specifications, API design, example use cases (STEBinary, StableSoftmax, ClampedMSELoss), and a comprehensive testing strategy.
