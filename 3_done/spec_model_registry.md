@@ -1,95 +1,66 @@
-# Spec: Model Registry Implementation
+# Spec: Model Registry
 
 ## Overview
-Implement IModelRegistry interface for registering, tagging, and querying model versions with metadata persistence.
+Implement an in-memory registry to manage ModelMetadata objects and provide lookup functionality.
 
-## Tasks
+## Requirements
 
-### 1. Create IModelRegistry Interface
-**File:** `src/ModelVersioning/IModelRegistry.cs`
+### 1. ModelRegistry Class
+Create a registry with the following operations:
+- `Register(ModelMetadata metadata)`: Add a model to the registry
+- `Get(string name, string version = null)`: Retrieve metadata by name (and optional version)
+- `GetLatestVersion(string name)`: Get the latest version of a model
+- `ListAll()`: Return all registered models
+- `ListByArchitecture(string architecture)`: Filter by architecture type
+- `ListByTask(TaskType task)`: Filter by task type
+- `Exists(string name, string version = null)`: Check if a model is registered
+- `Remove(string name, string version = null)`: Remove a model from registry
 
-```csharp
-public interface IModelRegistry
-{
-    string RegisterModel(string modelPath, ModelMetadata metadata);
-    void TagModel(string modelId, string versionTag);
-    ModelInfo GetModel(string versionTag);
-    ModelInfo GetModelById(string modelId);
-    IEnumerable<ModelInfo> ListModels();
-    void UpdateModelState(string modelId, LifecycleState newState);
-    void SetParentModel(string modelId, string parentModelId);
-}
-```
+### 2. Registry Storage
+- Use in-memory dictionary for fast lookups
+- Composite key: {name}_{version}
+- Support loading initial registry from JSON files
+- Support saving current registry to JSON files
 
-### 2. Implement ModelRegistry Class
-**File:** `src/ModelVersioning/ModelRegistry.cs`
+### 3. RegistryBuilder
+Helper class to build registries:
+- `AddFromDirectory(string path)`: Load all metadata JSON files from a directory
+- `AddFromJsonFile(string path)`: Load from a single JSON file
+- `AddFromEmbeddedResource(string resource)`: Load from embedded resource (for default models)
+- `Build()`: Construct the final registry
 
-```csharp
-public class ModelRegistry : IModelRegistry
-{
-    private readonly Dictionary<string, ModelInfo> _modelsById;
-    private readonly Dictionary<string, ModelInfo> _modelsByVersion;
-    // Constructor with DI support
-    // Implement all interface methods
-}
-```
+### 4. TaskType Enum
+Define common ML tasks:
+- ImageClassification
+- ObjectDetection
+- SemanticSegmentation
+- TextClassification
+- SequenceLabeling
+- QuestionAnswering
+- TextGeneration
+- Regression
 
-### 3. Implement Core Methods
+### 5. Unit Tests
+Test cases for:
+- Register and retrieve models
+- Version resolution (latest version selection)
+- Filtering by architecture and task
+- Duplicate registration handling (should throw or update)
+- Loading from JSON files
+- Registry persistence (save/load)
 
-#### RegisterModel
-- Generate unique model ID (GUID)
-- Create ModelInfo with initial LifecycleState.Draft
-- Store in both dictionaries (by ID and by version tag if provided)
-- Return model ID
-
-#### TagModel
-- Associate version tag with model ID
-- Validate version tag format (semantic versioning: v1.2.3)
-- Update version mappings
-- Throw exceptions if version tag already exists
-
-#### GetModel/GetModelById
-- Retrieve model info by version tag or ID
-- Return null if not found
-- Include all metadata
-
-#### ListModels
-- Return all registered models
-- Support filtering by state (optional parameter)
-- Order by creation timestamp
-
-#### UpdateModelState
-- Validate state transitions (e.g., Draft -> Staging -> Production)
-- Prevent transitions to/from Archived
-- Update model state
-
-#### SetParentModel
-- Establish parent-child relationship
-- Validate parent exists
-- Track fine-tuning lineage
-
-## Validation
-- Version tag must match semantic versioning pattern
-- State transitions must follow allowed transitions
-- Parent model must exist
-- Duplicate version tags not allowed
-
-## Testing
-**File:** `tests/ModelVersioning/ModelRegistryTests.cs`
-
-Create unit tests for:
-1. RegisterModel with valid metadata
-2. TagModel with valid/invalid version tags
-3. GetModel by version tag
-4. GetModelById
-5. ListModels with and without filters
-6. Valid state transitions
-7. Invalid state transitions (should throw)
-8. Parent-child relationships
-9. Duplicate tag prevention
-10. Concurrent registration handling
+## Files to Create
+- `src/ModelZoo/ModelRegistry.cs`
+- `src/ModelZoo/RegistryBuilder.cs`
+- `src/ModelZoo/TaskType.cs`
+- `tests/ModelZooTests/ModelRegistryTests.cs`
 
 ## Dependencies
-- Spec: spec_model_data_models.md (must be completed first)
-- System.Text.Json
-- Regex for version validation
+- `ModelMetadata` from spec_model_metadata.md
+
+## Success Criteria
+- Can register 1000+ models with sub-millisecond lookup times
+- Version selection correctly resolves to latest
+- Registry can be saved and loaded from disk
+- Thread-safe operations (for concurrent access)
+- Test coverage > 90%
