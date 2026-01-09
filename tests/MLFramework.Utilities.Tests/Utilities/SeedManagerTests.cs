@@ -205,40 +205,144 @@ public class SeedManagerTests : IDisposable
 
     #region Deterministic Mode Tests
 
-    // Note: Deterministic mode features not yet implemented
-    // These tests are placeholders for future implementation
-
-    [Fact(Skip = "Deterministic mode not yet implemented")]
+    [Fact]
     public void SetDeterministicMode_SetsFlagsCorrectly()
     {
-        // Placeholder test - will be implemented when DeterministicModeFlags is added
-        // var flags = DeterministicModeFlags.CudnnDeterministic | DeterministicModeFlags.CublasDeterministic;
-        // _seedManager.SetDeterministicMode(flags);
-        // Assert.Equal(flags, _seedManager.IsDeterministic);
+        // Arrange
+        var flags = DeterministicModeFlags.CudnnDeterministic | DeterministicModeFlags.CublasDeterministic;
+
+        // Act
+        _seedManager.SetDeterministicMode(flags);
+
+        // Assert
+        Assert.Equal(flags, _seedManager.IsDeterministic);
     }
 
-    [Fact(Skip = "Deterministic mode not yet implemented")]
+    [Fact]
     public void SetDeterministicMode_WithNone_DisablesAll()
     {
-        // Placeholder test
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.All);
+
+        // Act
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+
+        // Assert
+        Assert.Equal(DeterministicModeFlags.None, _seedManager.IsDeterministic);
     }
 
-    [Fact(Skip = "Deterministic mode not yet implemented")]
+    [Fact]
     public void EnableDisableDeterministicMode_UpdatesFlagsCorrectly()
     {
-        // Placeholder test
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+
+        // Act - Enable CudnnDeterministic
+        _seedManager.EnableDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudnnDeterministic));
+
+        // Act - Enable CublasDeterministic
+        _seedManager.EnableDeterministicMode(DeterministicModeFlags.CublasDeterministic);
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CublasDeterministic));
+
+        // Act - Disable CudnnDeterministic
+        _seedManager.DisableDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+        Assert.False(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudnnDeterministic));
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CublasDeterministic));
     }
 
-    [Fact(Skip = "WithDeterminism not yet implemented")]
-    public void WithDeterminism_RestoresPreviousState()
+    [Fact]
+    public void IsDeterministicModeEnabled_ChecksFlagsCorrectly()
     {
-        // Placeholder test
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+
+        // Act & Assert
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudnnDeterministic));
+        Assert.False(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CublasDeterministic));
+        Assert.False(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudaMemoryDeterministic));
+        Assert.False(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudaGraphs));
     }
 
-    [Fact(Skip = "WithDeterminism not yet implemented")]
-    public void WithDeterminism_EnablesAllInScope()
+    [Fact]
+    public void IsDeterministicProperty_SetsFlagsCorrectly()
     {
-        // Placeholder test
+        // Arrange
+        var flags = DeterministicModeFlags.CudnnDeterministic | DeterministicModeFlags.CublasDeterministic;
+
+        // Act
+        _seedManager.IsDeterministic = flags;
+
+        // Assert
+        Assert.Equal(flags, _seedManager.IsDeterministic);
+    }
+
+    [Fact]
+    public void GetPerformanceImpact_ReturnsCorrectImpact()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic | DeterministicModeFlags.CublasDeterministic);
+
+        // Act
+        var impact = _seedManager.GetPerformanceImpact();
+
+        // Assert
+        Assert.Contains("CudnnDeterministic", impact);
+        Assert.Contains("CublasDeterministic", impact);
+        Assert.Contains("20%", impact);
+        Assert.Contains("15%", impact);
+    }
+
+    [Fact]
+    public void GetPerformanceImpact_WithNone_ReturnsNoImpact()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+
+        // Act
+        var impact = _seedManager.GetPerformanceImpact();
+
+        // Assert
+        Assert.Equal("No deterministic mode enabled - no performance impact", impact);
+    }
+
+    [Fact]
+    public void SetDeterministicMode_WithAll_EnablesAllFlags()
+    {
+        // Act
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.All);
+
+        // Assert
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudnnDeterministic));
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CublasDeterministic));
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudaMemoryDeterministic));
+        Assert.True(_seedManager.IsDeterministicModeEnabled(DeterministicModeFlags.CudaGraphs));
+    }
+
+    [Fact]
+    public void GetPerformanceImpact_IncludesAllFlags()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.All);
+
+        // Act
+        var impact = _seedManager.GetPerformanceImpact();
+
+        // Assert
+        Assert.Contains("CudnnDeterministic", impact);
+        Assert.Contains("CublasDeterministic", impact);
+        Assert.Contains("CudaMemoryDeterministic", impact);
+        Assert.Contains("CudaGraphs", impact);
+    }
+
+    [Fact]
+    public void DeterministicModeFlags_CombineCorrectly()
+    {
+        // Act & Assert - Test flags combination
+        var flags = DeterministicModeFlags.CudnnDeterministic | DeterministicModeFlags.CublasDeterministic;
+        Assert.True((flags & DeterministicModeFlags.CudnnDeterministic) != 0);
+        Assert.True((flags & DeterministicModeFlags.CublasDeterministic) != 0);
+        Assert.False((flags & DeterministicModeFlags.CudaGraphs) != 0);
     }
 
     #endregion
@@ -293,6 +397,116 @@ public class SeedManagerTests : IDisposable
         // Assert
         Assert.NotNull(scope);
         Assert.Equal(42, _seedManager.CurrentSeed);
+    }
+
+    [Fact]
+    public void WithDeterminism_EnablesAllInScope()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+
+        // Act
+        using (_seedManager.WithDeterminism(true))
+        {
+            Assert.Equal(DeterministicModeFlags.All, _seedManager.IsDeterministic);
+        }
+
+        // Assert
+        Assert.Equal(DeterministicModeFlags.None, _seedManager.IsDeterministic);
+    }
+
+    [Fact]
+    public void WithDeterminism_DisablesAllInScope()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.All);
+
+        // Act
+        using (_seedManager.WithDeterminism(false))
+        {
+            Assert.Equal(DeterministicModeFlags.None, _seedManager.IsDeterministic);
+        }
+
+        // Assert
+        Assert.Equal(DeterministicModeFlags.All, _seedManager.IsDeterministic);
+    }
+
+    [Fact]
+    public void WithDeterministicMode_SetsSpecificFlagsInScope()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+        var flags = DeterministicModeFlags.CudnnDeterministic | DeterministicModeFlags.CublasDeterministic;
+
+        // Act
+        using (_seedManager.WithDeterministicMode(flags))
+        {
+            Assert.Equal(flags, _seedManager.IsDeterministic);
+        }
+
+        // Assert
+        Assert.Equal(DeterministicModeFlags.None, _seedManager.IsDeterministic);
+    }
+
+    [Fact]
+    public void WithDeterminism_RestoresPreviousState()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.CudnnDeterministic);
+        var previousMode = _seedManager.IsDeterministic;
+
+        // Act
+        using (_seedManager.WithDeterminism(true))
+        {
+            Assert.Equal(DeterministicModeFlags.All, _seedManager.IsDeterministic);
+        }
+
+        // Assert
+        Assert.Equal(previousMode, _seedManager.IsDeterministic);
+    }
+
+    [Fact]
+    public void WithDeterminism_WithRestoreState_CapturesAndRestoresRngState()
+    {
+        // Arrange
+        _seedManager.SetGlobalSeed(42);
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+        var expectedSeed = _seedManager.CurrentSeed;
+
+        // Act
+        using (_seedManager.WithDeterminism(true, restoreState: true))
+        {
+            // Change the seed inside the scope
+            _seedManager.SetGlobalSeed(999);
+            Assert.Equal(999, _seedManager.CurrentSeed);
+        }
+
+        // Assert - Both seed and deterministic mode should be restored
+        Assert.Equal(expectedSeed, _seedManager.CurrentSeed);
+        Assert.Equal(DeterministicModeFlags.None, _seedManager.IsDeterministic);
+    }
+
+    [Fact]
+    public void NestedDeterministicScopes_WorkCorrectly()
+    {
+        // Arrange
+        _seedManager.SetDeterministicMode(DeterministicModeFlags.None);
+
+        // Act
+        using (var outerScope = _seedManager.WithDeterministicMode(DeterministicModeFlags.CudnnDeterministic))
+        {
+            Assert.Equal(DeterministicModeFlags.CudnnDeterministic, _seedManager.IsDeterministic);
+
+            using (var innerScope = _seedManager.WithDeterministicMode(DeterministicModeFlags.All))
+            {
+                Assert.Equal(DeterministicModeFlags.All, _seedManager.IsDeterministic);
+            }
+
+            Assert.Equal(DeterministicModeFlags.CudnnDeterministic, _seedManager.IsDeterministic);
+        }
+
+        // Assert
+        Assert.Equal(DeterministicModeFlags.None, _seedManager.IsDeterministic);
     }
 
     #endregion
