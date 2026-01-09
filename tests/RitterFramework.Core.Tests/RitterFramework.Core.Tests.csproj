@@ -20,7 +20,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\RitterFramework.Core\RitterFramework.Core.csproj" />
-      <ProjectReference Include="..\..\src\MLFramework\MLFramework.csproj" />
+      <ProjectReference Include="..\..\src\Autograd\Autograd.csproj" />
     </ItemGroup>
 
 </Project>
